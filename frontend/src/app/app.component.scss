@@ -1,0 +1,36 @@
+.app-header {
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0.85rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .brand {
+    font-weight: 600;
+    text-decoration: none;
+    color: #111827;
+
+    &:hover {
+      color: #2563eb;
+    }
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+}
+
+.app-main {
+  min-height: calc(100vh - 56px);
+  background: #fafafa;
+}

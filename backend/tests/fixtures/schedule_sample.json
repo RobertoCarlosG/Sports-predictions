@@ -1,0 +1,38 @@
+{
+  "dates": [
+    {
+      "date": "2024-06-15",
+      "games": [
+        {
+          "gamePk": 717715,
+          "season": "2024",
+          "gameDate": "2024-06-15T23:10:00Z",
+          "status": {
+            "abstractGameState": "Preview",
+            "detailedState": "Scheduled"
+          },
+          "teams": {
+            "home": {
+              "team": {
+                "id": 147,
+                "name": "New York Yankees",
+                "abbreviation": "NYY"
+              }
+            },
+            "away": {
+              "team": {
+                "id": 139,
+                "name": "Tampa Bay Rays",
+                "abbreviation": "TB"
+              }
+            }
+          },
+          "venue": {
+            "id": 3289,
+            "name": "Yankee Stadium"
+          }
+        }
+      ]
+    }
+  ]
+}

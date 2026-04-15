@@ -1,0 +1,92 @@
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.back {
+  margin-bottom: 1rem;
+
+  a {
+    color: #2563eb;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.head {
+  margin-bottom: 1.5rem;
+
+  h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.35rem;
+    font-weight: 600;
+  }
+
+  .meta {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.95rem;
+  }
+}
+
+.card {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  button {
+    margin-top: 0.75rem;
+    padding: 0.45rem 0.9rem;
+    cursor: pointer;
+  }
+}
+
+.predict {
+  background: #f8fafc;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 1rem;
+  margin: 0;
+
+  dt {
+    color: #6b7280;
+    font-size: 0.9rem;
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 500;
+  }
+}
+
+.json {
+  max-height: 280px;
+  overflow: auto;
+  font-size: 0.75rem;
+  background: #111827;
+  color: #e5e7eb;
+  padding: 0.75rem;
+  border-radius: 6px;
+}
+
+.muted {
+  color: #6b7280;
+}
+
+.error {
+  color: #b91c1c;
+}

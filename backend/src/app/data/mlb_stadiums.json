@@ -1,0 +1,22 @@
+{
+  "default": {"lat": 39.8283, "lon": -98.5795, "name": "US center (fallback)"},
+  "venues": {
+    "3289": {"lat": 40.8296, "lon": -73.9265, "name": "Yankee Stadium"},
+    "4": {"lat": 42.3467, "lon": -71.0972, "name": "Fenway Park"},
+    "17": {"lat": 41.9484, "lon": -87.6553, "name": "Wrigley Field"},
+    "1": {"lat": 33.8003, "lon": -117.8827, "name": "Angel Stadium"},
+    "680": {"lat": 25.7781, "lon": -80.2197, "name": "loanDepot park"},
+    "2394": {"lat": 39.0979, "lon": -84.5064, "name": "Great American Ball Park"},
+    "2392": {"lat": 33.4453, "lon": -112.0667, "name": "Chase Field"},
+    "2680": {"lat": 40.4469, "lon": -80.0058, "name": "PNC Park"},
+    "4169": {"lat": 27.7682, "lon": -82.6534, "name": "Tropicana Field"},
+    "4705": {"lat": 43.6414, "lon": -79.3894, "name": "Rogers Centre"},
+    "5289": {"lat": 32.7512, "lon": -97.0828, "name": "Globe Life Field"},
+    "2": {"lat": 33.8904, "lon": -84.4679, "name": "Truist Park"},
+    "3": {"lat": 39.2839, "lon": -76.6217, "name": "Oriole Park"},
+    "10": {"lat": 29.7573, "lon": -95.3554, "name": "Minute Maid Park"},
+    "3309": {"lat": 47.5914, "lon": -122.3325, "name": "T-Mobile Park"},
+    "15": {"lat": 37.7516, "lon": -122.2005, "name": "Oakland Coliseum"},
+    "2391": {"lat": 32.7073, "lon": -117.1566, "name": "Petco Park"}
+  }
+}

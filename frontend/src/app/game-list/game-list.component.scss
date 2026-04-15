@@ -1,0 +1,83 @@
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+  }
+
+  input[type='date'] {
+    padding: 0.35rem 0.5rem;
+  }
+
+  button {
+    padding: 0.45rem 0.9rem;
+    cursor: pointer;
+  }
+}
+
+.game-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  li {
+    border-bottom: 1px solid var(--border, #e5e7eb);
+  }
+}
+
+.game-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 0.25rem;
+  text-decoration: none;
+  color: inherit;
+
+  &:hover {
+    background: var(--hover, #f9fafb);
+  }
+
+  .at {
+    opacity: 0.6;
+  }
+
+  .status {
+    margin-left: auto;
+    font-size: 0.9rem;
+    opacity: 0.85;
+  }
+}
+
+.muted {
+  color: #6b7280;
+}
+
+.error {
+  color: #b91c1c;
+}

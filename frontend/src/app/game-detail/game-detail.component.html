@@ -1,0 +1,83 @@
+<div class="page">
+  <nav class="back"><a routerLink="/">← Volver al listado</a></nav>
+
+  @if (loading) {
+    <p class="muted">Cargando partido…</p>
+  }
+  @if (error) {
+    <p class="error">{{ error }}</p>
+  }
+
+  @if (game) {
+    <header class="head">
+      <h1>
+        {{ game.away_team.name }} &#64; {{ game.home_team.name }}
+      </h1>
+      <p class="meta">
+        {{ game.game_date }} · {{ game.status }}
+        @if (game.venue_name) {
+          · {{ game.venue_name }}
+        }
+      </p>
+    </header>
+
+    <section class="card">
+      <h2>Clima del estadio</h2>
+      @if (game.weather) {
+        <dl class="grid">
+          <dt>Temperatura (°C)</dt>
+          <dd>{{ game.weather['temperature_c'] ?? '—' }}</dd>
+          <dt>Humedad (%)</dt>
+          <dd>{{ game.weather['humidity_pct'] ?? '—' }}</dd>
+          <dt>Viento (m/s)</dt>
+          <dd>{{ game.weather['wind_speed_mps'] ?? '—' }}</dd>
+          <dt>Altitud (m)</dt>
+          <dd>{{ game.weather['elevation_m'] ?? '—' }}</dd>
+        </dl>
+      } @else {
+        <p class="muted">Sin datos de clima. Actualiza desde Open-Meteo.</p>
+      }
+      <button type="button" (click)="refreshWeather()" [disabled]="weatherLoading">
+        {{ weatherLoading ? 'Actualizando…' : 'Actualizar clima' }}
+      </button>
+    </section>
+
+    <section class="card predict">
+      <h2>Predicción del modelo</h2>
+      @if (predLoading) {
+        <p class="muted">Calculando…</p>
+      } @else if (prediction) {
+        <dl class="grid">
+          <dt>Prob. victoria local</dt>
+          <dd>{{ (prediction.home_win_probability * 100) | number: '1.0-1' }}%</dd>
+          <dt>Runs totales (est.)</dt>
+          <dd>{{ prediction.total_runs_estimate | number: '1.1-1' }}</dd>
+          <dt>Línea O/U sugerida</dt>
+          <dd>{{ prediction.over_under_line | number: '1.1-1' }}</dd>
+          <dt>Modelo</dt>
+          <dd>{{ prediction.model_version }}</dd>
+        </dl>
+      } @else {
+        <p class="muted">No hay predicción disponible.</p>
+      }
+    </section>
+
+    <section class="card">
+      <h2>Alineaciones / feed</h2>
+      @if (game.lineups) {
+        <pre class="json">{{ game.lineups | json }}</pre>
+      } @else {
+        <p class="muted">Sin datos de alineación (sincroniza desde el listado).</p>
+      }
+    </section>
+
+    <section class="card">
+      <h2>Boxscore (resumen)</h2>
+      @if (game.boxscore) {
+        <pre class="json">{{ game.boxscore | json }}</pre>
+      } @else {
+        <p class="muted">Sin boxscore todavía.</p>
+      }
+    </section>
+  }
+</div>

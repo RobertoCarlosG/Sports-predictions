@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+.env
+.env.*
+!.env.example
+*.egg-info/
+.eggs/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+docs/
+
+# Node / Angular
+node_modules/
+frontend/.angular/
+frontend/dist/
+npm-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ML artifacts (large)
+backend/**/*.joblib
+backend/**/models/*.pkl
+!backend/src/app/ml/.gitkeep
+
+# Local docs symlink / parent (if copied)
+# Keep project docs/ tracked in Sports-Predictions/docs

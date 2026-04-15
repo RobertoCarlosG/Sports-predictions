@@ -1,0 +1,36 @@
+<div class="page">
+  <header class="toolbar">
+    <h1>MLB — Partidos</h1>
+    <div class="controls">
+      <label>
+        Fecha
+        <input type="date" [(ngModel)]="dateStr" (change)="load()" />
+      </label>
+      <button type="button" (click)="load()" [disabled]="loading">Actualizar</button>
+    </div>
+  </header>
+
+  @if (loading) {
+    <p class="muted">Cargando…</p>
+  }
+  @if (error) {
+    <p class="error">{{ error }}</p>
+  }
+
+  <ul class="game-list">
+    @for (g of games; track g.game_pk) {
+      <li>
+        <a [routerLink]="['/games', g.game_pk]" class="game-row">
+          <span class="away">{{ g.away_team.abbreviation }}</span>
+          <span class="at">&#64;</span>
+          <span class="home">{{ g.home_team.abbreviation }}</span>
+          <span class="status">{{ g.status }}</span>
+        </a>
+      </li>
+    }
+  </ul>
+
+  @if (!loading && games.length === 0 && !error) {
+    <p class="muted">No hay partidos para esta fecha (o el backend no está disponible).</p>
+  }
+</div>
