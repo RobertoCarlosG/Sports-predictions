@@ -1,4 +1,18 @@
+from typing import Self
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def normalize_async_database_url(url: str) -> str:
+    """Render/Supabase suelen dar postgresql://… sin driver; async requiere +asyncpg."""
+    if url.startswith("postgresql+asyncpg://"):
+        return url
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+asyncpg://", 1)
+    return url
 
 
 class Settings(BaseSettings):
@@ -12,6 +26,11 @@ class Settings(BaseSettings):
     mlb_stadiums_path: str = "src/app/data/mlb_stadiums.json"
     # Path to trained model (joblib); empty = package default under app/ml/artifacts/
     ml_model_path: str = ""
+
+    @model_validator(mode="after")
+    def _normalize_database_url(self) -> Self:
+        self.database_url = normalize_async_database_url(self.database_url)
+        return self
 
 
 settings = Settings()
