@@ -1,0 +1,83 @@
+================================================================================
+  ESQUEMA DE BASE DE DATOS — Sports Predictions (MLB)
+  Referencia humana: tablas, columnas y relaciones
+  Los cambios de esquema se versionan como nuevos archivos .sql en esta carpeta
+  y se aplican manualmente en el SQL Editor de Supabase (o vía psql).
+================================================================================
+
+TABLA: teams
+------------
+  Equipos MLB (identificador = team id de la API oficial).
+
+  id                 INTEGER NOT NULL  PK  id de equipo en statsapi.mlb.com
+  name               VARCHAR(128)        nombre completo
+  abbreviation       VARCHAR(8)         abreviatura (ej. NYY)
+  venue_id           INTEGER NULL       id de estadio en MLB (si aplica)
+  venue_name         VARCHAR(256) NULL  nombre del estadio (referencia)
+
+
+TABLA: games
+------------
+  Partidos; clave primaria = game_pk de MLB.
+
+  game_pk            INTEGER NOT NULL  PK  id de partido en MLB
+  season             VARCHAR(8)        temporada (ej. 2024)
+  game_date          DATE              fecha local del partido
+  game_datetime_utc  TIMESTAMPTZ NULL  inicio en UTC (si viene de la API)
+  status             VARCHAR(64)       estado (Scheduled, Final, etc.)
+  home_team_id       INTEGER NOT NULL  FK → teams.id (local)
+  away_team_id       INTEGER NOT NULL  FK → teams.id (visitante)
+  venue_id           INTEGER NULL
+  venue_name         VARCHAR(256) NULL
+  lineups_json       JSONB NULL        feed en vivo / alineaciones (payload)
+  boxscore_json      JSONB NULL        boxscore completo (payload)
+
+
+TABLA: game_weather
+-------------------
+  Condiciones en el estadio por partido (una fila por game_pk).
+
+  id                 SERIAL  PK
+  game_pk            INTEGER NOT NULL  UNIQUE FK → games.game_pk (ON DELETE CASCADE)
+  temperature_c      DOUBLE PRECISION NULL
+  humidity_pct       DOUBLE PRECISION NULL
+  wind_speed_mps     DOUBLE PRECISION NULL
+  pressure_mbar      DOUBLE PRECISION NULL
+  elevation_m        DOUBLE PRECISION NULL
+  raw_json           JSONB NULL         respuesta agregada (Open-Meteo, etc.)
+  fetched_at         TIMESTAMPTZ NOT NULL  momento de la última actualización
+
+
+TABLA: game_feature_snapshots
+------------------------------
+  Features para entrenamiento / inferencia ML (una fila por partido cuando exista).
+
+  id                   SERIAL  PK
+  game_pk              INTEGER NOT NULL  UNIQUE FK → games.game_pk (ON DELETE CASCADE)
+  home_wins_roll       DOUBLE PRECISION NULL
+  away_wins_roll       DOUBLE PRECISION NULL
+  home_runs_avg_roll   DOUBLE PRECISION NULL
+  away_runs_avg_roll   DOUBLE PRECISION NULL
+  temperature_c        DOUBLE PRECISION NULL
+  humidity_pct         DOUBLE PRECISION NULL
+  wind_speed_mps       DOUBLE PRECISION NULL
+  elevation_m          DOUBLE PRECISION NULL
+  home_win             INTEGER NULL        etiqueta: 1 local, 0 visitante
+  total_runs           DOUBLE PRECISION NULL
+  feature_vector_json  TEXT NULL         serialización opcional del vector
+
+
+RELACIONES (resumen)
+--------------------
+  games.home_team_id  → teams.id
+  games.away_team_id  → teams.id
+  game_weather.game_pk       → games.game_pk
+  game_feature_snapshots.game_pk → games.game_pk
+
+
+ARCHIVOS SQL
+------------
+  001_initial_schema.sql   Creación inicial de las cuatro tablas (IF NOT EXISTS).
+  (futuros) 002_*.sql      Alteraciones; documentar aquí y en comentarios del .sql
+
+================================================================================

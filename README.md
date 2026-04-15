@@ -23,7 +23,7 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 cp .env.example .env
 # Set DATABASE_URL to a local PostgreSQL instance, then:
-alembic upgrade head
+# Crear tablas: ejecuta `backend/sql/001_initial_schema.sql` en Supabase (ver `backend/sql/README.md`)
 uvicorn app.main:app --reload --app-dir src
 ```
 
@@ -37,7 +37,17 @@ npm install
 npm start
 ```
 
-App: `http://localhost:4200` — configure `src/environments/environment.development.ts` with the backend URL.
+App: `http://localhost:4200` — el API por defecto está en `src/environments/environment.ts` (`apiUrl`).
+
+### VS Code (depurar / ejecutar)
+
+Abre la carpeta **`Predictions`** (la que contiene `Sports-Predictions/`) como workspace. En **Run and Debug** elige:
+
+- **Sports-Predictions: Backend (FastAPI)** — requiere extensión **Python** + `debugpy`, y el archivo `backend/.env` (copia desde `.env.example`).
+- **Sports-Predictions: Frontend (Angular)** — `npm run start` en `frontend/`.
+- **Sports-Predictions: Backend + Frontend** — arranca ambos a la vez.
+
+Si abres solo `Sports-Predictions/` como raíz del workspace, las rutas de `../.vscode/launch.json` no coinciden: usa los comandos de arriba o duplica/ajusta el `launch.json` local.
 
 ## Deployment
 

@@ -1,4 +1,4 @@
-"""Import models for Alembic metadata."""
+"""ORM models (DDL versionado en backend/sql/, no Alembic)."""
 
 from app.models import mlb
 
