@@ -51,7 +51,7 @@ Si abres solo `Sports-Predictions/` como raíz del workspace, las rutas de `../.
 
 ## Deployment
 
-See [docs/deploy.md](docs/deploy.md) for Supabase (PostgreSQL), Render (API), and Vercel (Angular). Frontend build output: `frontend/dist/frontend/browser`.
+See [docs/deploy.md](docs/deploy.md) for Supabase (PostgreSQL), Render (API), and Vercel (Angular). Tras `ng build`, el front estático queda en `frontend/dist/browser` (Vercel debe usar esa carpeta como **Output Directory**).
 
 ## Conventions
 
