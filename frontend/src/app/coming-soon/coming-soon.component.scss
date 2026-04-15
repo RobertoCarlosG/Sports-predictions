@@ -1,0 +1,15 @@
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.soon-card {
+  padding-bottom: 0.5rem;
+}
+
+mat-card-content p {
+  margin: 0 0 0.5rem;
+  line-height: 1.5;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.7));
+}

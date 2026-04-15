@@ -1,6 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import type { GameDetail, PredictionOut } from '../models/game';
 import { GamesApiService } from '../services/games-api.service';
@@ -8,7 +14,16 @@ import { GamesApiService } from '../services/games-api.service';
 @Component({
   selector: 'app-game-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [
+    CommonModule,
+    RouterLink,
+    MatButtonModule,
+    MatCardModule,
+    MatDividerModule,
+    MatExpansionModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+  ],
   templateUrl: './game-detail.component.html',
   styleUrl: './game-detail.component.scss',
 })

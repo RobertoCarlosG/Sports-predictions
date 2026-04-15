@@ -1,83 +1,142 @@
 <div class="page">
-  <nav class="back"><a routerLink="/">← Volver al listado</a></nav>
+  <nav class="back-row">
+    <a mat-button color="primary" routerLink="/mlb">
+      <mat-icon>arrow_back</mat-icon>
+      Volver al listado MLB
+    </a>
+  </nav>
 
   @if (loading) {
-    <p class="muted">Cargando partido…</p>
+    <div class="loading-block">
+      <mat-spinner diameter="40" />
+      <p>Cargando partido…</p>
+    </div>
   }
+
   @if (error) {
-    <p class="error">{{ error }}</p>
+    <mat-card class="error-card" appearance="outlined">
+      <mat-card-content>{{ error }}</mat-card-content>
+    </mat-card>
   }
 
   @if (game) {
-    <header class="head">
-      <h1>
-        {{ game.away_team.name }} &#64; {{ game.home_team.name }}
-      </h1>
-      <p class="meta">
-        {{ game.game_date }} · {{ game.status }}
-        @if (game.venue_name) {
-          · {{ game.venue_name }}
+    <mat-card class="head-card" appearance="outlined">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="head-avatar">sports_baseball</mat-icon>
+        <mat-card-title>
+          {{ game.away_team.name }} &#64; {{ game.home_team.name }}
+        </mat-card-title>
+        <mat-card-subtitle>
+          {{ game.game_date }} · {{ game.status }}
+          @if (game.venue_name) {
+            · {{ game.venue_name }}
+          }
+        </mat-card-subtitle>
+      </mat-card-header>
+    </mat-card>
+
+    <div class="grid-cards">
+      <mat-card appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Clima del estadio</mat-card-title>
+          <mat-card-subtitle>Open-Meteo (coordenadas del estadio)</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          @if (game.weather) {
+            <dl class="metrics">
+              <div>
+                <dt>Temperatura (°C)</dt>
+                <dd>{{ game.weather['temperature_c'] ?? '—' }}</dd>
+              </div>
+              <div>
+                <dt>Humedad (%)</dt>
+                <dd>{{ game.weather['humidity_pct'] ?? '—' }}</dd>
+              </div>
+              <div>
+                <dt>Viento (m/s)</dt>
+                <dd>{{ game.weather['wind_speed_mps'] ?? '—' }}</dd>
+              </div>
+              <div>
+                <dt>Altitud (m)</dt>
+                <dd>{{ game.weather['elevation_m'] ?? '—' }}</dd>
+              </div>
+            </dl>
+          } @else {
+            <p class="muted">Sin datos de clima. Actualiza desde Open-Meteo.</p>
+          }
+        </mat-card-content>
+        <mat-card-actions align="end">
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="refreshWeather()"
+            [disabled]="weatherLoading"
+          >
+            <mat-icon>{{ weatherLoading ? 'hourglass_empty' : 'wb_sunny' }}</mat-icon>
+            {{ weatherLoading ? 'Actualizando…' : 'Actualizar clima' }}
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <mat-card class="predict-card" appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Predicción del modelo</mat-card-title>
+          <mat-card-subtitle>Random Forest · features + clima</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          @if (predLoading) {
+            <div class="inline-loading">
+              <mat-spinner diameter="28" />
+              <span>Calculando…</span>
+            </div>
+          } @else if (prediction) {
+            <dl class="metrics predict-metrics">
+              <div>
+                <dt>Prob. victoria local</dt>
+                <dd>{{ (prediction.home_win_probability * 100) | number: '1.0-1' }}%</dd>
+              </div>
+              <div>
+                <dt>Runs totales (est.)</dt>
+                <dd>{{ prediction.total_runs_estimate | number: '1.1-1' }}</dd>
+              </div>
+              <div>
+                <dt>Línea O/U sugerida</dt>
+                <dd>{{ prediction.over_under_line | number: '1.1-1' }}</dd>
+              </div>
+              <div>
+                <dt>Modelo</dt>
+                <dd class="model-id">{{ prediction.model_version }}</dd>
+              </div>
+            </dl>
+          } @else {
+            <p class="muted">No hay predicción disponible.</p>
+          }
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <mat-accordion class="json-accordion" multi="true">
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Alineaciones / feed</mat-panel-title>
+        </mat-expansion-panel-header>
+        @if (game.lineups) {
+          <pre class="json-block">{{ game.lineups | json }}</pre>
+        } @else {
+          <p class="muted">Sin datos de alineación (sincroniza desde el listado).</p>
         }
-      </p>
-    </header>
-
-    <section class="card">
-      <h2>Clima del estadio</h2>
-      @if (game.weather) {
-        <dl class="grid">
-          <dt>Temperatura (°C)</dt>
-          <dd>{{ game.weather['temperature_c'] ?? '—' }}</dd>
-          <dt>Humedad (%)</dt>
-          <dd>{{ game.weather['humidity_pct'] ?? '—' }}</dd>
-          <dt>Viento (m/s)</dt>
-          <dd>{{ game.weather['wind_speed_mps'] ?? '—' }}</dd>
-          <dt>Altitud (m)</dt>
-          <dd>{{ game.weather['elevation_m'] ?? '—' }}</dd>
-        </dl>
-      } @else {
-        <p class="muted">Sin datos de clima. Actualiza desde Open-Meteo.</p>
-      }
-      <button type="button" (click)="refreshWeather()" [disabled]="weatherLoading">
-        {{ weatherLoading ? 'Actualizando…' : 'Actualizar clima' }}
-      </button>
-    </section>
-
-    <section class="card predict">
-      <h2>Predicción del modelo</h2>
-      @if (predLoading) {
-        <p class="muted">Calculando…</p>
-      } @else if (prediction) {
-        <dl class="grid">
-          <dt>Prob. victoria local</dt>
-          <dd>{{ (prediction.home_win_probability * 100) | number: '1.0-1' }}%</dd>
-          <dt>Runs totales (est.)</dt>
-          <dd>{{ prediction.total_runs_estimate | number: '1.1-1' }}</dd>
-          <dt>Línea O/U sugerida</dt>
-          <dd>{{ prediction.over_under_line | number: '1.1-1' }}</dd>
-          <dt>Modelo</dt>
-          <dd>{{ prediction.model_version }}</dd>
-        </dl>
-      } @else {
-        <p class="muted">No hay predicción disponible.</p>
-      }
-    </section>
-
-    <section class="card">
-      <h2>Alineaciones / feed</h2>
-      @if (game.lineups) {
-        <pre class="json">{{ game.lineups | json }}</pre>
-      } @else {
-        <p class="muted">Sin datos de alineación (sincroniza desde el listado).</p>
-      }
-    </section>
-
-    <section class="card">
-      <h2>Boxscore (resumen)</h2>
-      @if (game.boxscore) {
-        <pre class="json">{{ game.boxscore | json }}</pre>
-      } @else {
-        <p class="muted">Sin boxscore todavía.</p>
-      }
-    </section>
+      </mat-expansion-panel>
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>Boxscore (JSON)</mat-panel-title>
+        </mat-expansion-panel-header>
+        @if (game.boxscore) {
+          <pre class="json-block">{{ game.boxscore | json }}</pre>
+        } @else {
+          <p class="muted">Sin boxscore todavía.</p>
+        }
+      </mat-expansion-panel>
+    </mat-accordion>
   }
 </div>

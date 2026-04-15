@@ -1,36 +1,60 @@
 <div class="page">
-  <header class="toolbar">
-    <h1>MLB — Partidos</h1>
-    <div class="controls">
-      <label>
-        Fecha
-        <input type="date" [(ngModel)]="dateStr" (change)="load()" />
-      </label>
-      <button type="button" (click)="load()" [disabled]="loading">Actualizar</button>
+  <mat-card class="hero" appearance="outlined">
+    <mat-card-header>
+      <mat-card-title>MLB — Partidos</mat-card-title>
+      <mat-card-subtitle>Calendario oficial (statsapi.mlb.com). Elige fecha y sincroniza.</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content class="hero-filters">
+      <mat-form-field appearance="outline" class="date-field" subscriptSizing="dynamic">
+        <mat-label>Fecha</mat-label>
+        <input matInput type="date" [(ngModel)]="dateStr" (change)="load()" />
+        <mat-icon matSuffix>calendar_today</mat-icon>
+      </mat-form-field>
+      <button mat-flat-button color="primary" type="button" (click)="load()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+        Actualizar
+      </button>
+    </mat-card-content>
+  </mat-card>
+
+  @if (loading && games.length === 0) {
+    <div class="loading-block">
+      <mat-spinner diameter="40" />
+      <p>Cargando partidos…</p>
     </div>
-  </header>
-
-  @if (loading) {
-    <p class="muted">Cargando…</p>
   }
+
   @if (error) {
-    <p class="error">{{ error }}</p>
+    <mat-card class="error-card" appearance="outlined">
+      <mat-card-content>{{ error }}</mat-card-content>
+    </mat-card>
   }
 
-  <ul class="game-list">
-    @for (g of games; track g.game_pk) {
-      <li>
-        <a [routerLink]="['/games', g.game_pk]" class="game-row">
-          <span class="away">{{ g.away_team.abbreviation }}</span>
-          <span class="at">&#64;</span>
-          <span class="home">{{ g.home_team.abbreviation }}</span>
-          <span class="status">{{ g.status }}</span>
-        </a>
-      </li>
-    }
-  </ul>
-
-  @if (!loading && games.length === 0 && !error) {
-    <p class="muted">No hay partidos para esta fecha (o el backend no está disponible).</p>
+  @if (!loading || games.length > 0) {
+    <mat-card appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>Partidos</mat-card-title>
+        <mat-card-subtitle>{{ games.length }} encuentro(s) · {{ dateStr }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-divider />
+      <mat-nav-list>
+        @for (g of games; track g.game_pk) {
+          <a mat-list-item [routerLink]="['/mlb/game', g.game_pk]">
+            <mat-icon matListItemIcon>sports_baseball</mat-icon>
+            <span matListItemTitle class="match-title">
+              <span class="team away">{{ g.away_team.abbreviation }}</span>
+              <span class="at">&#64;</span>
+              <span class="team home">{{ g.home_team.abbreviation }}</span>
+            </span>
+            <span matListItemLine>{{ g.status }}</span>
+          </a>
+        }
+      </mat-nav-list>
+      @if (!loading && games.length === 0 && !error) {
+        <mat-card-content class="empty-hint">
+          No hay partidos para esta fecha (o el backend no está disponible).
+        </mat-card-content>
+      }
+    </mat-card>
   }
 </div>
