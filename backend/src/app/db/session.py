@@ -1,29 +1,29 @@
 from collections.abc import AsyncIterator
 from uuid import uuid4
 
-from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
+from app.db.db_url import build_asyncpg_engine_params
 
-# PgBouncer (Supabase/Render) en modo transacción + asyncpg:
-# - URL: prepared_statement_cache_size=0 (caché del dialecto SQLAlchemy).
-# - connect_args: statement_cache_size=0 + nombres únicos (doc asyncpg dialect).
-# - NullPool: no reutilizar conexiones en el proceso; si no, el pool devuelve un
-#   socket que PgBouncer puede enrutar a otro backend y los prepared statements
-#   invalidan (__asyncpg_stmt_*__). Ver docs SQLAlchemy "Prepared Statement Name with PGBouncer".
-_engine_url = make_url(settings.database_url).update_query_dict(
-    {"prepared_statement_cache_size": "0"},
+# Objetivo producción: Supabase TRANSACTION POOLER (free tier: direct 5432 no es IPv4-compatible).
+# PgBouncer + asyncpg: prepared_statement_cache_size=0, statement_cache_size=0, nombres únicos, NullPool.
+# DATABASE_FORCE_IPV4 solo si tu URL directa tiene IPv4 (add-on); con pooler no hace falta.
+_engine_url, _ipv4_extras = build_asyncpg_engine_params(
+    settings.database_url,
+    force_ipv4=settings.database_force_ipv4,
 )
+_connect_args: dict = {
+    "statement_cache_size": 0,
+    "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4().hex}__",
+    **_ipv4_extras,
+}
 engine = create_async_engine(
     _engine_url,
     echo=False,
     poolclass=NullPool,
-    connect_args={
-        "statement_cache_size": 0,
-        "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4().hex}__",
-    },
+    connect_args=_connect_args,
 )
 
 async_session_factory = async_sessionmaker(

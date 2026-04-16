@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     ml_model_path: str = ""
     # Exponer trazas/mensajes técnicos en JSON de error (solo desarrollo)
     debug: bool = False
+    # Solo si DATABASE_URL apunta a un host con IPv4 (p. ej. add-on IPv4 Supabase). Free tier + direct 5432
+    # suele ser IPv6-only: ahí usa transaction pooler; esta opción no arregla la falta de IPv4 en directo.
+    database_force_ipv4: bool = False
 
     @model_validator(mode="after")
     def _normalize_database_url(self) -> Self:
