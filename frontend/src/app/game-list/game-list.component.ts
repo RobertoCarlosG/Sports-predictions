@@ -11,8 +11,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
-import type { GameDetail } from '../models/game';
+import type { GameDetail, TeamOut } from '../models/game';
 import { GamesApiService } from '../services/games-api.service';
+import { mlbDisplayAbbrev } from '../utils/mlb-team-abbr';
 import { MatExpansionModule } from '@angular/material/expansion';
 
 import { parseApiError, type ApiErrorView } from '../utils/api-error';
@@ -64,5 +65,9 @@ export class GameListComponent implements OnInit {
         this.errorView = parseApiError(e);
       },
     });
+  }
+
+  abbr(t: TeamOut): string {
+    return mlbDisplayAbbrev(t);
   }
 }

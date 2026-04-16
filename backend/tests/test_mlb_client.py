@@ -37,3 +37,8 @@ def test_team_abbreviation_unknown() -> None:
 def test_team_abbr_map_overrides_bad_placeholder() -> None:
     assert team_abbr_for_display(147, "HOME", "New York Yankees") == "NYY"
     assert team_abbr_for_display(110, "AWAY", "Baltimore Orioles") == "BAL"
+
+
+def test_team_abbr_float_id_matches_int_key() -> None:
+    """110.0 in {110: 'BAL'} es False en Python; el lookup debe normalizar."""
+    assert team_abbr_for_display(110.0, "HOME", "") == "BAL"

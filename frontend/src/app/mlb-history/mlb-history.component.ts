@@ -16,6 +16,7 @@ import { MatSelectModule } from '@angular/material/select';
 import type { TeamOut } from '../models/game';
 import type { HistoryGame } from '../models/history';
 import { GamesApiService } from '../services/games-api.service';
+import { mlbDisplayAbbrev } from '../utils/mlb-team-abbr';
 import { parseApiError, type ApiErrorView } from '../utils/api-error';
 
 @Component({
@@ -136,5 +137,9 @@ export class MlbHistoryComponent implements OnInit {
       return `${a} – ${h}`;
     }
     return '—';
+  }
+
+  abbr(team: TeamOut): string {
+    return mlbDisplayAbbrev(team);
   }
 }

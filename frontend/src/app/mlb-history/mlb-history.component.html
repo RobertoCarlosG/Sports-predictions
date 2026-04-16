@@ -108,9 +108,9 @@
         <a mat-list-item [routerLink]="['/mlb/game', g.game_pk]">
           <mat-icon matListItemIcon>sports_baseball</mat-icon>
           <span matListItemTitle class="match-title">
-            <span class="team away">{{ g.away_team.abbreviation }}</span>
+            <span class="team away">{{ abbr(g.away_team) }}</span>
             <span class="at">&#64;</span>
-            <span class="team home">{{ g.home_team.abbreviation }}</span>
+            <span class="team home">{{ abbr(g.home_team) }}</span>
             <span class="score">{{ scoreLine(g) }}</span>
           </span>
           <span matListItemLine>{{ g.game_date }} · {{ g.status }}</span>

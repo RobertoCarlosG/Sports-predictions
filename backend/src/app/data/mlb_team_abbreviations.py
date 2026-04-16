@@ -3,6 +3,27 @@
 Sirve de respaldo cuando el schedule sin hydrate o filas viejas en BD tienen HOME/AWAY."""
 from __future__ import annotations
 
+from typing import Any
+
+
+def mlb_team_id_to_int(team_id: Any) -> int | None:
+    """Normaliza id de equipo para lookup: SQLAlchemy/JSON a veces devuelven float (110.0) y
+    `110.0 in {110: ...}` es False en Python."""
+    if team_id is None or type(team_id) is bool:
+        return None
+    if isinstance(team_id, int):
+        return team_id
+    if isinstance(team_id, float):
+        if team_id != team_id:  # NaN
+            return None
+        r = round(team_id)
+        return r if abs(team_id - r) < 1e-9 else None
+    try:
+        return int(str(team_id).strip())
+    except (TypeError, ValueError):
+        return None
+
+
 # IDs activos MLB; valores = campo `abbreviation` del API de equipos.
 MLB_TEAM_ID_TO_ABBR: dict[int, str] = {
     108: "LAA",
@@ -38,10 +59,11 @@ MLB_TEAM_ID_TO_ABBR: dict[int, str] = {
 }
 
 
-def team_abbr_for_display(team_id: int, parsed_abbr: str, full_name: str = "") -> str:
+def team_abbr_for_display(team_id: Any, parsed_abbr: str, full_name: str = "") -> str:
     """Abreviatura para persistir y mostrar: mapa por id, luego API, luego apodo del nombre."""
-    if team_id in MLB_TEAM_ID_TO_ABBR:
-        return MLB_TEAM_ID_TO_ABBR[team_id]
+    tid = mlb_team_id_to_int(team_id)
+    if tid is not None and tid in MLB_TEAM_ID_TO_ABBR:
+        return MLB_TEAM_ID_TO_ABBR[tid]
     p = (parsed_abbr or "").strip().upper()
     if p and p not in {"HOME", "AWAY"}:
         return p[:8]
