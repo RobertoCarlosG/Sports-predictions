@@ -11,7 +11,8 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.mlb import Game, GameWeather
-from app.schemas.games import GameDetailResponse, TeamOut
+from app.schemas.games import GameDetailResponse
+from app.schemas.team_display import team_out_from_model
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_sync import sync_games_for_date
 from app.services.weather_open_meteo import upsert_weather_for_game
@@ -35,8 +36,8 @@ def _game_to_detail(game: Game, weather: GameWeather | None) -> GameDetailRespon
         season=game.season,
         game_date=game.game_date,
         status=game.status,
-        home_team=TeamOut.model_validate(game.home_team),
-        away_team=TeamOut.model_validate(game.away_team),
+        home_team=team_out_from_model(game.home_team),
+        away_team=team_out_from_model(game.away_team),
         home_score=game.home_score,
         away_score=game.away_score,
         venue_id=game.venue_id,

@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.mlb import Game, Team
 from app.schemas.games import TeamOut
+from app.schemas.team_display import team_out_from_model
 from app.schemas.history import HistoryGameOut, MlbSyncRangeBody, MlbSyncRangeResponse
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_history import compute_winner_team_id, query_mlb_history
@@ -25,7 +26,7 @@ _MAX_SYNC_DAYS = 370
 @router.get("/teams", response_model=list[TeamOut])
 async def list_mlb_teams(session: Annotated[AsyncSession, Depends(get_db)]) -> list[TeamOut]:
     result = await session.execute(select(Team).order_by(Team.abbreviation))
-    return [TeamOut.model_validate(t) for t in result.scalars().all()]
+    return [team_out_from_model(t) for t in result.scalars().all()]
 
 
 @router.get("/history/games", response_model=list[HistoryGameOut])
@@ -67,8 +68,8 @@ async def list_mlb_history(
                 season=g.season,
                 game_date=g.game_date,
                 status=g.status,
-                home_team=TeamOut.model_validate(g.home_team),
-                away_team=TeamOut.model_validate(g.away_team),
+                home_team=team_out_from_model(g.home_team),
+                away_team=team_out_from_model(g.away_team),
                 home_score=hs,
                 away_score=aws,
                 winner_team_id=compute_winner_team_id(hid, aid, hs, aws),
@@ -127,8 +128,8 @@ async def get_mlb_history_one(
         season=g.season,
         game_date=g.game_date,
         status=g.status,
-        home_team=TeamOut.model_validate(g.home_team),
-        away_team=TeamOut.model_validate(g.away_team),
+        home_team=team_out_from_model(g.home_team),
+        away_team=team_out_from_model(g.away_team),
         home_score=g.home_score,
         away_score=g.away_score,
         winner_team_id=compute_winner_team_id(

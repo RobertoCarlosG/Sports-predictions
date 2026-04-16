@@ -7,7 +7,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.mlb import Game, Team
+from app.data.mlb_team_abbreviations import team_abbr_for_display
 from app.services.mlb_client import MlbApiClient, parse_schedule_games
+
+
+def _scores_from_boxscore(box: dict[str, Any]) -> tuple[int | None, int | None]:
+    try:
+        hr = int(box["teams"]["home"]["teamStats"]["batting"]["runs"])
+        ar = int(box["teams"]["away"]["teamStats"]["batting"]["runs"])
+        return hr, ar
+    except (KeyError, TypeError, ValueError):
+        return None, None
 
 
 async def upsert_team(
@@ -56,8 +66,12 @@ async def sync_games_for_date(
             continue
         home_name = str(item.get("home_team_name") or "Home")
         away_name = str(item.get("away_team_name") or "Away")
-        h_abbr = str(item.get("home_team_abbr") or home_name[:8]).upper()[:8]
-        a_abbr = str(item.get("away_team_abbr") or away_name[:8]).upper()[:8]
+        h_abbr = team_abbr_for_display(
+            int(hid), str(item.get("home_team_abbr") or ""), home_name
+        )
+        a_abbr = team_abbr_for_display(
+            int(aid), str(item.get("away_team_abbr") or ""), away_name
+        )
         await upsert_team(
             session,
             int(hid),
@@ -104,6 +118,12 @@ async def sync_games_for_date(
         aws = item.get("away_score")
         home_score = int(hs) if hs is not None else None
         away_score = int(aws) if aws is not None else None
+        if (home_score is None or away_score is None) and boxscore_json:
+            bh, ba = _scores_from_boxscore(boxscore_json)
+            if home_score is None:
+                home_score = bh
+            if away_score is None:
+                away_score = ba
 
         if game is None:
             game = Game(

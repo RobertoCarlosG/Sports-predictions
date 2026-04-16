@@ -4,6 +4,8 @@ from typing import Any, cast
 
 import httpx
 
+from app.data.mlb_team_abbreviations import team_abbr_for_display
+
 
 class MlbApiClient:
     """Async client for statsapi.mlb.com (no API key)."""
@@ -46,8 +48,7 @@ def _optional_int_score(value: Any) -> int | None:
         return None
 
 
-def team_abbreviation(team: dict[str, Any]) -> str:
-    """Short label for UI; with hydrate=team the API includes `abbreviation` (e.g. STL)."""
+def _raw_abbr_from_team_payload(team: dict[str, Any]) -> str:
     abbr = team.get("abbreviation")
     if isinstance(abbr, str) and abbr.strip():
         return abbr.strip().upper()[:8]
@@ -63,6 +64,17 @@ def team_abbreviation(team: dict[str, Any]) -> str:
         if parts:
             return parts[-1][:8].upper()
     return "?"
+
+
+def team_abbreviation(team: dict[str, Any]) -> str:
+    """Short label for UI; hydrate=team + mapa por id evita HOME/AWAY con PgBouncer/API parcial."""
+    tid = team.get("id")
+    try:
+        t_id = int(tid) if tid is not None else 0
+    except (TypeError, ValueError):
+        t_id = 0
+    raw = _raw_abbr_from_team_payload(team)
+    return team_abbr_for_display(t_id, raw, str(team.get("name", "")))
 
 
 def parse_schedule_games(payload: dict[str, Any]) -> list[dict[str, Any]]:

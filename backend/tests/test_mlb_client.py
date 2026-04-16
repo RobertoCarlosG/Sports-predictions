@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from app.data.mlb_team_abbreviations import team_abbr_for_display
 from app.services.mlb_client import parse_schedule_games, team_abbreviation
 
 
@@ -31,3 +32,8 @@ def test_team_abbreviation_fallback_nickname_from_name() -> None:
 
 def test_team_abbreviation_unknown() -> None:
     assert team_abbreviation({}) == "?"
+
+
+def test_team_abbr_map_overrides_bad_placeholder() -> None:
+    assert team_abbr_for_display(147, "HOME", "New York Yankees") == "NYY"
+    assert team_abbr_for_display(110, "AWAY", "Baltimore Orioles") == "BAL"
