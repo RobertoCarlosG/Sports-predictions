@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import datetime as dt
+from typing import Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.games import TeamOut
 
@@ -29,6 +30,20 @@ class MlbSyncRangeBody(BaseModel):
         default=False,
         description="Si true, descarga boxscore y live feed por día (más lento).",
     )
+
+    @model_validator(mode="after")
+    def _sync_range_current_year_only(self) -> Self:
+        today = dt.date.today()
+        y = today.year
+        if self.start_date.year != y or self.end_date.year != y:
+            raise ValueError("Las fechas deben estar en el año civil en curso.")
+        if self.start_date < dt.date(y, 1, 1) or self.end_date > dt.date(y, 12, 31):
+            raise ValueError("Rango inválido para el año en curso.")
+        if self.end_date < self.start_date:
+            raise ValueError("La fecha fin debe ser >= la fecha inicio.")
+        if self.start_date > today or self.end_date > today:
+            raise ValueError("No se permiten fechas futuras.")
+        return self
 
 
 class MlbSyncRangeResponse(BaseModel):

@@ -8,7 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.mlb import Game, Team
 from app.data.mlb_team_abbreviations import team_abbr_for_display
-from app.services.mlb_client import MlbApiClient, parse_schedule_games
+from app.services.mlb_client import (
+    MlbApiClient,
+    parse_schedule_games,
+    scores_from_linescore_payload,
+)
 
 
 def _scores_from_boxscore(box: dict[str, Any]) -> tuple[int | None, int | None]:
@@ -124,6 +128,16 @@ async def sync_games_for_date(
                 home_score = bh
             if away_score is None:
                 away_score = ba
+        if home_score is None or away_score is None:
+            try:
+                ls = await client.linescore(item["game_pk"])
+                lh, la = scores_from_linescore_payload(ls)
+                if home_score is None:
+                    home_score = lh
+                if away_score is None:
+                    away_score = la
+            except Exception:
+                pass
 
         if game is None:
             game = Game(

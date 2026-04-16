@@ -17,6 +17,7 @@ import type { TeamOut } from '../models/game';
 import type { HistoryGame } from '../models/history';
 import { GamesApiService } from '../services/games-api.service';
 import { mlbDisplayAbbrev } from '../utils/mlb-team-abbr';
+import { currentSeasonDateBounds } from '../utils/date-bounds';
 import { parseApiError, type ApiErrorView } from '../utils/api-error';
 
 @Component({
@@ -63,10 +64,16 @@ export class MlbHistoryComponent implements OnInit {
   syncLoading = false;
   syncMessage: string | null = null;
 
+  /** min/max para inputs type=date (año en curso, fin ≤ hoy). */
+  readonly seasonBounds = currentSeasonDateBounds();
+
   ngOnInit(): void {
-    const y = new Date().getFullYear();
+    const { year: y, min, max } = this.seasonBounds;
+    this.season = String(y);
     this.syncStart = `${y}-03-01`;
-    this.syncEnd = `${y}-10-15`;
+    this.syncEnd = max;
+    this.dateFrom = min;
+    this.dateTo = max;
     this.api.listMlbTeams().subscribe({
       next: (t) => {
         this.teams = t;
@@ -109,6 +116,11 @@ export class MlbHistoryComponent implements OnInit {
       this.syncMessage = 'Indica inicio y fin del rango.';
       return;
     }
+    const { min, max } = this.seasonBounds;
+    if (this.syncStart < min || this.syncEnd > max || this.syncStart > this.syncEnd) {
+      this.syncMessage = `Usa solo fechas del ${min} al ${max} (año en curso, sin futuro).`;
+      return;
+    }
     this.syncLoading = true;
     this.syncMessage = null;
     this.api
@@ -131,10 +143,8 @@ export class MlbHistoryComponent implements OnInit {
   }
 
   scoreLine(g: HistoryGame): string {
-    const a = g.away_score;
-    const h = g.home_score;
-    if (a != null && h != null) {
-      return `${a} – ${h}`;
+    if (typeof g.away_score === 'number' && typeof g.home_score === 'number') {
+      return `${g.away_score} – ${g.home_score}`;
     }
     return '—';
   }

@@ -86,6 +86,10 @@ export class GameDetailComponent implements OnInit {
     });
   }
 
+  hasScore(g: GameDetail): boolean {
+    return typeof g.away_score === 'number' && typeof g.home_score === 'number';
+  }
+
   refreshWeather(): void {
     if (!this.game) {
       return;

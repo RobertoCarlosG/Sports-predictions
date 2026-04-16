@@ -14,6 +14,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import type { GameDetail, TeamOut } from '../models/game';
 import { GamesApiService } from '../services/games-api.service';
 import { mlbDisplayAbbrev } from '../utils/mlb-team-abbr';
+import { currentSeasonDateBounds } from '../utils/date-bounds';
 import { MatExpansionModule } from '@angular/material/expansion';
 
 import { parseApiError, type ApiErrorView } from '../utils/api-error';
@@ -46,13 +47,21 @@ export class GameListComponent implements OnInit {
   loading = false;
   errorView: ApiErrorView | null = null;
 
+  readonly seasonBounds = currentSeasonDateBounds();
+
   ngOnInit(): void {
-    const d = new Date();
-    this.dateStr = d.toISOString().slice(0, 10);
+    this.dateStr = this.seasonBounds.max;
     void this.load();
   }
 
+  hasScore(g: GameDetail): boolean {
+    return typeof g.away_score === 'number' && typeof g.home_score === 'number';
+  }
+
   load(): void {
+    if (this.dateStr < this.seasonBounds.min || this.dateStr > this.seasonBounds.max) {
+      this.dateStr = this.seasonBounds.max;
+    }
     this.loading = true;
     this.errorView = null;
     this.api.listGames(this.dateStr, true).subscribe({

@@ -38,6 +38,20 @@ class MlbApiClient:
         r.raise_for_status()
         return cast(dict[str, Any], r.json())
 
+    async def linescore(self, game_pk: int) -> dict[str, Any]:
+        """Ligero; incluye runs por equipo (útil si el schedule no trae score y no hay boxscore)."""
+        r = await self._client.get(f"{self._base}/game/{game_pk}/linescore")
+        r.raise_for_status()
+        return cast(dict[str, Any], r.json())
+
+
+def scores_from_linescore_payload(payload: dict[str, Any]) -> tuple[int | None, int | None]:
+    """Runs totales: home_score, away_score."""
+    teams = payload.get("teams") or {}
+    hs = _optional_int_score((teams.get("home") or {}).get("runs"))
+    aws = _optional_int_score((teams.get("away") or {}).get("runs"))
+    return hs, aws
+
 
 def _optional_int_score(value: Any) -> int | None:
     if value is None:

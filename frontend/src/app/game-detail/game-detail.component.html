@@ -52,7 +52,7 @@
         <mat-icon mat-card-avatar class="head-avatar">sports_baseball</mat-icon>
         <mat-card-title>
           {{ game.away_team.name }} &#64; {{ game.home_team.name }}
-          @if (game.away_score != null && game.home_score != null) {
+          @if (hasScore(game)) {
             <span class="head-score">{{ game.away_score }} – {{ game.home_score }}</span>
           }
         </mat-card-title>

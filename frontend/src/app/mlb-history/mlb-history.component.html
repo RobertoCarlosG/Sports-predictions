@@ -29,11 +29,25 @@
       </mat-form-field>
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Desde</mat-label>
-        <input matInput type="date" [(ngModel)]="dateFrom" name="dateFrom" />
+        <input
+          matInput
+          type="date"
+          [(ngModel)]="dateFrom"
+          name="dateFrom"
+          [min]="seasonBounds.min"
+          [max]="seasonBounds.max"
+        />
       </mat-form-field>
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Hasta</mat-label>
-        <input matInput type="date" [(ngModel)]="dateTo" name="dateTo" />
+        <input
+          matInput
+          type="date"
+          [(ngModel)]="dateTo"
+          name="dateTo"
+          [min]="seasonBounds.min"
+          [max]="seasonBounds.max"
+        />
       </mat-form-field>
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Límite</mat-label>
@@ -54,18 +68,32 @@
     <mat-card-header>
       <mat-card-title>Rellenar temporada (sincronizar rango)</mat-card-title>
       <mat-card-subtitle>
-        Llama al calendario MLB día a día y guarda marcadores. Sin detalles es más rápido; activa boxscore solo si lo
-        necesitas.
+        Solo año en curso; la fecha fin no puede ser futura. Tras el schedule se pide linescore para rellenar runs si
+        faltan. Opcional: boxscore/live (más lento).
       </mat-card-subtitle>
     </mat-card-header>
     <mat-card-content class="sync-row">
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Inicio</mat-label>
-        <input matInput type="date" [(ngModel)]="syncStart" name="syncStart" />
+        <input
+          matInput
+          type="date"
+          [(ngModel)]="syncStart"
+          name="syncStart"
+          [min]="seasonBounds.min"
+          [max]="seasonBounds.max"
+        />
       </mat-form-field>
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Fin</mat-label>
-        <input matInput type="date" [(ngModel)]="syncEnd" name="syncEnd" />
+        <input
+          matInput
+          type="date"
+          [(ngModel)]="syncEnd"
+          name="syncEnd"
+          [min]="seasonBounds.min"
+          [max]="seasonBounds.max"
+        />
       </mat-form-field>
       <mat-checkbox [(ngModel)]="syncFetchDetails" name="syncFetchDetails">Incluir boxscore / live</mat-checkbox>
       <button mat-stroked-button type="button" (click)="runSyncRange()" [disabled]="syncLoading">

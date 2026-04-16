@@ -11,14 +11,14 @@
 .hero-filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  padding-top: 0.5rem !important;
+  align-items: flex-end;
+  gap: 1.25rem 1.5rem;
+  padding-top: 0.75rem !important;
 }
 
 .date-field {
-  min-width: 200px;
-  margin-bottom: -1.25em;
+  min-width: 220px;
+  margin-bottom: 0;
 }
 
 .loading-block {

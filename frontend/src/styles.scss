@@ -1,11 +1,27 @@
 @use '@angular/material' as mat;
 
+// Tono rojo apagado / burdeos (referencia tipo casa de apuestas), sin rojo puro chillón.
 html {
   @include mat.theme(
     (
-      color: mat.$azure-palette,
+      color: mat.$rose-palette,
       typography: Roboto,
       density: 0,
+    )
+  );
+}
+
+html {
+  @include mat.theme-overrides(
+    (
+      primary: #8f343c,
+      on-primary: #ffffff,
+      primary-container: #ffd9dc,
+      on-primary-container: #3e050f,
+      secondary: #5c3f41,
+      on-secondary: #ffffff,
+      surface: #fff8f7,
+      surface-container-low: #f4edec,
     )
   );
 }
@@ -17,10 +33,25 @@ html {
 body {
   margin: 0;
   font-family: Roboto, 'Helvetica Neue', sans-serif;
+  line-height: 1.45;
 }
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* Espacio entre label y control (Material outline). */
+.mat-mdc-form-field .mat-mdc-text-field-wrapper {
+  padding-bottom: 0.25rem;
+}
+
+.mat-mdc-form-field-subscript-wrapper {
+  margin-top: 0.35rem;
+}
+
+/* Listas y tarjetas: un poco más de aire */
+.mat-mdc-list-item {
+  min-height: 56px;
 }
