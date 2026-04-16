@@ -28,6 +28,19 @@ class MlbApiClient:
         r.raise_for_status()
         return cast(dict[str, Any], r.json())
 
+    async def schedule_for_game(self, game_pk: int, sport_id: int = 1) -> dict[str, Any]:
+        """Schedule filtrado por un solo `gamePk` (útil para sync puntual sin iterar el día)."""
+        r = await self._client.get(
+            f"{self._base}/schedule",
+            params={
+                "sportId": sport_id,
+                "gamePk": game_pk,
+                "hydrate": "team",
+            },
+        )
+        r.raise_for_status()
+        return cast(dict[str, Any], r.json())
+
     async def boxscore(self, game_pk: int) -> dict[str, Any]:
         r = await self._client.get(f"{self._base}/game/{game_pk}/boxscore")
         r.raise_for_status()

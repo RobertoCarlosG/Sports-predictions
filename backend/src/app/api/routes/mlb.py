@@ -11,16 +11,24 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.mlb import Game, Team
-from app.schemas.games import TeamOut
+from app.schemas.games import GameDetailResponse, TeamOut
 from app.schemas.team_display import team_out_from_model
-from app.schemas.history import HistoryGameOut, MlbSyncRangeBody, MlbSyncRangeResponse
+from app.schemas.history import (
+    HistoryGameOut,
+    MlbSyncGameBody,
+    MlbSyncRangeBody,
+    MlbSyncRangeResponse,
+)
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_history import compute_winner_team_id, query_mlb_history
-from app.services.mlb_sync import sync_games_for_date
+from app.services.mlb_sync import sync_games_for_date, sync_single_game
+from app.api.routes.games import game_detail_response
 
 router = APIRouter(prefix="/mlb", tags=["mlb"])
 
 _MAX_SYNC_DAYS = 370
+# Evita timeouts del proxy (p. ej. Render) al procesar muchos días en una sola petición.
+_MAX_SYNC_DAYS_PER_REQUEST = 7
 
 
 @router.get("/teams", response_model=list[TeamOut])
@@ -92,6 +100,14 @@ async def sync_mlb_date_range(
             status_code=400,
             detail=f"Range too large (max {_MAX_SYNC_DAYS} days)",
         )
+    if delta > _MAX_SYNC_DAYS_PER_REQUEST:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Sync at most {_MAX_SYNC_DAYS_PER_REQUEST} calendar days per request "
+                "(split the range or use single-game sync)."
+            ),
+        )
     client = MlbApiClient(settings.mlb_api_base_url, request.app.state.http_client)
     d = body.start_date
     while d <= body.end_date:
@@ -107,6 +123,39 @@ async def sync_mlb_date_range(
         end_date=body.end_date,
         days_synced=delta,
     )
+
+
+@router.post("/games/{game_pk}/sync", response_model=GameDetailResponse)
+async def sync_mlb_single_game(
+    game_pk: int,
+    body: MlbSyncGameBody,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> GameDetailResponse:
+    client = MlbApiClient(settings.mlb_api_base_url, request.app.state.http_client)
+    game = await sync_single_game(
+        session,
+        client,
+        game_pk,
+        fetch_details=body.fetch_details,
+    )
+    if game is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Game not found in MLB schedule for this game_pk",
+        )
+    result = await session.execute(
+        select(Game)
+        .where(Game.game_pk == game_pk)
+        .options(
+            selectinload(Game.home_team),
+            selectinload(Game.away_team),
+            selectinload(Game.weather),
+        )
+    )
+    row = result.scalar_one_or_none()
+    assert row is not None
+    return game_detail_response(row, row.weather)
 
 
 @router.get("/history/games/{game_pk}", response_model=HistoryGameOut)

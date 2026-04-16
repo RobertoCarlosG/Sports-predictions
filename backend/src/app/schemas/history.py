@@ -50,3 +50,10 @@ class MlbSyncRangeResponse(BaseModel):
     start_date: dt.date
     end_date: dt.date
     days_synced: int
+
+
+class MlbSyncGameBody(BaseModel):
+    fetch_details: bool = Field(
+        default=True,
+        description="Si true, descarga boxscore y live feed (más lento).",
+    )

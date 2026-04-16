@@ -63,6 +63,20 @@
           }
         </mat-card-subtitle>
       </mat-card-header>
+      <mat-card-actions align="end">
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="syncFromMlb()"
+          [disabled]="syncMlbLoading"
+        >
+          <mat-icon>{{ syncMlbLoading ? 'hourglass_empty' : 'cloud_sync' }}</mat-icon>
+          {{ syncMlbLoading ? 'Sincronizando…' : 'Actualizar desde MLB' }}
+        </button>
+      </mat-card-actions>
+      @if (syncError) {
+        <mat-card-content class="sync-err">{{ syncError }}</mat-card-content>
+      }
     </mat-card>
 
     <div class="grid-cards">
@@ -154,17 +168,21 @@
         @if (game.lineups) {
           <pre class="json-block">{{ game.lineups | json }}</pre>
         } @else {
-          <p class="muted">Sin datos de alineación (sincroniza desde el listado).</p>
+          <p class="muted">
+            Sin alineaciones guardadas. En partidos ya finalizados la API «live» no aplica; hace falta
+            <strong>boxscore</strong>. Sincroniza el rango con «Incluir boxscore / live», o pulsa
+            <strong>Actualizar desde MLB</strong> arriba para volver a descargar datos de este partido.
+          </p>
         }
       </mat-expansion-panel>
       <mat-expansion-panel>
         <mat-expansion-panel-header>
-          <mat-panel-title>Boxscore (JSON)</mat-panel-title>
+          <mat-panel-title>Boxscore</mat-panel-title>
         </mat-expansion-panel-header>
         @if (game.boxscore) {
-          <pre class="json-block">{{ game.boxscore | json }}</pre>
+          <app-boxscore-view [boxscore]="game.boxscore" />
         } @else {
-          <p class="muted">Sin boxscore todavía.</p>
+          <p class="muted">Sin boxscore todavía. Usa «Actualizar desde MLB» arriba.</p>
         }
       </mat-expansion-panel>
     </mat-accordion>

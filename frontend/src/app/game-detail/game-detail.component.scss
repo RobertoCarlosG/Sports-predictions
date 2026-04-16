@@ -61,6 +61,12 @@
   margin-bottom: 1.25rem;
 }
 
+.sync-err {
+  padding-top: 0;
+  color: var(--mat-sys-error, #b3261e);
+  font-size: 0.9rem;
+}
+
 .head-avatar {
   background: var(--mat-sys-primary-container, #e3f2fd);
   color: var(--mat-sys-on-primary-container, #0d47a1);

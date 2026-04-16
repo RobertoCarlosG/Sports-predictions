@@ -8,6 +8,7 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
+import { BoxscoreViewComponent } from '../boxscore-view/boxscore-view.component';
 import type { GameDetail, PredictionOut } from '../models/game';
 import { GamesApiService } from '../services/games-api.service';
 import { parseApiError, type ApiErrorView } from '../utils/api-error';
@@ -24,6 +25,7 @@ import { parseApiError, type ApiErrorView } from '../utils/api-error';
     MatExpansionModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    BoxscoreViewComponent,
   ],
   templateUrl: './game-detail.component.html',
   styleUrl: './game-detail.component.scss',
@@ -37,6 +39,8 @@ export class GameDetailComponent implements OnInit {
   loading = false;
   predLoading = false;
   weatherLoading = false;
+  syncMlbLoading = false;
+  syncError: string | null = null;
   errorView: ApiErrorView | null = null;
 
   ngOnInit(): void {
@@ -103,6 +107,25 @@ export class GameDetailComponent implements OnInit {
       },
       error: () => {
         this.weatherLoading = false;
+      },
+    });
+  }
+
+  syncFromMlb(): void {
+    if (!this.game) {
+      return;
+    }
+    this.syncMlbLoading = true;
+    this.syncError = null;
+    this.api.syncMlbGame(this.game.game_pk, true).subscribe({
+      next: (g) => {
+        this.game = g;
+        this.syncMlbLoading = false;
+        this.loadPrediction(g.game_pk);
+      },
+      error: (e: unknown) => {
+        this.syncMlbLoading = false;
+        this.syncError = parseApiError(e).summary;
       },
     });
   }

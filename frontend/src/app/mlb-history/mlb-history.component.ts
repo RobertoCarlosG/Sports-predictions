@@ -17,7 +17,7 @@ import type { TeamOut } from '../models/game';
 import type { HistoryGame } from '../models/history';
 import { GamesApiService } from '../services/games-api.service';
 import { mlbDisplayAbbrev } from '../utils/mlb-team-abbr';
-import { currentSeasonDateBounds } from '../utils/date-bounds';
+import { currentSeasonDateBounds, eachIsoDateInRange } from '../utils/date-bounds';
 import { parseApiError, type ApiErrorView } from '../utils/api-error';
 
 @Component({
@@ -121,25 +121,38 @@ export class MlbHistoryComponent implements OnInit {
       this.syncMessage = `Usa solo fechas del ${min} al ${max} (año en curso, sin futuro).`;
       return;
     }
+    const days = eachIsoDateInRange(this.syncStart, this.syncEnd);
+    if (days.length === 0) {
+      this.syncMessage = 'Rango de fechas vacío.';
+      return;
+    }
     this.syncLoading = true;
     this.syncMessage = null;
-    this.api
-      .syncMlbRange({
-        start_date: this.syncStart,
-        end_date: this.syncEnd,
-        fetch_details: this.syncFetchDetails,
-      })
-      .subscribe({
-        next: (r) => {
-          this.syncLoading = false;
-          this.syncMessage = `Sincronizados ${r.days_synced} día(s). Vuelve a cargar el historial.`;
-          void this.load();
-        },
-        error: (e: unknown) => {
-          this.syncLoading = false;
-          this.syncMessage = parseApiError(e).summary;
-        },
-      });
+    const fetchDetails = this.syncFetchDetails;
+    const runDay = (i: number): void => {
+      if (i >= days.length) {
+        this.syncLoading = false;
+        this.syncMessage = `Listo: ${days.length} día(s) sincronizado(s).`;
+        void this.load();
+        return;
+      }
+      const d = days[i];
+      this.syncMessage = `Sincronizando ${d} (${i + 1}/${days.length})…`;
+      this.api
+        .syncMlbRange({
+          start_date: d,
+          end_date: d,
+          fetch_details: fetchDetails,
+        })
+        .subscribe({
+          next: () => runDay(i + 1),
+          error: (e: unknown) => {
+            this.syncLoading = false;
+            this.syncMessage = parseApiError(e).summary;
+          },
+        });
+    };
+    runDay(0);
   }
 
   scoreLine(g: HistoryGame): string {

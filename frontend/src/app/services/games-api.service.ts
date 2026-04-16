@@ -80,4 +80,11 @@ export class GamesApiService {
   }): Observable<MlbSyncRangeResult> {
     return this.http.post<MlbSyncRangeResult>(`${this.base}/mlb/sync-range`, body);
   }
+
+  /** Sincroniza un solo partido desde MLB (schedule + linescore; opcional boxscore/live). */
+  syncMlbGame(gamePk: number, fetchDetails = true): Observable<GameDetail> {
+    return this.http.post<GameDetail>(`${this.base}/mlb/games/${gamePk}/sync`, {
+      fetch_details: fetchDetails,
+    });
+  }
 }

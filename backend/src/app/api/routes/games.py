@@ -20,7 +20,7 @@ from app.services.weather_open_meteo import upsert_weather_for_game
 router = APIRouter()
 
 
-def _game_to_detail(game: Game, weather: GameWeather | None) -> GameDetailResponse:
+def game_detail_response(game: Game, weather: GameWeather | None) -> GameDetailResponse:
     w_dict: dict[str, object] | None = None
     if weather is not None:
         w_dict = {
@@ -77,7 +77,7 @@ async def list_games(
     rows = result.scalars().unique().all()
     out: list[GameDetailResponse] = []
     for g in rows:
-        out.append(_game_to_detail(g, g.weather))
+        out.append(game_detail_response(g, g.weather))
     return out
 
 
@@ -98,7 +98,7 @@ async def get_game(
     game = result.scalar_one_or_none()
     if game is None:
         raise HTTPException(status_code=404, detail="Game not found")
-    return _game_to_detail(game, game.weather)
+    return game_detail_response(game, game.weather)
 
 
 @router.post("/games/{game_pk}/weather", response_model=GameDetailResponse)
@@ -138,4 +138,4 @@ async def refresh_weather(
     )
     game = result.scalar_one_or_none()
     assert game is not None
-    return _game_to_detail(game, game.weather)
+    return game_detail_response(game, game.weather)

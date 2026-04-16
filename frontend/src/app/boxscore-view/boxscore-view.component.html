@@ -1,0 +1,52 @@
+@if (summary; as s) {
+  <div class="box-wrap">
+    <table class="lines-table">
+      <thead>
+        <tr>
+          <th scope="col" class="team-col">Equipo</th>
+          @for (row of s.innings; track row.inning) {
+            <th scope="col" class="inn">{{ row.inning }}</th>
+          }
+          <th scope="col" class="tot">R</th>
+          <th scope="col" class="tot">H</th>
+          <th scope="col" class="tot">E</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (s.away) {
+          <tr>
+            <th scope="row" class="team-name">{{ s.away.label }}</th>
+            @for (row of s.innings; track row.inning) {
+              <td>{{ cell(row.awayRuns) }}</td>
+            }
+            <td class="tot">{{ cell(s.away.runs) }}</td>
+            <td class="tot">{{ cell(s.away.hits) }}</td>
+            <td class="tot">{{ cell(s.away.errors) }}</td>
+          </tr>
+        }
+        @if (s.home) {
+          <tr>
+            <th scope="row" class="team-name">{{ s.home.label }}</th>
+            @for (row of s.innings; track row.inning) {
+              <td>{{ cell(row.homeRuns) }}</td>
+            }
+            <td class="tot">{{ cell(s.home.runs) }}</td>
+            <td class="tot">{{ cell(s.home.hits) }}</td>
+            <td class="tot">{{ cell(s.home.errors) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else if (boxscore) {
+  <p class="muted">No se pudo extraer un resumen del boxscore (estructura inesperada).</p>
+}
+
+@if (boxscore) {
+  <mat-expansion-panel class="raw-panel">
+    <mat-expansion-panel-header>
+      <mat-panel-title>JSON completo</mat-panel-title>
+    </mat-expansion-panel-header>
+    <pre class="json-block">{{ boxscore | json }}</pre>
+  </mat-expansion-panel>
+}
