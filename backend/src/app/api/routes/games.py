@@ -37,6 +37,8 @@ def _game_to_detail(game: Game, weather: GameWeather | None) -> GameDetailRespon
         status=game.status,
         home_team=TeamOut.model_validate(game.home_team),
         away_team=TeamOut.model_validate(game.away_team),
+        home_score=game.home_score,
+        away_score=game.away_score,
         venue_id=game.venue_id,
         venue_name=game.venue_name,
         lineups=game.lineups_json,

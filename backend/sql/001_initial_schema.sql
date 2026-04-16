@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS games (
     away_team_id INTEGER NOT NULL,
     venue_id INTEGER,
     venue_name VARCHAR(256),
+    home_score INTEGER,
+    away_score INTEGER,
     lineups_json JSONB,
     boxscore_json JSONB,
     CONSTRAINT fk_games_home_team FOREIGN KEY (home_team_id) REFERENCES teams (id),

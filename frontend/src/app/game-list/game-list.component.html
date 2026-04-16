@@ -73,6 +73,9 @@
               <span class="team away">{{ g.away_team.abbreviation }}</span>
               <span class="at">&#64;</span>
               <span class="team home">{{ g.home_team.abbreviation }}</span>
+              @if (g.away_score != null && g.home_score != null) {
+                <span class="score">{{ g.away_score }} – {{ g.home_score }}</span>
+              }
             </span>
             <span matListItemLine>{{ g.status }}</span>
           </a>

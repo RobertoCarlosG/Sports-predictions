@@ -37,6 +37,15 @@ class MlbApiClient:
         return cast(dict[str, Any], r.json())
 
 
+def _optional_int_score(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def team_abbreviation(team: dict[str, Any]) -> str:
     """Short label for UI; with hydrate=team the API includes `abbreviation` (e.g. STL)."""
     abbr = team.get("abbreviation")
@@ -62,12 +71,16 @@ def parse_schedule_games(payload: dict[str, Any]) -> list[dict[str, Any]]:
     for day in payload.get("dates", []):
         for g in day.get("games", []):
             teams = g.get("teams", {})
-            home = teams.get("home", {}).get("team", {})
-            away = teams.get("away", {}).get("team", {})
+            home_side = teams.get("home", {})
+            away_side = teams.get("away", {})
+            home = home_side.get("team", {})
+            away = away_side.get("team", {})
             venue = g.get("venue", {})
             status = g.get("status", {})
             detailed = status.get("detailedState") or status.get("abstractGameState") or "Unknown"
             game_date = day.get("date") or (g.get("gameDate") or "")[:10]
+            hs = _optional_int_score(home_side.get("score"))
+            aws = _optional_int_score(away_side.get("score"))
             out.append(
                 {
                     "game_pk": g["gamePk"],
@@ -81,6 +94,8 @@ def parse_schedule_games(payload: dict[str, Any]) -> list[dict[str, Any]]:
                     "away_team_id": away.get("id"),
                     "away_team_name": away.get("name", ""),
                     "away_team_abbr": team_abbreviation(away),
+                    "home_score": hs,
+                    "away_score": aws,
                     "venue_id": venue.get("id"),
                     "venue_name": venue.get("name"),
                 }

@@ -16,6 +16,8 @@ def test_parse_schedule_games_extracts_game() -> None:
     assert g["away_team_id"] == 139
     assert g["home_team_abbr"] == "NYY"
     assert g["away_team_abbr"] == "TB"
+    assert g["home_score"] == 5
+    assert g["away_score"] == 3
     assert g["venue_id"] == 3289
 
 

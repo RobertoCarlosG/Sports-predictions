@@ -13,6 +13,7 @@
           },
           "teams": {
             "home": {
+              "score": 5,
               "team": {
                 "id": 147,
                 "name": "New York Yankees",
@@ -20,6 +21,7 @@
               }
             },
             "away": {
+              "score": 3,
               "team": {
                 "id": 139,
                 "name": "Tampa Bay Rays",

@@ -34,6 +34,8 @@ class Game(Base):
     away_team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), nullable=False)
     venue_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     venue_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    home_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    away_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     lineups_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     boxscore_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 

@@ -11,6 +11,8 @@ export interface GameDetail {
   status: string;
   home_team: TeamOut;
   away_team: TeamOut;
+  home_score?: number | null;
+  away_score?: number | null;
   venue_id: number | null;
   venue_name: string | null;
   lineups: Record<string, unknown> | null;

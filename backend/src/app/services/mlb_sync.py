@@ -100,6 +100,11 @@ async def sync_games_for_date(
             except Exception:
                 lineups_json = None
 
+        hs = item.get("home_score")
+        aws = item.get("away_score")
+        home_score = int(hs) if hs is not None else None
+        away_score = int(aws) if aws is not None else None
+
         if game is None:
             game = Game(
                 game_pk=item["game_pk"],
@@ -111,6 +116,8 @@ async def sync_games_for_date(
                 away_team_id=int(aid),
                 venue_id=item.get("venue_id"),
                 venue_name=item.get("venue_name"),
+                home_score=home_score,
+                away_score=away_score,
                 lineups_json=lineups_json,
                 boxscore_json=boxscore_json,
             )
@@ -120,6 +127,10 @@ async def sync_games_for_date(
             game.game_datetime_utc = gdt or game.game_datetime_utc
             game.venue_id = item.get("venue_id")
             game.venue_name = item.get("venue_name")
+            if home_score is not None:
+                game.home_score = home_score
+            if away_score is not None:
+                game.away_score = away_score
             if lineups_json is not None:
                 game.lineups_json = lineups_json
             if boxscore_json is not None:

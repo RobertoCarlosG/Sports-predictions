@@ -1,0 +1,126 @@
+<div class="page">
+  <nav class="back-row">
+    <a mat-button color="primary" routerLink="/mlb">
+      <mat-icon>arrow_back</mat-icon>
+      Partidos por fecha
+    </a>
+  </nav>
+
+  <mat-card class="hero" appearance="outlined">
+    <mat-card-header>
+      <mat-card-title>Historial MLB</mat-card-title>
+      <mat-card-subtitle>
+        Resultados guardados en la base (tras sincronizar por fecha o por rango). Filtra por temporada o equipo.
+      </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content class="filters">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Temporada</mat-label>
+        <input matInput type="text" [(ngModel)]="season" name="season" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Equipo</mat-label>
+        <mat-select [(ngModel)]="teamId" name="teamId">
+          <mat-option value="">Todos</mat-option>
+          @for (t of teams; track t.id) {
+            <mat-option [value]="t.id">{{ t.abbreviation }} — {{ t.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Desde</mat-label>
+        <input matInput type="date" [(ngModel)]="dateFrom" name="dateFrom" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Hasta</mat-label>
+        <input matInput type="date" [(ngModel)]="dateTo" name="dateTo" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Límite</mat-label>
+        <input matInput type="number" min="1" max="500" [(ngModel)]="limit" name="limit" />
+      </mat-form-field>
+      <div class="checks">
+        <mat-checkbox [(ngModel)]="onlyFinal" name="onlyFinal">Solo finalizados</mat-checkbox>
+        <mat-checkbox [(ngModel)]="onlyWithScores" name="onlyWithScores">Con marcador</mat-checkbox>
+      </div>
+      <button mat-flat-button color="primary" type="button" (click)="load()" [disabled]="loading">
+        <mat-icon>filter_list</mat-icon>
+        Aplicar filtros
+      </button>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="sync-card" appearance="outlined">
+    <mat-card-header>
+      <mat-card-title>Rellenar temporada (sincronizar rango)</mat-card-title>
+      <mat-card-subtitle>
+        Llama al calendario MLB día a día y guarda marcadores. Sin detalles es más rápido; activa boxscore solo si lo
+        necesitas.
+      </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content class="sync-row">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Inicio</mat-label>
+        <input matInput type="date" [(ngModel)]="syncStart" name="syncStart" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Fin</mat-label>
+        <input matInput type="date" [(ngModel)]="syncEnd" name="syncEnd" />
+      </mat-form-field>
+      <mat-checkbox [(ngModel)]="syncFetchDetails" name="syncFetchDetails">Incluir boxscore / live</mat-checkbox>
+      <button mat-stroked-button type="button" (click)="runSyncRange()" [disabled]="syncLoading">
+        @if (syncLoading) {
+          <mat-spinner diameter="20" />
+        } @else {
+          <mat-icon>cloud_download</mat-icon>
+        }
+        Sincronizar rango
+      </button>
+    </mat-card-content>
+    @if (syncMessage) {
+      <mat-card-content class="sync-msg">{{ syncMessage }}</mat-card-content>
+    }
+  </mat-card>
+
+  @if (loading && games.length === 0) {
+    <div class="loading-block">
+      <mat-spinner diameter="40" />
+      <p>Cargando historial…</p>
+    </div>
+  }
+
+  @if (errorView) {
+    <mat-card class="error-panel" appearance="outlined">
+      <mat-card-content>
+        <p class="error-summary">{{ errorView.summary }}</p>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <mat-card appearance="outlined">
+    <mat-card-header>
+      <mat-card-title>Partidos</mat-card-title>
+      <mat-card-subtitle>{{ games.length }} resultado(s)</mat-card-subtitle>
+    </mat-card-header>
+    <mat-divider />
+    <mat-nav-list>
+      @for (g of games; track g.game_pk) {
+        <a mat-list-item [routerLink]="['/mlb/game', g.game_pk]">
+          <mat-icon matListItemIcon>sports_baseball</mat-icon>
+          <span matListItemTitle class="match-title">
+            <span class="team away">{{ g.away_team.abbreviation }}</span>
+            <span class="at">&#64;</span>
+            <span class="team home">{{ g.home_team.abbreviation }}</span>
+            <span class="score">{{ scoreLine(g) }}</span>
+          </span>
+          <span matListItemLine>{{ g.game_date }} · {{ g.status }}</span>
+        </a>
+      }
+    </mat-nav-list>
+    @if (!loading && games.length === 0 && !errorView) {
+      <mat-card-content class="empty-hint">
+        No hay partidos con estos filtros. Sincroniza fechas desde el listado o usa «Sincronizar rango» arriba.
+      </mat-card-content>
+    }
+  </mat-card>
+</div>

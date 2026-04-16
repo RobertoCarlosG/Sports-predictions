@@ -23,6 +23,8 @@ class GameSummaryResponse(BaseModel):
     status: str
     home_team: TeamOut
     away_team: TeamOut
+    home_score: int | None = None
+    away_score: int | None = None
 
 
 class GameDetailResponse(GameSummaryResponse):

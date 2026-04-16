@@ -98,6 +98,11 @@
   font-weight: 400;
 }
 
+.score {
+  font-weight: 600;
+  margin-left: 0.35rem;
+}
+
 .empty-hint {
   color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
   font-size: 0.95rem;
