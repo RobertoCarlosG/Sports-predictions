@@ -30,10 +30,53 @@
   color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
 }
 
-.error-card {
-  margin-bottom: 1rem;
+.error-panel {
+  margin-bottom: 1.25rem;
   border-color: var(--mat-sys-error, #b3261e) !important;
+}
+
+.error-avatar {
+  background: var(--mat-sys-error-container, #fce8e6);
   color: var(--mat-sys-error, #b3261e);
+  padding: 8px;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
+}
+
+.error-summary {
+  margin: 0 0 1rem;
+  line-height: 1.5;
+}
+
+.hints-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+}
+
+.hints-list {
+  margin: 0 0 0.5rem 1.1rem;
+  padding: 0;
+  line-height: 1.45;
+}
+
+.technical-panel {
+  margin-top: 0.5rem;
+}
+
+.technical-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  max-height: 200px;
+  overflow: auto;
 }
 
 .match-title {

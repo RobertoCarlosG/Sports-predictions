@@ -13,9 +13,15 @@ class MlbApiClient:
         self._client = client
 
     async def schedule(self, date_str: str, sport_id: int = 1) -> dict[str, Any]:
+        # Without hydrate=team, each team is only id/name/link; hydrate=team adds
+        # abbreviation, teamName, fileCode, etc. (MLB Stats API schedule).
         r = await self._client.get(
             f"{self._base}/schedule",
-            params={"sportId": sport_id, "date": date_str},
+            params={
+                "sportId": sport_id,
+                "date": date_str,
+                "hydrate": "team",
+            },
         )
         r.raise_for_status()
         return cast(dict[str, Any], r.json())
@@ -29,6 +35,25 @@ class MlbApiClient:
         r = await self._client.get(f"{self._base}/game/{game_pk}/feed/live")
         r.raise_for_status()
         return cast(dict[str, Any], r.json())
+
+
+def team_abbreviation(team: dict[str, Any]) -> str:
+    """Short label for UI; with hydrate=team the API includes `abbreviation` (e.g. STL)."""
+    abbr = team.get("abbreviation")
+    if isinstance(abbr, str) and abbr.strip():
+        return abbr.strip().upper()[:8]
+    fc = team.get("fileCode")
+    if isinstance(fc, str) and fc.strip():
+        return fc.strip().upper()[:8]
+    tn = team.get("teamName")
+    if isinstance(tn, str) and tn.strip():
+        return tn.strip()[:8].upper()
+    name = team.get("name")
+    if isinstance(name, str) and name.strip():
+        parts = name.split()
+        if parts:
+            return parts[-1][:8].upper()
+    return "?"
 
 
 def parse_schedule_games(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -52,10 +77,10 @@ def parse_schedule_games(payload: dict[str, Any]) -> list[dict[str, Any]]:
                     "status": detailed,
                     "home_team_id": home.get("id"),
                     "home_team_name": home.get("name", ""),
-                    "home_team_abbr": home.get("abbreviation") or home.get("teamName", "HOME")[:8],
+                    "home_team_abbr": team_abbreviation(home),
                     "away_team_id": away.get("id"),
                     "away_team_name": away.get("name", ""),
-                    "away_team_abbr": away.get("abbreviation") or away.get("teamName", "AWAY")[:8],
+                    "away_team_abbr": team_abbreviation(away),
                     "venue_id": venue.get("id"),
                     "venue_name": venue.get("name"),
                 }

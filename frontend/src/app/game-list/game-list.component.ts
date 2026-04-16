@@ -13,6 +13,9 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import type { GameDetail } from '../models/game';
 import { GamesApiService } from '../services/games-api.service';
+import { MatExpansionModule } from '@angular/material/expansion';
+
+import { parseApiError, type ApiErrorView } from '../utils/api-error';
 
 @Component({
   selector: 'app-game-list',
@@ -24,6 +27,7 @@ import { GamesApiService } from '../services/games-api.service';
     MatButtonModule,
     MatCardModule,
     MatDividerModule,
+    MatExpansionModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -39,7 +43,7 @@ export class GameListComponent implements OnInit {
   dateStr = '';
   games: GameDetail[] = [];
   loading = false;
-  error: string | null = null;
+  errorView: ApiErrorView | null = null;
 
   ngOnInit(): void {
     const d = new Date();
@@ -49,7 +53,7 @@ export class GameListComponent implements OnInit {
 
   load(): void {
     this.loading = true;
-    this.error = null;
+    this.errorView = null;
     this.api.listGames(this.dateStr, true).subscribe({
       next: (g) => {
         this.games = g;
@@ -57,7 +61,7 @@ export class GameListComponent implements OnInit {
       },
       error: (e: unknown) => {
         this.loading = false;
-        this.error = e instanceof Error ? e.message : 'Request failed';
+        this.errorView = parseApiError(e);
       },
     });
   }

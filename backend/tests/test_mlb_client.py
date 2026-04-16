@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from app.services.mlb_client import parse_schedule_games
+from app.services.mlb_client import parse_schedule_games, team_abbreviation
 
 
 def test_parse_schedule_games_extracts_game() -> None:
@@ -17,3 +17,15 @@ def test_parse_schedule_games_extracts_game() -> None:
     assert g["home_team_abbr"] == "NYY"
     assert g["away_team_abbr"] == "TB"
     assert g["venue_id"] == 3289
+
+
+def test_team_abbreviation_fallback_file_code() -> None:
+    assert team_abbreviation({"fileCode": "chc"}) == "CHC"
+
+
+def test_team_abbreviation_fallback_nickname_from_name() -> None:
+    assert team_abbreviation({"name": "Chicago Cubs"}) == "CUBS"
+
+
+def test_team_abbreviation_unknown() -> None:
+    assert team_abbreviation({}) == "?"

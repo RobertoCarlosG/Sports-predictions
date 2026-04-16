@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     mlb_stadiums_path: str = "src/app/data/mlb_stadiums.json"
     # Path to trained model (joblib); empty = package default under app/ml/artifacts/
     ml_model_path: str = ""
+    # Exponer trazas/mensajes técnicos en JSON de error (solo desarrollo)
+    debug: bool = False
 
     @model_validator(mode="after")
     def _normalize_database_url(self) -> Self:

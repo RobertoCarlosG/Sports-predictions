@@ -10,6 +10,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import type { GameDetail, PredictionOut } from '../models/game';
 import { GamesApiService } from '../services/games-api.service';
+import { parseApiError, type ApiErrorView } from '../utils/api-error';
 
 @Component({
   selector: 'app-game-detail',
@@ -36,13 +37,18 @@ export class GameDetailComponent implements OnInit {
   loading = false;
   predLoading = false;
   weatherLoading = false;
-  error: string | null = null;
+  errorView: ApiErrorView | null = null;
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((pm) => {
       const pk = pm.get('gamePk');
       if (!pk) {
-        this.error = 'Partido no encontrado';
+        this.errorView = {
+          title: 'Ruta no válida',
+          summary: 'Falta el identificador del partido.',
+          hints: ['Vuelve al listado e intenta abrir un partido de nuevo.'],
+          httpStatus: 0,
+        };
         return;
       }
       void this.loadGame(Number(pk));
@@ -51,7 +57,7 @@ export class GameDetailComponent implements OnInit {
 
   private loadGame(gamePk: number): void {
     this.loading = true;
-    this.error = null;
+    this.errorView = null;
     this.prediction = null;
     this.api.getGame(gamePk).subscribe({
       next: (g) => {
@@ -61,7 +67,7 @@ export class GameDetailComponent implements OnInit {
       },
       error: (e: unknown) => {
         this.loading = false;
-        this.error = e instanceof Error ? e.message : 'No se pudo cargar el partido';
+        this.errorView = parseApiError(e);
       },
     });
   }

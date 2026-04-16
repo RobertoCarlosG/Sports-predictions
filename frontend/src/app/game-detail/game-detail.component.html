@@ -13,9 +13,36 @@
     </div>
   }
 
-  @if (error) {
-    <mat-card class="error-card" appearance="outlined">
-      <mat-card-content>{{ error }}</mat-card-content>
+  @if (errorView) {
+    <mat-card class="error-panel" appearance="outlined">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="error-avatar">error_outline</mat-icon>
+        <mat-card-title>{{ errorView.title }}</mat-card-title>
+        <mat-card-subtitle>
+          HTTP {{ errorView.httpStatus || '—' }}
+          @if (errorView.code) {
+            · {{ errorView.code }}
+          }
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <p class="error-summary">{{ errorView.summary }}</p>
+        @if (errorView.hints.length > 0) {
+          <ul class="hints-list">
+            @for (h of errorView.hints; track h) {
+              <li>{{ h }}</li>
+            }
+          </ul>
+        }
+        @if (errorView.technical) {
+          <mat-expansion-panel class="technical-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Detalle técnico</mat-panel-title>
+            </mat-expansion-panel-header>
+            <pre class="technical-pre">{{ errorView.technical }}</pre>
+          </mat-expansion-panel>
+        }
+      </mat-card-content>
     </mat-card>
   }
 
