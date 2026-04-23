@@ -56,8 +56,9 @@ class Settings(BaseSettings):
     # Solo si DATABASE_URL apunta a un host con IPv4 (p. ej. add-on IPv4 Supabase). Free tier + direct 5432
     # suele ser IPv6-only: ahí usa transaction pooler; esta opción no arregla la falta de IPv4 en directo.
     database_force_ipv4: bool = False
-    # Límite de tiempo por sentencia SQL en el servidor (p. ej. UPDATE con boxscore_json muy grande).
-    # 0 = no fijar (usa el default del servidor, a veces ~8s en poolers y falla). Recomendado: 120 en prod.
+    # Límite de tiempo por sentencia SQL al conectar (p. ej. evita 8s por defecto en poolers).
+    # El sync MLB aplica además SET LOCAL a max(este valor, 300)s por transacción al escribir boxscore.
+    # 0 = no fijar al conectar (sigue el default del servidor); el sync aún usa mín. 300s en esa transacción.
     database_statement_timeout_seconds: int = 120
 
     @field_validator("admin_jwt_secret", "admin_bootstrap_secret", mode="before")

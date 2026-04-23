@@ -3,9 +3,10 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models.mlb import Game, Team
 from app.data.mlb_team_abbreviations import team_abbr_for_display
 from app.services.mlb_client import (
@@ -13,6 +14,22 @@ from app.services.mlb_client import (
     parse_schedule_games,
     scores_from_linescore_payload,
 )
+
+# Mínimo por sentencia al escribir `boxscore_json` (payload MLB ~10²–10³ KB) o bajo contención.
+_MLB_TX_STATEMENT_TIMEOUT_MIN_S = 300
+
+
+def _mlb_write_statement_timeout_seconds() -> int:
+    b = settings.database_statement_timeout_seconds
+    if b <= 0:
+        return _MLB_TX_STATEMENT_TIMEOUT_MIN_S
+    return max(b, _MLB_TX_STATEMENT_TIMEOUT_MIN_S)
+
+
+async def _set_local_statement_timeout_for_mlb_write(session: AsyncSession) -> None:
+    """Evita `QueryCanceled` en UPDATE con JSON grande o espera a locks, sin subir el límite global de todo el proceso."""
+    sec = _mlb_write_statement_timeout_seconds()
+    await session.execute(text(f"SET LOCAL statement_timeout = '{sec}s'"))
 
 
 def _scores_from_boxscore(box: dict[str, Any]) -> tuple[int | None, int | None]:
@@ -236,6 +253,7 @@ async def sync_games_for_date(
     fetch_details: bool = True,
 ) -> list[Game]:
     """Fetch MLB schedule for a date, upsert teams/games, optionally boxscore + live lineups."""
+    await _set_local_statement_timeout_for_mlb_write(session)
     raw = await client.schedule(date_str)
     parsed = parse_schedule_games(raw)
     games: list[Game] = []
@@ -259,6 +277,7 @@ async def sync_single_game(
     fetch_details: bool = True,
 ) -> Game | None:
     """Upsert un partido por `game_pk` usando el schedule de MLB (sin recorrer todo el día)."""
+    await _set_local_statement_timeout_for_mlb_write(session)
     raw = await client.schedule_for_game(game_pk)
     parsed = parse_schedule_games(raw)
     item = next((x for x in parsed if x["game_pk"] == game_pk), None)
