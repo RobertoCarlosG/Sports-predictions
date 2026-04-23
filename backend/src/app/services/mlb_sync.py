@@ -129,22 +129,18 @@ async def _upsert_game_from_schedule_item(
     a_abbr = team_abbr_for_display(
         int(aid), str(item.get("away_team_abbr") or ""), away_name
     )
-    await upsert_team(
-        session,
-        int(hid),
-        home_name,
-        h_abbr,
-        item.get("venue_id"),
-        item.get("venue_name"),
-    )
-    await upsert_team(
-        session,
-        int(aid),
-        away_name,
-        a_abbr,
-        item.get("venue_id"),
-        item.get("venue_name"),
-    )
+    # Orden fijo por id evita deadlocks entre peticiones concurrentes que tocaban
+    # home/away en distinto orden (mismas filas en `teams`, distinto orden de locks).
+    venue_id = item.get("venue_id")
+    venue_name = item.get("venue_name")
+    for tid, name, abbr in sorted(
+        [
+            (int(hid), home_name, h_abbr),
+            (int(aid), away_name, a_abbr),
+        ],
+        key=lambda t: t[0],
+    ):
+        await upsert_team(session, tid, name, abbr, venue_id, venue_name)
 
     gd = dt.date.fromisoformat(str(item["game_date"]))
     gdt: dt.datetime | None = None
