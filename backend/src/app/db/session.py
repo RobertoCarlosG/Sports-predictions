@@ -19,6 +19,11 @@ _connect_args: dict = {
     "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4().hex}__",
     **_ipv4_extras,
 }
+# Evita QueryCanceledError al persistir JSON grandes (boxscore) si el rol/pooler usa timeout bajo.
+if settings.database_statement_timeout_seconds > 0:
+    _connect_args.setdefault("server_settings", {}).update(
+        {"statement_timeout": f"{settings.database_statement_timeout_seconds}s"},
+    )
 engine = create_async_engine(
     _engine_url,
     echo=False,

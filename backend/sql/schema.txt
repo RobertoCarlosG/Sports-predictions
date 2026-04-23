@@ -91,6 +91,9 @@ TABLA: admin_users
   is_active      BOOLEAN NOT NULL DEFAULT TRUE
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 
+  Sin datos semilla en el .sql: alta vía CLI create_admin o POST /api/v1/admin/auth/bootstrap
+  (una vez, con ADMIN_BOOTSTRAP_SECRET). Ver backend/sql/README.md.
+
 
 RELACIONES (resumen)
 --------------------

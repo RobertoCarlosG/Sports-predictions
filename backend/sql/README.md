@@ -14,3 +14,19 @@ La base se define y evoluciona con **archivos `.sql` versionados** en este direc
 - **`001_initial_schema.sql`** — DDL equivalente para Postgres/Supabase.
 
 Tras crear tablas, configura `DATABASE_URL` en el backend (asyncpg) como siempre.
+
+## Panel «Operaciones» (`admin_users`)
+
+No hay usuarios de ejemplo en el SQL (no se versionan contraseñas).
+
+1. Aplica también `002_prediction_cache_and_admin.sql` (tabla `admin_users`).
+2. En el API, define `ADMIN_JWT_SECRET`.
+3. Crea el **primer** operador con **una** de estas opciones:
+   - **CLI** (recomendado): desde `backend/`, con `DATABASE_URL` en `.env` y tras `pip install -e .`:  
+     `create-admin --username tu_usuario --password '...'`  
+     (sin instalar: `PYTHONPATH=src python3 -m app.cli.create_admin --username ... --password '...'`)
+   - **Bootstrap HTTP** (solo si `admin_users` está vacío): variable `ADMIN_BOOTSTRAP_SECRET`, luego  
+     `POST /api/v1/admin/auth/bootstrap` con header `X-Admin-Bootstrap-Secret` y cuerpo `{"username","password"}`.  
+     Quitar `ADMIN_BOOTSTRAP_SECRET` del entorno después del alta.
+
+Más usuarios: solo CLI (`create_admin`).

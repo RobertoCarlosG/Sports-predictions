@@ -2,18 +2,27 @@ from __future__ import annotations
 
 import datetime as dt
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Límite de bcrypt; por encima habría que pre-hashear (p. ej. SHA-256) — no lo hacemos en MVP.
+_BCRYPT_MAX_PASSWORD_BYTES = 72
 
 
 def hash_password(plain: str) -> str:
-    return pwd_context.hash(plain)
+    pw = plain.encode("utf-8")
+    if len(pw) > _BCRYPT_MAX_PASSWORD_BYTES:
+        raise ValueError(
+            f"La contraseña no puede superar {_BCRYPT_MAX_PASSWORD_BYTES} bytes (límite de bcrypt).",
+        )
+    return bcrypt.hashpw(pw, bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, password_hash: str) -> bool:
-    return pwd_context.verify(plain, password_hash)
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), password_hash.encode("utf-8"))
+    except (ValueError, TypeError):
+        return False
 
 
 def create_access_token(*, secret: str, subject: str, expire_minutes: int) -> str:

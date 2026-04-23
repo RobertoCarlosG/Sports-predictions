@@ -9,14 +9,17 @@ from pathlib import Path
 from typing import Annotated
 
 import joblib
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps_admin import AdminUserDep
 from app.cli.backfill_history import _run_backfill
+from app.core.admin_security import create_access_token, hash_password
 from app.core.config import settings
 from app.db.session import get_db
 from app.ml.predictor import MlbPredictionService, resolve_model_path
+from app.models.mlb import AdminUser
 from app.schemas.admin_api import (
     AdminLoginBody,
     AdminSessionResponse,
@@ -63,6 +66,52 @@ def _clear_admin_session_cookie(response: Response) -> None:
     if settings.admin_cookie_domain:
         kwargs["domain"] = settings.admin_cookie_domain
     response.delete_cookie(**kwargs)
+
+
+@router.post("/auth/bootstrap", response_model=AdminSessionResponse)
+async def admin_bootstrap_first_user(
+    response: Response,
+    body: AdminLoginBody,
+    session: Annotated[AsyncSession, Depends(get_db)],
+    x_admin_bootstrap_secret: Annotated[str | None, Header(alias="X-Admin-Bootstrap-Secret")] = None,
+) -> AdminSessionResponse:
+    """
+    Crea el **primer** (y solo el primer) usuario en `admin_users` cuando la tabla está vacía.
+    Requiere `ADMIN_BOOTSTRAP_SECRET` en el servidor y el mismo valor en el header.
+    Desactivar el secreto en .env tras usar; para más usuarios usar `python -m app.cli.create_admin`.
+    """
+    expected = settings.admin_bootstrap_secret.strip()
+    if not expected:
+        raise HTTPException(status_code=404, detail="No encontrado.")
+    if not x_admin_bootstrap_secret or x_admin_bootstrap_secret.strip() != expected:
+        raise HTTPException(status_code=403, detail="No autorizado.")
+    if not settings.admin_jwt_secret.strip():
+        raise HTTPException(status_code=503, detail="Servidor sin ADMIN_JWT_SECRET; no se puede crear sesión.")
+    cnt = await session.scalar(select(func.count()).select_from(AdminUser))
+    if (cnt or 0) > 0:
+        raise HTTPException(
+            status_code=403,
+            detail="Ya existen operadores. Inicia sesión o usa create_admin para añadir más.",
+        )
+    dup = await session.execute(select(AdminUser).where(AdminUser.username == body.username))
+    if dup.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=409, detail="Ese nombre de usuario ya existe.")
+    session.add(
+        AdminUser(
+            username=body.username,
+            password_hash=hash_password(body.password),
+            is_active=True,
+        )
+    )
+    await session.commit()
+    token = create_access_token(
+        secret=settings.admin_jwt_secret,
+        subject=body.username,
+        expire_minutes=settings.admin_token_expire_minutes,
+    )
+    _set_admin_session_cookie(response, token)
+    log.warning("Primer usuario operaciones creado vía bootstrap (usuario=%s).", body.username)
+    return AdminSessionResponse(username=body.username)
 
 
 @router.post("/auth/login", response_model=AdminSessionResponse)

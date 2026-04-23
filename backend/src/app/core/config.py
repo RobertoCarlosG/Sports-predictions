@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # Secreto HS256 para JWT del panel admin (mín. 16 caracteres en prod). Vacío = login deshabilitado.
     admin_jwt_secret: str = ""
     admin_token_expire_minutes: int = 120
+    # Una sola vez: crear el primer operador vía POST /admin/auth/bootstrap (header X-Admin-Bootstrap-Secret).
+    # Vacío = ruta desactivada (404). Quitar de .env tras el primer usuario.
+    admin_bootstrap_secret: str = ""
     # Cookie HttpOnly para el JWT del panel (nombre distinto del doc genérico access_token para evitar colisiones).
     admin_cookie_name: str = "sp_admin_access"
     # lax = mismo sitio; none + secure para front y API en dominios distintos (p. ej. Vercel + Render).
@@ -47,6 +50,9 @@ class Settings(BaseSettings):
     # Solo si DATABASE_URL apunta a un host con IPv4 (p. ej. add-on IPv4 Supabase). Free tier + direct 5432
     # suele ser IPv6-only: ahí usa transaction pooler; esta opción no arregla la falta de IPv4 en directo.
     database_force_ipv4: bool = False
+    # Límite de tiempo por sentencia SQL en el servidor (p. ej. UPDATE con boxscore_json muy grande).
+    # 0 = no fijar (usa el default del servidor, a veces ~8s en poolers y falla). Recomendado: 120 en prod.
+    database_statement_timeout_seconds: int = 120
 
     @model_validator(mode="after")
     def _normalize_database_url(self) -> Self:

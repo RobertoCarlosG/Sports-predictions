@@ -19,9 +19,12 @@ dependencies = [
     "pandas>=2.2",
     "scikit-learn>=1.5",
     "joblib>=1.4",
-    "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.0",
     "PyJWT>=2.9",
 ]
+
+[project.scripts]
+create-admin = "app.cli.create_admin:main"
 
 [project.optional-dependencies]
 dev = [

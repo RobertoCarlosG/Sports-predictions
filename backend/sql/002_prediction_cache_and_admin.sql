@@ -25,3 +25,9 @@ CREATE TABLE IF NOT EXISTS admin_users (
 );
 
 CREATE INDEX IF NOT EXISTS idx_admin_users_username ON admin_users (username);
+
+-- No se insertan filas aquí: las contraseñas deben ser hash bcrypt (ver CLI o bootstrap HTTP).
+-- Primer operador:
+--   • Local / servidor:  cd backend && python3 -m app.cli.create_admin --username ... --password ...
+--   • O bootstrap (una vez): POST /api/v1/admin/auth/bootstrap + header X-Admin-Bootstrap-Secret
+--     (requiere ADMIN_BOOTSTRAP_SECRET y ADMIN_JWT_SECRET en el API; luego quitar el bootstrap del .env).

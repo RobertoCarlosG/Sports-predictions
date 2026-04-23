@@ -32,7 +32,12 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 cp .env.example .env
 # Set DATABASE_URL a tu PostgreSQL local, luego:
-# Crear tablas: ejecuta `backend/sql/001_initial_schema.sql` (ver `backend/sql/README.md`)
+# Crear tablas: ejecuta `backend/sql/001_initial_schema.sql` y `002_prediction_cache_and_admin.sql`
+# (ver `backend/sql/README.md`).
+# Panel Operaciones: en .env pon ADMIN_JWT_SECRET y crea el primer usuario (tras pip install -e ".[dev]"):
+#   create-admin --username admin --password 'tu-seguro'
+#   # o: PYTHONPATH=src python3 -m app.cli.create_admin --username admin --password '...'
+# (o bootstrap HTTP una vez; ver backend/sql/README.md).
 uvicorn app.main:app --reload --app-dir src
 ```
 

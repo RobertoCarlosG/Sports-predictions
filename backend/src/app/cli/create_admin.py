@@ -1,10 +1,25 @@
 """Crea un usuario del panel de operaciones (tabla admin_users).
 
-Uso (desde el directorio backend/, con DATABASE_URL):
+Requiere `sql/002_prediction_cache_and_admin.sql` y `DATABASE_URL` en el entorno (o `.env` si cargas
+settings al ejecutar; este CLI usa la misma sesión async que el API).
 
-  python -m app.cli.create_admin --username admin --password 'secreto-seguro'
+Desde la carpeta `backend/`:
 
-Requiere haber aplicado sql/002_prediction_cache_and_admin.sql.
+1) Instalar el paquete (recomendado):
+
+     pip install -e ".[dev]"
+     create-admin --username admin --password 'secreto-seguro'
+
+   O bien:
+
+     python3 -m app.cli.create_admin --username admin --password 'secreto-seguro'
+
+2) Sin instalar, solo para esta orden:
+
+     PYTHONPATH=src python3 -m app.cli.create_admin --username admin --password '...'
+
+El JWT **no** se crea aquí: solo se guarda el hash bcrypt. El token lo firma el API al hacer
+login (cookie HttpOnly) usando `ADMIN_JWT_SECRET`.
 """
 
 from __future__ import annotations
