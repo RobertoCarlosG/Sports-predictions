@@ -31,6 +31,11 @@ export class GamesApiService {
     return this.http.get<PredictionOut>(`${this.base}/predict/${gamePk}`);
   }
 
+  /** Recalcula la estimación en el servidor (por si el proceso automático no actualizó a tiempo). */
+  refreshPrediction(gamePk: number): Observable<PredictionOut> {
+    return this.http.post<PredictionOut>(`${this.base}/predict/${gamePk}/refresh`, {});
+  }
+
   listMlbTeams(): Observable<TeamOut[]> {
     return this.http.get<TeamOut[]>(`${this.base}/mlb/teams`);
   }

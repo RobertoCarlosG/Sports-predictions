@@ -1,0 +1,22 @@
+<mat-sidenav-container class="host" hasBackdrop="true">
+  <mat-sidenav
+    #drawer
+    mode="over"
+    position="end"
+    class="drawer"
+    [fixedInViewport]="true"
+  >
+    <div class="drawer-head">
+      <span class="drawer-title">{{ drawerTitle }}</span>
+      <button mat-icon-button type="button" aria-label="Cerrar filtros" (click)="close()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="drawer-scroll">
+      <ng-content select="[filterDrawerContent]" />
+    </div>
+  </mat-sidenav>
+  <mat-sidenav-content class="main">
+    <ng-content select="[filterDrawerMain]" />
+  </mat-sidenav-content>
+</mat-sidenav-container>

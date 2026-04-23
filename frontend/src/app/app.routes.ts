@@ -1,23 +1,31 @@
 import { Routes } from '@angular/router';
 
-import { ComingSoonComponent } from './coming-soon/coming-soon.component';
-import { GameDetailComponent } from './game-detail/game-detail.component';
-import { GameListComponent } from './game-list/game-list.component';
-import { MlbHistoryComponent } from './mlb-history/mlb-history.component';
-
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'mlb' },
   {
     path: 'mlb',
     children: [
-      { path: '', component: GameListComponent },
-      { path: 'history', component: MlbHistoryComponent },
-      { path: 'game/:gamePk', component: GameDetailComponent },
+      {
+        path: '',
+        loadComponent: () =>
+          import('./game-list/game-list.component').then((m) => m.GameListComponent),
+      },
+      {
+        path: 'history',
+        loadComponent: () =>
+          import('./mlb-history/mlb-history.component').then((m) => m.MlbHistoryComponent),
+      },
+      {
+        path: 'game/:gamePk',
+        loadComponent: () =>
+          import('./game-detail/game-detail.component').then((m) => m.GameDetailComponent),
+      },
     ],
   },
   {
     path: 'soccer',
-    component: ComingSoonComponent,
+    loadComponent: () =>
+      import('./coming-soon/coming-soon.component').then((m) => m.ComingSoonComponent),
     data: {
       title: 'Fútbol',
       subtitle: 'API-Sports y datos de ligas — en construcción',
@@ -25,7 +33,8 @@ export const routes: Routes = [
   },
   {
     path: 'nba',
-    component: ComingSoonComponent,
+    loadComponent: () =>
+      import('./coming-soon/coming-soon.component').then((m) => m.ComingSoonComponent),
     data: {
       title: 'NBA',
       subtitle: 'Baloncesto — en construcción',

@@ -1,0 +1,9 @@
+<div class="banner" role="alert">
+  <mat-icon class="ico" aria-hidden="true">wifi_tethering_off</mat-icon>
+  <div class="body">
+    <p class="msg">{{ message }}</p>
+    <button mat-button color="primary" type="button" (click)="retry.emit()">
+      {{ retryLabel }}
+    </button>
+  </div>
+</div>

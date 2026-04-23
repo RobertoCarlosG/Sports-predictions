@@ -1,0 +1,23 @@
+<a
+  class="card-link"
+  [routerLink]="['/mlb/game', game.game_pk]"
+>
+  <mat-card class="card" appearance="outlined">
+    <mat-card-content class="inner">
+      <div class="row-top">
+        <app-status-badge [apiStatus]="game.status" />
+        <app-weather-chip [weather]="weather" />
+      </div>
+      <div class="teams">
+        <span class="team away">{{ abbr(game.away_team) }}</span>
+        <span class="at">&#64;</span>
+        <span class="team home">{{ abbr(game.home_team) }}</span>
+        @if (hasScore()) {
+          <span class="score">{{ game.away_score }} – {{ game.home_score }}</span>
+        }
+      </div>
+      <p class="meta">{{ game.game_date }}</p>
+      <app-probability-bar [probability]="homeWinProbability" />
+    </mat-card-content>
+  </mat-card>
+</a>

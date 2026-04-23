@@ -1,0 +1,29 @@
+<div class="chips" role="group" aria-label="Fecha">
+  <button
+    mat-stroked-button
+    type="button"
+    class="chip"
+    [class.chip-on]="preset === 'today'"
+    (click)="select('today')"
+  >
+    Hoy
+  </button>
+  <button
+    mat-stroked-button
+    type="button"
+    class="chip"
+    [class.chip-on]="preset === 'tomorrow'"
+    (click)="select('tomorrow')"
+  >
+    Mañana
+  </button>
+  <button
+    mat-stroked-button
+    type="button"
+    class="chip"
+    [class.chip-on]="preset === 'week'"
+    (click)="select('week')"
+  >
+    Esta semana
+  </button>
+</div>

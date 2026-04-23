@@ -1,28 +1,15 @@
 <div class="page">
-  <mat-card class="hero" appearance="outlined">
-    <mat-card-header>
-      <mat-card-title>MLB — Partidos</mat-card-title>
-      <mat-card-subtitle>Calendario oficial (statsapi.mlb.com). Elige fecha y sincroniza.</mat-card-subtitle>
-    </mat-card-header>
-    <mat-card-content class="hero-filters">
-      <mat-form-field appearance="outline" class="date-field" subscriptSizing="dynamic">
-        <mat-label>Fecha</mat-label>
-        <input
-          matInput
-          type="date"
-          [(ngModel)]="dateStr"
-          (change)="load()"
-          [min]="seasonBounds.min"
-          [max]="seasonBounds.max"
-        />
-        <mat-icon matSuffix>calendar_today</mat-icon>
-      </mat-form-field>
-      <button mat-flat-button color="primary" type="button" (click)="load()" [disabled]="loading">
-        <mat-icon>refresh</mat-icon>
-        Actualizar
-      </button>
-    </mat-card-content>
-  </mat-card>
+  <header class="page-head">
+    <div class="titles">
+      <h1 class="title">Hoy en MLB</h1>
+      <p class="lede">Partidos del día con estimación de victoria del equipo local.</p>
+    </div>
+    <app-date-chip-selector
+      [minIso]="seasonBounds.min"
+      [maxIso]="seasonBounds.max"
+      (selectionChange)="onDateSelection($event)"
+    />
+  </header>
 
   @if (loading && games.length === 0) {
     <div class="loading-block">
@@ -31,68 +18,34 @@
     </div>
   }
 
-  @if (errorView) {
-    <mat-card class="error-panel" appearance="outlined">
-      <mat-card-header>
-        <mat-icon mat-card-avatar class="error-avatar">error_outline</mat-icon>
-        <mat-card-title>{{ errorView.title }}</mat-card-title>
-        <mat-card-subtitle>
-          HTTP {{ errorView.httpStatus || '—' }}
-          @if (errorView.code) {
-            · {{ errorView.code }}
-          }
-        </mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        <p class="error-summary">{{ errorView.summary }}</p>
-        @if (errorView.hints.length > 0) {
-          <p class="hints-title">Qué revisar</p>
-          <ul class="hints-list">
-            @for (h of errorView.hints; track h) {
-              <li>{{ h }}</li>
-            }
-          </ul>
-        }
-        @if (errorView.technical) {
-          <mat-expansion-panel class="technical-panel">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Detalle técnico</mat-panel-title>
-            </mat-expansion-panel-header>
-            <pre class="technical-pre">{{ errorView.technical }}</pre>
-          </mat-expansion-panel>
-        }
-      </mat-card-content>
-    </mat-card>
+  @if (loadError) {
+    <app-friendly-error-banner (retry)="retry()" />
   }
 
   @if (!loading || games.length > 0) {
-    <mat-card appearance="outlined">
-      <mat-card-header>
-        <mat-card-title>Partidos</mat-card-title>
-        <mat-card-subtitle>{{ games.length }} encuentro(s) · {{ dateStr }}</mat-card-subtitle>
-      </mat-card-header>
-      <mat-divider />
-      <mat-nav-list>
-        @for (g of games; track g.game_pk) {
-          <a mat-list-item [routerLink]="['/mlb/game', g.game_pk]">
-            <mat-icon matListItemIcon>sports_baseball</mat-icon>
-            <span matListItemTitle class="match-title">
-              <span class="team away">{{ abbr(g.away_team) }}</span>
-              <span class="at">&#64;</span>
-              <span class="team home">{{ abbr(g.home_team) }}</span>
-              @if (hasScore(g)) {
-                <span class="score">{{ g.away_score }} – {{ g.home_score }}</span>
-              }
-            </span>
-            <span matListItemLine>{{ g.status }}</span>
-          </a>
+    @if (games.length > 0) {
+      <p class="range-label">{{ games.length }} partido(s) · {{ dateSummary }}</p>
+    }
+
+    @for (day of dayKeys; track day) {
+      <section class="day-block" [attr.aria-label]="'Partidos del ' + day">
+        @if (dayKeys.length > 1) {
+          <h2 class="day-title">{{ day }}</h2>
         }
-      </mat-nav-list>
-      @if (!loading && games.length === 0 && !errorView) {
-        <mat-card-content class="empty-hint">
-          No hay partidos para esta fecha (o el backend no está disponible).
+        <div class="card-grid">
+          @for (g of gamesForDate(day); track g.game_pk) {
+            <app-match-card [game]="g" [homeWinProbability]="probFor(g)" />
+          }
+        </div>
+      </section>
+    }
+
+    @if (!loading && games.length === 0 && !loadError) {
+      <mat-card class="empty-card" appearance="outlined">
+        <mat-card-content>
+          <p class="empty-hint">No hay partidos en este rango.</p>
         </mat-card-content>
-      }
-    </mat-card>
+      </mat-card>
+    }
   }
 </div>

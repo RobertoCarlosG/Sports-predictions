@@ -3,15 +3,21 @@ import { Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { forkJoin, of } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 
 import { BoxscoreViewComponent } from '../boxscore-view/boxscore-view.component';
-import type { GameDetail, PredictionOut } from '../models/game';
+import { CollapsibleSectionComponent } from '../components/collapsible-section/collapsible-section.component';
+import { FriendlyErrorBannerComponent } from '../components/friendly-error-banner/friendly-error-banner.component';
+import { ProbabilityBarComponent } from '../components/probability-bar/probability-bar.component';
+import { StatusBadgeComponent } from '../components/status-badge/status-badge.component';
+import { WeatherChipComponent } from '../components/weather-chip/weather-chip.component';
+import type { GameDetail, PredictionOut, TeamOut } from '../models/game';
+import type { HistoryGame } from '../models/history';
 import { GamesApiService } from '../services/games-api.service';
-import { parseApiError, type ApiErrorView } from '../utils/api-error';
+import { mlbDisplayAbbrev } from '../utils/mlb-team-abbr';
 
 @Component({
   selector: 'app-game-detail',
@@ -21,11 +27,14 @@ import { parseApiError, type ApiErrorView } from '../utils/api-error';
     RouterLink,
     MatButtonModule,
     MatCardModule,
-    MatDividerModule,
-    MatExpansionModule,
     MatIconModule,
     MatProgressSpinnerModule,
     BoxscoreViewComponent,
+    CollapsibleSectionComponent,
+    FriendlyErrorBannerComponent,
+    ProbabilityBarComponent,
+    StatusBadgeComponent,
+    WeatherChipComponent,
   ],
   templateUrl: './game-detail.component.html',
   styleUrl: './game-detail.component.scss',
@@ -36,47 +45,62 @@ export class GameDetailComponent implements OnInit {
 
   game: GameDetail | null = null;
   prediction: PredictionOut | null = null;
+  headToHead: HistoryGame[] = [];
+
   loading = false;
   predLoading = false;
-  weatherLoading = false;
-  syncMlbLoading = false;
-  syncError: string | null = null;
-  errorView: ApiErrorView | null = null;
+  refreshLoading = false;
+  predictionRefreshLoading = false;
+  loadError = false;
+  refreshError = false;
+  predictionRefreshMessage: string | null = null;
+  predictionRefreshIsError = false;
+
+  private gamePk: number | null = null;
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((pm) => {
       const pk = pm.get('gamePk');
       if (!pk) {
-        this.errorView = {
-          title: 'Ruta no válida',
-          summary: 'Falta el identificador del partido.',
-          hints: ['Vuelve al listado e intenta abrir un partido de nuevo.'],
-          httpStatus: 0,
-        };
+        this.loadError = true;
         return;
       }
-      void this.loadGame(Number(pk));
+      this.gamePk = Number(pk);
+      void this.loadGame(this.gamePk);
     });
+  }
+
+  retryLoad(): void {
+    if (this.gamePk == null) {
+      return;
+    }
+    void this.loadGame(this.gamePk);
   }
 
   private loadGame(gamePk: number): void {
     this.loading = true;
-    this.errorView = null;
+    this.loadError = false;
+    this.refreshError = false;
+    this.predictionRefreshMessage = null;
+    this.predictionRefreshIsError = false;
     this.prediction = null;
+    this.headToHead = [];
     this.api.getGame(gamePk).subscribe({
       next: (g) => {
         this.game = g;
         this.loading = false;
         this.loadPrediction(gamePk);
+        this.loadHeadToHead(g);
       },
-      error: (e: unknown) => {
+      error: () => {
         this.loading = false;
-        this.errorView = parseApiError(e);
+        this.loadError = true;
+        this.game = null;
       },
     });
   }
 
-  loadPrediction(gamePk: number): void {
+  private loadPrediction(gamePk: number): void {
     this.predLoading = true;
     this.api.predict(gamePk).subscribe({
       next: (p) => {
@@ -90,42 +114,106 @@ export class GameDetailComponent implements OnInit {
     });
   }
 
+  private loadHeadToHead(g: GameDetail): void {
+    const homeId = g.home_team.id;
+    const awayId = g.away_team.id;
+    this.api
+      .listMlbHistory({
+        team_id: homeId,
+        only_final: true,
+        only_with_scores: true,
+        limit: 150,
+      })
+      .pipe(catchError(() => of([] as HistoryGame[])))
+      .subscribe((rows) => {
+        this.headToHead = rows
+          .filter(
+            (r) =>
+              r.game_pk !== g.game_pk &&
+              ((r.home_team.id === homeId && r.away_team.id === awayId) ||
+                (r.home_team.id === awayId && r.away_team.id === homeId)),
+          )
+          .slice(0, 12);
+      });
+  }
+
   hasScore(g: GameDetail): boolean {
     return typeof g.away_score === 'number' && typeof g.home_score === 'number';
   }
 
-  refreshWeather(): void {
-    if (!this.game) {
-      return;
-    }
-    this.weatherLoading = true;
-    this.api.refreshWeather(this.game.game_pk).subscribe({
-      next: (g) => {
-        this.game = g;
-        this.weatherLoading = false;
-        this.loadPrediction(g.game_pk);
-      },
-      error: () => {
-        this.weatherLoading = false;
-      },
-    });
+  abbr(t: TeamOut): string {
+    return mlbDisplayAbbrev(t);
   }
 
-  syncFromMlb(): void {
+  /** Un solo control: actualiza calendario, condiciones y estimación. */
+  refreshData(): void {
     if (!this.game) {
       return;
     }
-    this.syncMlbLoading = true;
-    this.syncError = null;
-    this.api.syncMlbGame(this.game.game_pk, true).subscribe({
-      next: (g) => {
-        this.game = g;
-        this.syncMlbLoading = false;
-        this.loadPrediction(g.game_pk);
+    const pk = this.game.game_pk;
+    this.refreshLoading = true;
+    this.refreshError = false;
+    this.predictionRefreshMessage = null;
+    this.predictionRefreshIsError = false;
+    this.api
+      .syncMlbGame(pk, true)
+      .pipe(
+        switchMap((g) => {
+          this.game = g;
+          return this.api.refreshWeather(pk).pipe(catchError(() => of(this.game!)));
+        }),
+        switchMap((g) => {
+          this.game = g;
+          return forkJoin({
+            detail: this.api.getGame(pk).pipe(catchError(() => of(g))),
+            pred: this.api.predict(pk).pipe(catchError(() => of(null))),
+          });
+        }),
+      )
+      .subscribe({
+        next: ({ detail, pred }) => {
+          this.game = detail;
+          this.prediction = pred;
+          this.refreshLoading = false;
+          if (this.game) {
+            this.loadHeadToHead(this.game);
+          }
+        },
+        error: () => {
+          this.refreshLoading = false;
+          this.refreshError = true;
+        },
+      });
+  }
+
+  awayWinProbability(): number | null | undefined {
+    const p = this.prediction?.home_win_probability;
+    if (p == null || Number.isNaN(p)) {
+      return null;
+    }
+    return Math.min(1, Math.max(0, 1 - p));
+  }
+
+  /** Solo estimación: no descarga calendario ni condiciones. */
+  refreshPredictionOnly(): void {
+    if (this.gamePk == null) {
+      return;
+    }
+    this.predictionRefreshLoading = true;
+    this.predictionRefreshMessage = null;
+    this.predictionRefreshIsError = false;
+    this.api.refreshPrediction(this.gamePk).subscribe({
+      next: (p) => {
+        this.prediction = p;
+        this.predictionRefreshLoading = false;
+        this.predictionRefreshIsError = false;
+        this.predictionRefreshMessage = 'Listo: estimación actualizada.';
       },
-      error: (e: unknown) => {
-        this.syncMlbLoading = false;
-        this.syncError = parseApiError(e).summary;
+      error: () => {
+        this.predictionRefreshLoading = false;
+        this.predictionRefreshIsError = true;
+        this.predictionRefreshMessage =
+          'No pudimos actualizar la estimación. Inténtalo otra vez en unos segundos.';
       },
     });
   }

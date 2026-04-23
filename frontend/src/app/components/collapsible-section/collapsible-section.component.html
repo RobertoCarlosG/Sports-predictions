@@ -1,0 +1,9 @@
+<mat-expansion-panel [expanded]="expanded" class="panel">
+  <mat-expansion-panel-header>
+    <mat-panel-title>{{ title }}</mat-panel-title>
+    @if (subtitle) {
+      <mat-panel-description>{{ subtitle }}</mat-panel-description>
+    }
+  </mat-expansion-panel-header>
+  <ng-content />
+</mat-expansion-panel>

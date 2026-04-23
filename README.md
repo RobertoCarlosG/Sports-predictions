@@ -1,16 +1,25 @@
 # Sports-Predictions
 
-Monorepo for the sports dashboard MVP: **MLB** first (statsapi.mlb.com, Open-Meteo, ML predictions), then soccer/NBA.
+Monorepo del **dashboard y API** del MVP **Sports-Predictions**: **MLB primero** (datos oficiales [statsapi.mlb.com](https://statsapi.mlb.com)), clima de estadio (**Open-Meteo**), predicciones con **Random Forest** (`joblib`). La arquitectura admite ampliar a fútbol/NBA u otras fuentes en fases posteriores.
 
-## Layout
+## Qué incluye este MVP
 
-| Path | Description |
+| Capa | Entregado |
+|------|-----------|
+| **API (FastAPI)** | Partidos por fecha y detalle, sync con MLB (rango acotado y por `game_pk`), historial, equipos, clima, predicción `/predict/{game_pk}` |
+| **Datos** | PostgreSQL: partidos, equipos, marcadores, JSON de box score, alineaciones (live o derivadas del box score en partidos finalizados) |
+| **Web (Angular)** | Listado por fecha, historial MLB (sync por rango día a día), detalle con box score legible, botones de actualizar clima y sincronizar un partido |
+| **Ops** | DDL en `backend/sql/`, despliegue documentado (Supabase + Render + Vercel) |
+
+**Documentación del proyecto (visión, alcance, estado, despliegue):** carpeta **[docs/](docs/README.md)** — empezar por [docs/vision-y-alcance.md](docs/vision-y-alcance.md) y [docs/estatus-actual.md](docs/estatus-actual.md). Las reglas de estilo del workspace padre siguen en `../docs/` (p. ej. [estilo-programacion.md](../docs/estilo-programacion.md)); no se duplican aquí.
+
+## Layout del repositorio
+
+| Path | Descripción |
 |------|-------------|
 | `backend/` | FastAPI, SQLAlchemy 2 async, PostgreSQL, pytest |
-| `frontend/` | Angular dashboard |
-| `docs/` | Project status and roadmap (see also parent `../docs/` for shared conventions) |
-
-Parent folder `Predictions/docs/` holds cross-project rules ([estilo-programacion.md](../docs/estilo-programacion.md), [contexto-general.md](../docs/contexto-general.md)). Do not duplicate those rules here; follow them when contributing.
+| `frontend/` | Angular, build estática en `dist/browser` |
+| `docs/` | Visión, estado, despliegue, pendientes, errores de conexión |
 
 ## Quick start (local)
 
@@ -18,16 +27,16 @@ Parent folder `Predictions/docs/` holds cross-project rules ([estilo-programacio
 
 ```bash
 cd backend
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 cp .env.example .env
-# Set DATABASE_URL to a local PostgreSQL instance, then:
-# Crear tablas: ejecuta `backend/sql/001_initial_schema.sql` en Supabase (ver `backend/sql/README.md`)
+# Set DATABASE_URL a tu PostgreSQL local, luego:
+# Crear tablas: ejecuta `backend/sql/001_initial_schema.sql` (ver `backend/sql/README.md`)
 uvicorn app.main:app --reload --app-dir src
 ```
 
-API: `http://127.0.0.1:8000` — docs at `/docs`.
+API: `http://127.0.0.1:8000` — documentación interactiva en `/docs`.
 
 ### Frontend
 
@@ -41,18 +50,18 @@ App: `http://localhost:4200` — el API por defecto está en `src/environments/e
 
 ### VS Code (depurar / ejecutar)
 
-Abre la carpeta **`Predictions`** (la que contiene `Sports-Predictions/`) como workspace. En **Run and Debug** elige:
+Abre la carpeta **`Predictions`** (la que contiene `Sports-Predictions/`) como workspace. En **Run and Debug**:
 
-- **Sports-Predictions: Backend (FastAPI)** — requiere extensión **Python** + `debugpy`, y el archivo `backend/.env` (copia desde `.env.example`).
+- **Sports-Predictions: Backend (FastAPI)** — requiere extensión **Python** + `debugpy`, y `backend/.env`.
 - **Sports-Predictions: Frontend (Angular)** — `npm run start` en `frontend/`.
-- **Sports-Predictions: Backend + Frontend** — arranca ambos a la vez.
+- **Sports-Predictions: Backend + Frontend** — arranca ambos.
 
-Si abres solo `Sports-Predictions/` como raíz del workspace, las rutas de `../.vscode/launch.json` no coinciden: usa los comandos de arriba o duplica/ajusta el `launch.json` local.
+Si abres solo `Sports-Predictions/` como raíz del workspace, las rutas de `../.vscode/launch.json` pueden no coincidir: usa los comandos de arriba o ajusta un `launch.json` local.
 
-## Deployment
+## Despliegue
 
-See [docs/deploy.md](docs/deploy.md) for Supabase (PostgreSQL), Render (API), and Vercel (Angular). Tras `ng build`, el front estático queda en `frontend/dist/browser` (Vercel debe usar esa carpeta como **Output Directory**).
+Ver [docs/deploy.md](docs/deploy.md) (Supabase, Render, Vercel, CORS, salida de build **`dist/browser`** en Vercel).
 
 ## Conventions
 
-Conventional commits (`feat:`, `fix:`, …), branches `feature/`, `bugfix/`, `docs/`, TDD on backend. See parent documentation for full style rules.
+Conventional commits (`feat:`, `fix:`, …), ramas `feature/`, `bugfix/`, `docs/`, TDD en backend. Detalles de estilo: documentación en `../docs/`.

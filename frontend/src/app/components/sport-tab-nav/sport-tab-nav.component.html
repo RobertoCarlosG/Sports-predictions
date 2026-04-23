@@ -1,0 +1,17 @@
+<nav class="tabs" aria-label="Deportes">
+  <div class="scroll">
+    @for (s of sports; track s.id) {
+      <a
+        mat-button
+        class="tab"
+        [routerLink]="pathFor(s.id)"
+        [class.tab-active]="active === s.id"
+      >
+        {{ s.label }}
+        @if (!s.implemented) {
+          <span class="soon" aria-hidden="true">· pronto</span>
+        }
+      </a>
+    }
+  </div>
+</nav>

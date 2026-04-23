@@ -2,7 +2,7 @@
   <nav class="back-row">
     <a mat-button color="primary" routerLink="/mlb">
       <mat-icon>arrow_back</mat-icon>
-      Volver al listado MLB
+      Volver
     </a>
   </nav>
 
@@ -13,178 +13,187 @@
     </div>
   }
 
-  @if (errorView) {
-    <mat-card class="error-panel" appearance="outlined">
-      <mat-card-header>
-        <mat-icon mat-card-avatar class="error-avatar">error_outline</mat-icon>
-        <mat-card-title>{{ errorView.title }}</mat-card-title>
-        <mat-card-subtitle>
-          HTTP {{ errorView.httpStatus || '—' }}
-          @if (errorView.code) {
-            · {{ errorView.code }}
-          }
-        </mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        <p class="error-summary">{{ errorView.summary }}</p>
-        @if (errorView.hints.length > 0) {
-          <ul class="hints-list">
-            @for (h of errorView.hints; track h) {
-              <li>{{ h }}</li>
-            }
-          </ul>
-        }
-        @if (errorView.technical) {
-          <mat-expansion-panel class="technical-panel">
-            <mat-expansion-panel-header>
-              <mat-panel-title>Detalle técnico</mat-panel-title>
-            </mat-expansion-panel-header>
-            <pre class="technical-pre">{{ errorView.technical }}</pre>
-          </mat-expansion-panel>
-        }
-      </mat-card-content>
-    </mat-card>
+  @if (loadError) {
+    <app-friendly-error-banner (retry)="retryLoad()" />
   }
 
   @if (game) {
+    <div class="pred-hint-bar" role="region" aria-label="Actualizar estimación">
+      <p class="pred-hint-text">
+        La estimación suele actualizarse sola. Si no refleja lo que ves arriba, puedes pedir un nuevo cálculo.
+      </p>
+      <button
+        mat-stroked-button
+        type="button"
+        class="pred-hint-action"
+        (click)="refreshPredictionOnly()"
+        [disabled]="predictionRefreshLoading || refreshLoading"
+      >
+        @if (predictionRefreshLoading) {
+          <mat-spinner class="btn-spinner" diameter="18" />
+        } @else {
+          <mat-icon aria-hidden="true">calculate</mat-icon>
+        }
+        Actualizar estimación
+      </button>
+    </div>
+    @if (predictionRefreshMessage) {
+      <p
+        class="pred-hint-feedback"
+        [class.pred-hint-feedback-err]="predictionRefreshIsError"
+        role="status"
+      >
+        {{ predictionRefreshMessage }}
+      </p>
+    }
+
     <mat-card class="head-card" appearance="outlined">
-      <mat-card-header>
-        <mat-icon mat-card-avatar class="head-avatar">sports_baseball</mat-icon>
-        <mat-card-title>
+      <mat-card-content class="head-inner">
+        <div class="head-top">
+          <app-status-badge [apiStatus]="game.status" />
+          <app-weather-chip [weather]="game.weather" />
+        </div>
+        <h1 class="headline">
           {{ game.away_team.name }} &#64; {{ game.home_team.name }}
           @if (hasScore(game)) {
             <span class="head-score">{{ game.away_score }} – {{ game.home_score }}</span>
           }
-        </mat-card-title>
-        <mat-card-subtitle>
-          {{ game.game_date }} · {{ game.status }}
+        </h1>
+        <p class="sub">
+          {{ game.game_date }}
           @if (game.venue_name) {
             · {{ game.venue_name }}
           }
-        </mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-actions align="end">
-        <button
-          mat-stroked-button
-          type="button"
-          (click)="syncFromMlb()"
-          [disabled]="syncMlbLoading"
-        >
-          <mat-icon>{{ syncMlbLoading ? 'hourglass_empty' : 'cloud_sync' }}</mat-icon>
-          {{ syncMlbLoading ? 'Sincronizando…' : 'Actualizar desde MLB' }}
-        </button>
-      </mat-card-actions>
-      @if (syncError) {
-        <mat-card-content class="sync-err">{{ syncError }}</mat-card-content>
-      }
+        </p>
+        <div class="cta-row">
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="refreshData()"
+            [disabled]="refreshLoading"
+          >
+            <mat-icon>{{ refreshLoading ? 'hourglass_empty' : 'refresh' }}</mat-icon>
+            {{ refreshLoading ? 'Actualizando…' : 'Actualizar datos' }}
+          </button>
+        </div>
+        @if (refreshError) {
+          <p class="soft-warn">No pudimos completar la actualización. Inténtalo de nuevo en unos segundos.</p>
+        }
+      </mat-card-content>
     </mat-card>
 
     <div class="grid-cards">
       <mat-card appearance="outlined">
         <mat-card-header>
-          <mat-card-title>Clima del estadio</mat-card-title>
-          <mat-card-subtitle>Open-Meteo (coordenadas del estadio)</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          @if (game.weather) {
-            <dl class="metrics">
-              <div>
-                <dt>Temperatura (°C)</dt>
-                <dd>{{ game.weather['temperature_c'] ?? '—' }}</dd>
-              </div>
-              <div>
-                <dt>Humedad (%)</dt>
-                <dd>{{ game.weather['humidity_pct'] ?? '—' }}</dd>
-              </div>
-              <div>
-                <dt>Viento (m/s)</dt>
-                <dd>{{ game.weather['wind_speed_mps'] ?? '—' }}</dd>
-              </div>
-              <div>
-                <dt>Altitud (m)</dt>
-                <dd>{{ game.weather['elevation_m'] ?? '—' }}</dd>
-              </div>
-            </dl>
-          } @else {
-            <p class="muted">Sin datos de clima. Actualiza desde Open-Meteo.</p>
-          }
-        </mat-card-content>
-        <mat-card-actions align="end">
-          <button
-            mat-flat-button
-            color="primary"
-            type="button"
-            (click)="refreshWeather()"
-            [disabled]="weatherLoading"
-          >
-            <mat-icon>{{ weatherLoading ? 'hourglass_empty' : 'wb_sunny' }}</mat-icon>
-            {{ weatherLoading ? 'Actualizando…' : 'Actualizar clima' }}
-          </button>
-        </mat-card-actions>
-      </mat-card>
-
-      <mat-card class="predict-card" appearance="outlined">
-        <mat-card-header>
-          <mat-card-title>Predicción del modelo</mat-card-title>
-          <mat-card-subtitle>Random Forest · features + clima</mat-card-subtitle>
+          <mat-card-title>Estimación del partido</mat-card-title>
+          <mat-card-subtitle>Probabilidad de victoria por bando</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           @if (predLoading) {
             <div class="inline-loading">
               <mat-spinner diameter="28" />
-              <span>Calculando…</span>
+              <span>Preparando estimación…</span>
             </div>
-          } @else if (prediction) {
-            <dl class="metrics predict-metrics">
+          } @else {
+            <div class="prob-stack">
+              <app-probability-bar
+                label="Victoria local ({{ abbr(game.home_team) }})"
+                [probability]="prediction?.home_win_probability"
+              />
+              <app-probability-bar
+                label="Victoria visitante ({{ abbr(game.away_team) }})"
+                [probability]="awayWinProbability()"
+              />
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Condiciones en el estadio</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          @if (game.weather) {
+            <dl class="metrics">
               <div>
-                <dt>Prob. victoria local</dt>
-                <dd>{{ (prediction.home_win_probability * 100) | number: '1.0-1' }}%</dd>
+                <dt>Temperatura</dt>
+                <dd>
+                  @if (game.weather['temperature_c'] != null) {
+                    {{ game.weather['temperature_c'] }} °C
+                  } @else {
+                    —
+                  }
+                </dd>
               </div>
               <div>
-                <dt>Runs totales (est.)</dt>
-                <dd>{{ prediction.total_runs_estimate | number: '1.1-1' }}</dd>
+                <dt>Humedad</dt>
+                <dd>
+                  @if (game.weather['humidity_pct'] != null) {
+                    {{ game.weather['humidity_pct'] }} %
+                  } @else {
+                    —
+                  }
+                </dd>
               </div>
               <div>
-                <dt>Línea O/U sugerida</dt>
-                <dd>{{ prediction.over_under_line | number: '1.1-1' }}</dd>
-              </div>
-              <div>
-                <dt>Modelo</dt>
-                <dd class="model-id">{{ prediction.model_version }}</dd>
+                <dt>Viento</dt>
+                <dd>
+                  @if (game.weather['wind_speed_mps'] != null) {
+                    {{ game.weather['wind_speed_mps'] }} m/s
+                  } @else {
+                    —
+                  }
+                </dd>
               </div>
             </dl>
           } @else {
-            <p class="muted">No hay predicción disponible.</p>
+            <p class="muted">Aún no hay datos de condiciones. Usa «Actualizar datos».</p>
           }
         </mat-card-content>
       </mat-card>
     </div>
 
-    <mat-accordion class="json-accordion" multi="true">
-      <mat-expansion-panel>
-        <mat-expansion-panel-header>
-          <mat-panel-title>Alineaciones / feed</mat-panel-title>
-        </mat-expansion-panel-header>
-        @if (game.lineups) {
-          <pre class="json-block">{{ game.lineups | json }}</pre>
-        } @else {
-          <p class="muted">
-            Sin alineaciones guardadas. En partidos ya finalizados la API «live» no aplica; hace falta
-            <strong>boxscore</strong>. Sincroniza el rango con «Incluir boxscore / live», o pulsa
-            <strong>Actualizar desde MLB</strong> arriba para volver a descargar datos de este partido.
-          </p>
-        }
-      </mat-expansion-panel>
-      <mat-expansion-panel>
-        <mat-expansion-panel-header>
-          <mat-panel-title>Boxscore</mat-panel-title>
-        </mat-expansion-panel-header>
-        @if (game.boxscore) {
-          <app-boxscore-view [boxscore]="game.boxscore" />
-        } @else {
-          <p class="muted">Sin boxscore todavía. Usa «Actualizar desde MLB» arriba.</p>
-        }
-      </mat-expansion-panel>
-    </mat-accordion>
+    <app-collapsible-section title="Alineaciones" subtitle="Jugadores previstos o confirmados">
+      @if (game.lineups) {
+        <p class="muted">
+          Hay información de plantilla para este partido. Los detalles completos están disponibles en la fuente
+          oficial del encuentro.
+        </p>
+      } @else {
+        <p class="muted">
+          Cuando los datos estén disponibles, verás aquí el reparto. Pulsa «Actualizar datos» si el partido ya se
+          jugó y sigue vacío.
+        </p>
+      }
+    </app-collapsible-section>
+
+    <app-collapsible-section title="Marcador por entradas" subtitle="Resumen inning a inning">
+      @if (game.boxscore) {
+        <app-boxscore-view [boxscore]="game.boxscore" />
+      } @else {
+        <p class="muted">El desglose por entradas aparecerá cuando los datos estén disponibles.</p>
+      }
+    </app-collapsible-section>
+
+    <app-collapsible-section title="Enfrentamientos recientes" subtitle="Mismo rival, temporadas anteriores">
+      @if (headToHead.length === 0) {
+        <p class="muted">No hay más duelos recientes entre estos equipos en el historial guardado.</p>
+      } @else {
+        <ul class="h2h-list">
+          @for (r of headToHead; track r.game_pk) {
+            <li>
+              <a mat-button color="primary" [routerLink]="['/mlb/game', r.game_pk]">
+                {{ r.game_date }} · {{ abbr(r.away_team) }} &#64; {{ abbr(r.home_team) }}
+                @if (r.away_score != null && r.home_score != null) {
+                  <span class="h2h-score">{{ r.away_score }} – {{ r.home_score }}</span>
+                }
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    </app-collapsible-section>
   }
 </div>

@@ -1,0 +1,32 @@
+.tabs {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.scroll {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.tab {
+  flex: 0 0 auto;
+  border-radius: 999px !important;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.tab-active {
+  background: color-mix(in srgb, var(--mat-sys-primary, #8f343c) 16%, transparent) !important;
+}
+
+.soon {
+  opacity: 0.65;
+  font-size: 0.85em;
+  font-weight: 400;
+  margin-left: 2px;
+}

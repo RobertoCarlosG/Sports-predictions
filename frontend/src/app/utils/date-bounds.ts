@@ -28,3 +28,32 @@ export function currentSeasonDateBounds(): { min: string; max: string; year: num
     max: `${y}-${m}-${d}`,
   };
 }
+
+/** `YYYY-MM-DD` a partir de una fecha local. */
+export function toIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Suma días a una fecha ISO (mediodía local para evitar DST raros). */
+export function addDaysIso(iso: string, days: number): string {
+  const cur = new Date(`${iso}T12:00:00`);
+  cur.setDate(cur.getDate() + days);
+  return toIsoDate(cur);
+}
+
+/** Lista de fechas desde `startIso` (inclusive), `count` días, recortada a `maxIso` si hace falta. */
+export function consecutiveIsoDatesClamped(startIso: string, count: number, maxIso: string): string[] {
+  const out: string[] = [];
+  let cur = startIso;
+  for (let i = 0; i < count; i++) {
+    if (cur > maxIso) {
+      break;
+    }
+    out.push(cur);
+    cur = addDaysIso(cur, 1);
+  }
+  return out;
+}

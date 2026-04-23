@@ -1,0 +1,36 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 6px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+.badge-live {
+  background: color-mix(in srgb, #c62828 18%, transparent);
+  color: #b71c1c;
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
+.badge-upcoming {
+  background: color-mix(in srgb, #1565c0 14%, transparent);
+  color: #0d47a1;
+}
+
+.badge-final {
+  background: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.65);
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}

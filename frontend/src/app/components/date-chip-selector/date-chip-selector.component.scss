@@ -1,0 +1,15 @@
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.chip {
+  border-radius: 999px !important;
+  font-weight: 500;
+}
+
+.chip-on {
+  background: color-mix(in srgb, var(--mat-sys-primary, #8f343c) 14%, transparent) !important;
+}

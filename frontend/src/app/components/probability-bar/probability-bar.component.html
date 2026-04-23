@@ -1,0 +1,17 @@
+<div class="wrap">
+  <div class="row">
+    <span class="lbl">{{ label() }}</span>
+    @if (pct() == null) {
+      <span class="val val-muted">Sin datos</span>
+    } @else {
+      <span class="val">{{ pct() | number: '1.0-1' }}%</span>
+    }
+  </div>
+  <div class="track" aria-hidden="true">
+    <div
+      class="fill"
+      [class]="toneClass()"
+      [style.width.%]="pct() == null ? 0 : barWidth()"
+    ></div>
+  </div>
+</div>

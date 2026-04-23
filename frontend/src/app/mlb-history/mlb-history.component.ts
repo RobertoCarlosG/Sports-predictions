@@ -9,16 +9,17 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatListModule } from '@angular/material/list';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 
+import { FilterDrawerComponent } from '../components/filter-drawer/filter-drawer.component';
+import { FriendlyErrorBannerComponent } from '../components/friendly-error-banner/friendly-error-banner.component';
+import { MatchCardComponent } from '../components/match-card/match-card.component';
 import type { TeamOut } from '../models/game';
 import type { HistoryGame } from '../models/history';
 import { GamesApiService } from '../services/games-api.service';
-import { mlbDisplayAbbrev } from '../utils/mlb-team-abbr';
-import { currentSeasonDateBounds, eachIsoDateInRange } from '../utils/date-bounds';
-import { parseApiError, type ApiErrorView } from '../utils/api-error';
+import { addDaysIso, currentSeasonDateBounds, eachIsoDateInRange } from '../utils/date-bounds';
+type QuickRange = 'last7' | 'month' | 'season';
 
 @Component({
   selector: 'app-mlb-history',
@@ -34,9 +35,11 @@ import { parseApiError, type ApiErrorView } from '../utils/api-error';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatListModule,
     MatProgressSpinnerModule,
     MatSelectModule,
+    FilterDrawerComponent,
+    MatchCardComponent,
+    FriendlyErrorBannerComponent,
   ],
   templateUrl: './mlb-history.component.html',
   styleUrl: './mlb-history.component.scss',
@@ -45,7 +48,6 @@ export class MlbHistoryComponent implements OnInit {
   private readonly api = inject(GamesApiService);
 
   season = String(new Date().getFullYear());
-  /** Vacío = todos los equipos */
   teamId: string | number = '';
   dateFrom = '';
   dateTo = '';
@@ -56,24 +58,27 @@ export class MlbHistoryComponent implements OnInit {
   teams: TeamOut[] = [];
   games: HistoryGame[] = [];
   loading = false;
-  errorView: ApiErrorView | null = null;
+  loadError = false;
 
   syncStart = '';
   syncEnd = '';
-  syncFetchDetails = false;
+  syncExtraDetails = false;
   syncLoading = false;
-  syncMessage: string | null = null;
+  syncBanner: string | null = null;
 
-  /** min/max para inputs type=date (año en curso, fin ≤ hoy). */
   readonly seasonBounds = currentSeasonDateBounds();
+  quickActive: QuickRange = 'last7';
+
+  seasonYearChoices: number[] = [];
 
   ngOnInit(): void {
-    const { year: y, min, max } = this.seasonBounds;
+    const y = this.seasonBounds.year;
+    this.seasonYearChoices = [y - 1, y, y + 1].filter((n) => n >= 2020);
     this.season = String(y);
     this.syncStart = `${y}-03-01`;
-    this.syncEnd = max;
-    this.dateFrom = min;
-    this.dateTo = max;
+    this.syncEnd = this.seasonBounds.max;
+    this.applyQuick('last7', false);
+    void this.load();
     this.api.listMlbTeams().subscribe({
       next: (t) => {
         this.teams = t;
@@ -82,12 +87,33 @@ export class MlbHistoryComponent implements OnInit {
         this.teams = [];
       },
     });
-    void this.load();
+  }
+
+  applyQuick(which: QuickRange, reload = true): void {
+    this.quickActive = which;
+    const max = this.seasonBounds.max;
+    const min = this.seasonBounds.min;
+    if (which === 'last7') {
+      this.dateFrom = addDaysIso(max, -6);
+      this.dateTo = max;
+    } else if (which === 'month') {
+      const parts = max.split('-').map(Number);
+      const first = `${parts[0]}-${String(parts[1]).padStart(2, '0')}-01`;
+      this.dateFrom = first < min ? min : first;
+      this.dateTo = max;
+    } else {
+      this.dateFrom = min;
+      this.dateTo = max;
+      this.season = String(this.seasonBounds.year);
+    }
+    if (reload) {
+      void this.load();
+    }
   }
 
   load(): void {
     this.loading = true;
-    this.errorView = null;
+    this.loadError = false;
     this.api
       .listMlbHistory({
         season: this.season.trim() || undefined,
@@ -104,40 +130,44 @@ export class MlbHistoryComponent implements OnInit {
           this.games = g;
           this.loading = false;
         },
-        error: (e: unknown) => {
+        error: () => {
           this.loading = false;
-          this.errorView = parseApiError(e);
+          this.loadError = true;
         },
       });
   }
 
+  retryLoad(): void {
+    this.load();
+  }
+
   runSyncRange(): void {
     if (!this.syncStart || !this.syncEnd) {
-      this.syncMessage = 'Indica inicio y fin del rango.';
+      this.syncBanner = 'Elige fechas de inicio y fin.';
       return;
     }
     const { min, max } = this.seasonBounds;
     if (this.syncStart < min || this.syncEnd > max || this.syncStart > this.syncEnd) {
-      this.syncMessage = `Usa solo fechas del ${min} al ${max} (año en curso, sin futuro).`;
+      this.syncBanner = `Usa solo fechas entre ${min} y ${max}.`;
       return;
     }
     const days = eachIsoDateInRange(this.syncStart, this.syncEnd);
     if (days.length === 0) {
-      this.syncMessage = 'Rango de fechas vacío.';
+      this.syncBanner = 'El rango de fechas no es válido.';
       return;
     }
     this.syncLoading = true;
-    this.syncMessage = null;
-    const fetchDetails = this.syncFetchDetails;
+    this.syncBanner = null;
+    const fetchDetails = this.syncExtraDetails;
     const runDay = (i: number): void => {
       if (i >= days.length) {
         this.syncLoading = false;
-        this.syncMessage = `Listo: ${days.length} día(s) sincronizado(s).`;
+        this.syncBanner = `Listo: se actualizaron ${days.length} día(s).`;
         void this.load();
         return;
       }
       const d = days[i];
-      this.syncMessage = `Sincronizando ${d} (${i + 1}/${days.length})…`;
+      this.syncBanner = `Procesando ${d} (${i + 1} de ${days.length})…`;
       this.api
         .syncMlbRange({
           start_date: d,
@@ -146,23 +176,21 @@ export class MlbHistoryComponent implements OnInit {
         })
         .subscribe({
           next: () => runDay(i + 1),
-          error: (e: unknown) => {
+          error: () => {
             this.syncLoading = false;
-            this.syncMessage = parseApiError(e).summary;
+            this.syncBanner = 'No pudimos completar la actualización. Inténtalo de nuevo más tarde.';
           },
         });
     };
     runDay(0);
   }
 
-  scoreLine(g: HistoryGame): string {
-    if (typeof g.away_score === 'number' && typeof g.home_score === 'number') {
-      return `${g.away_score} – ${g.home_score}`;
-    }
-    return '—';
+  applyFiltersAndClose(drawer: { close(): void }): void {
+    void this.load();
+    drawer.close();
   }
 
-  abbr(team: TeamOut): string {
-    return mlbDisplayAbbrev(team);
+  yearStr(y: number): string {
+    return String(y);
   }
 }

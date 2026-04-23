@@ -1,0 +1,8 @@
+<span
+  class="badge"
+  [class.badge-live]="resolvedKind === 'live'"
+  [class.badge-upcoming]="resolvedKind === 'upcoming'"
+  [class.badge-final]="resolvedKind === 'final'"
+>
+  {{ label }}
+</span>

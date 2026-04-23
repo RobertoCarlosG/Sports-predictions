@@ -1,0 +1,26 @@
+.banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--mat-sys-error, #b3261e) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mat-sys-error, #b3261e) 28%, transparent);
+}
+
+.ico {
+  color: var(--mat-sys-error, #b3261e);
+  flex-shrink: 0;
+}
+
+.body {
+  min-width: 0;
+}
+
+.msg {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--mat-sys-on-surface, rgba(0, 0, 0, 0.87));
+}
