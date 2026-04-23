@@ -95,13 +95,25 @@ export class AdminPanelComponent implements OnInit {
         this.loginLoading = false;
         if (err instanceof HttpErrorResponse) {
           const raw = err.error;
-          const detail =
-            raw && typeof raw === 'object' && 'detail' in raw
-              ? String((raw as { detail: unknown }).detail)
-              : '';
-          if (err.status === 503 && detail) {
-            this.loginError = detail;
-            return;
+          if (raw && typeof raw === 'object') {
+            const o = raw as { message?: unknown; detail?: unknown };
+            const msg = o.message != null ? String(o.message).trim() : '';
+            const det = o.detail != null ? String(o.detail).trim() : '';
+            if (err.status === 503) {
+              if (msg) {
+                this.loginError = msg;
+                return;
+              }
+              if (det === 'database_schema_missing') {
+                this.loginError =
+                  'La base de datos no tiene las tablas necesarias (p. ej. admin_users). Ejecuta en Supabase/Postgres el script backend/sql/002_prediction_cache_and_admin.sql.';
+                return;
+              }
+              if (det) {
+                this.loginError = det;
+                return;
+              }
+            }
           }
         }
         this.loginError = 'No se pudo iniciar sesión. Revisa usuario y contraseña.';

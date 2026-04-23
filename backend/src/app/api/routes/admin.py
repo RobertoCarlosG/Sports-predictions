@@ -11,6 +11,7 @@ from typing import Annotated
 import joblib
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response
 from sqlalchemy import func, select
+from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps_admin import AdminUserDep
@@ -70,14 +71,41 @@ def _clear_admin_session_cookie(response: Response) -> None:
 
 
 @router.get("/auth/ready", response_model=AdminAuthReadyResponse)
-async def admin_auth_ready() -> AdminAuthReadyResponse:
-    """Público: comprueba si el servidor puede emitir sesiones del panel (evita 503 opacos en login)."""
-    ok = bool(settings.admin_jwt_secret.strip())
+async def admin_auth_ready(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> AdminAuthReadyResponse:
+    """Público: JWT + tabla admin_users (el 503 en login suele ser uno de los dos, o ambos)."""
+    jwt_ok = bool(settings.admin_jwt_secret.strip())
+    table_ok = False
+    table_hint: str | None = None
+    try:
+        await session.execute(select(AdminUser.id).limit(1))
+        table_ok = True
+    except ProgrammingError:
+        table_hint = (
+            "Falta la tabla admin_users. Ejecuta en PostgreSQL el script "
+            "`backend/sql/002_prediction_cache_and_admin.sql` (misma base que DATABASE_URL). "
+            "Sin eso, el login devuelve 503 (error de esquema)."
+        )
+    except SQLAlchemyError as e:
+        log.warning("admin auth/ready DB check: %s", e)
+        table_hint = "No se pudo consultar admin_users. Revisa DATABASE_URL y que el API use la misma BD que migraste."
+
+    login_ok = jwt_ok and table_ok
+    parts: list[str] = []
+    if not jwt_ok:
+        parts.append(
+            "ADMIN_JWT_SECRET no está definido o está vacío en el proceso del API (Render → Environment). "
+            "Nombre exacto: ADMIN_JWT_SECRET. Tras guardar, haz un deploy manual o «Restart» para recargar el servicio.",
+        )
+    if not table_ok and table_hint:
+        parts.append(table_hint)
+    detail = "\n\n".join(parts) if parts else None
     return AdminAuthReadyResponse(
-        login_available=ok,
-        detail=None
-        if ok
-        else "Falta ADMIN_JWT_SECRET en el servidor (p. ej. Render). Sin eso, login y /auth/me responden 503.",
+        login_available=login_ok,
+        detail=detail,
+        jwt_configured=jwt_ok,
+        admin_table_reachable=table_ok,
     )
 
 

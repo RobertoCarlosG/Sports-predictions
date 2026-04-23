@@ -15,10 +15,12 @@ class AdminSessionResponse(BaseModel):
 
 
 class AdminAuthReadyResponse(BaseModel):
-    """Sin autenticación: indica si el login del panel puede funcionar (hay ADMIN_JWT_SECRET)."""
+    """Sin autenticación: JWT configurado y tabla admin_users accesible."""
 
     login_available: bool
     detail: str | None = None
+    jwt_configured: bool = False
+    admin_table_reachable: bool = False
 
 
 class RebuildSnapshotsBody(BaseModel):

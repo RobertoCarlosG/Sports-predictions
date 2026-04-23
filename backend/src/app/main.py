@@ -31,6 +31,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log.warning("ML model missing; training synthetic placeholder (ml_auto_synthetic_on_missing=true).")
         ensure_model_exists(model_path)
 
+    if settings.admin_jwt_secret.strip():
+        log.info("Panel Operaciones: ADMIN_JWT_SECRET está definido (longitud=%s).", len(settings.admin_jwt_secret))
+    else:
+        log.warning(
+            "Panel Operaciones: ADMIN_JWT_SECRET vacío — /api/v1/admin/auth/login responderá 503 hasta configurarlo.",
+        )
+
     if model_path.is_file():
         bundle = joblib.load(model_path)
         app.state.active_model_version = str(bundle.get("model_version", "rf-v0"))

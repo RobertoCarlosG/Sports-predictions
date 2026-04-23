@@ -1,6 +1,6 @@
 from typing import Literal, Self
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,7 +16,13 @@ def normalize_async_database_url(url: str) -> str:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        # Variables de entorno vacías no sustituyen el default (útil en hosts mal configurados).
+        env_ignore_empty=True,
+    )
 
     database_url: str = "postgresql+asyncpg://user:pass@localhost:5432/sports_predictions"
     cors_origins: str = "http://localhost:4200"
@@ -53,6 +59,13 @@ class Settings(BaseSettings):
     # Límite de tiempo por sentencia SQL en el servidor (p. ej. UPDATE con boxscore_json muy grande).
     # 0 = no fijar (usa el default del servidor, a veces ~8s en poolers y falla). Recomendado: 120 en prod.
     database_statement_timeout_seconds: int = 120
+
+    @field_validator("admin_jwt_secret", "admin_bootstrap_secret", mode="before")
+    @classmethod
+    def _strip_secret_fields(cls, v: object) -> object:
+        if isinstance(v, str):
+            return v.strip()
+        return v
 
     @model_validator(mode="after")
     def _normalize_database_url(self) -> Self:

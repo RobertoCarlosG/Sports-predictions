@@ -12,6 +12,8 @@ export interface AdminSessionResponse {
 export interface AdminAuthReadyResponse {
   login_available: boolean;
   detail: string | null;
+  jwt_configured?: boolean;
+  admin_table_reachable?: boolean;
 }
 
 export interface MessageResponse {

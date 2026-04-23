@@ -24,8 +24,9 @@
       <mat-card-content>
         <p class="config-banner-text">{{ configBanner }}</p>
         <p class="config-banner-hint">
-          En Render (u otro host), añade la variable <code>ADMIN_JWT_SECRET</code> con un valor largo y aleatorio,
-          vuelve a desplegar y prueba de nuevo.
+          Revisa en los logs del API al arrancar si aparece «ADMIN_JWT_SECRET está definido». Si el JWT está bien pero
+          falla la tabla, ejecuta <code>002_prediction_cache_and_admin.sql</code> en la misma base que
+          <code>DATABASE_URL</code>. Tras cambiar variables en Render, usa <strong>Restart</strong> o un deploy nuevo.
         </p>
       </mat-card-content>
     </mat-card>
