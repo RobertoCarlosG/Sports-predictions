@@ -8,6 +8,12 @@ export interface AdminSessionResponse {
   username: string;
 }
 
+/** Respuesta de GET /admin/auth/ready (público). */
+export interface AdminAuthReadyResponse {
+  login_available: boolean;
+  detail: string | null;
+}
+
 export interface MessageResponse {
   message: string;
   detail: string | null;
@@ -28,6 +34,11 @@ export class AdminApiService {
 
   private opts(): { withCredentials: boolean } {
     return { withCredentials: true };
+  }
+
+  /** Sin cookie: indica si el API tiene ADMIN_JWT_SECRET (si no, login devuelve 503). */
+  authReady(): Observable<AdminAuthReadyResponse> {
+    return this.http.get<AdminAuthReadyResponse>(`${this.base}/auth/ready`);
   }
 
   isLoggedIn(): boolean {

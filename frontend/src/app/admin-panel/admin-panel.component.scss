@@ -22,6 +22,41 @@
   max-width: 40rem;
 }
 
+.ready-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1rem;
+  font-size: 14px;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+}
+
+.config-banner-card {
+  margin-bottom: 1rem;
+  border-color: var(--mat-sys-error-container, rgba(179, 38, 30, 0.35)) !important;
+}
+
+.config-banner-text {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--mat-sys-error, #b3261e);
+}
+
+.config-banner-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.7));
+}
+
+.config-banner-hint code {
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--mat-sys-surface-container, rgba(0, 0, 0, 0.06));
+}
+
 .card {
   margin-bottom: 1rem;
 }

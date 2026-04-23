@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -37,6 +38,9 @@ export class AdminPanelComponent implements OnInit {
   password = '';
   loginLoading = false;
   loginError: string | null = null;
+  /** Si no es null, el API no tiene ADMIN_JWT_SECRET (o falló /auth/ready). */
+  configBanner: string | null = null;
+  authReadyLoading = true;
 
   statusText: string | null = null;
   statusDetail: string | null = null;
@@ -54,10 +58,22 @@ export class AdminPanelComponent implements OnInit {
   trainModelVersion = 'rf-db-v1';
 
   ngOnInit(): void {
-    this.admin.checkSession().subscribe({
-      next: () => this.refreshStatus(),
+    this.admin.authReady().subscribe({
+      next: (r) => {
+        this.authReadyLoading = false;
+        this.configBanner = r.login_available ? null : (r.detail ?? 'El servidor no tiene configurado el acceso al panel.');
+        if (r.login_available) {
+          this.admin.checkSession().subscribe({
+            next: () => this.refreshStatus(),
+            error: () => {
+              /* sin cookie o expirada: formulario de login */
+            },
+          });
+        }
+      },
       error: () => {
-        /* sin cookie o expirada: formulario de login */
+        this.authReadyLoading = false;
+        this.configBanner = 'No se pudo contactar al API o comprobar la configuración.';
       },
     });
   }
@@ -75,8 +91,19 @@ export class AdminPanelComponent implements OnInit {
         this.password = '';
         void this.refreshStatus();
       },
-      error: () => {
+      error: (err: unknown) => {
         this.loginLoading = false;
+        if (err instanceof HttpErrorResponse) {
+          const raw = err.error;
+          const detail =
+            raw && typeof raw === 'object' && 'detail' in raw
+              ? String((raw as { detail: unknown }).detail)
+              : '';
+          if (err.status === 503 && detail) {
+            this.loginError = detail;
+            return;
+          }
+        }
         this.loginError = 'No se pudo iniciar sesión. Revisa usuario y contraseña.';
       },
     });

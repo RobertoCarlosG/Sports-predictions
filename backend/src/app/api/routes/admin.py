@@ -21,6 +21,7 @@ from app.db.session import get_db
 from app.ml.predictor import MlbPredictionService, resolve_model_path
 from app.models.mlb import AdminUser
 from app.schemas.admin_api import (
+    AdminAuthReadyResponse,
     AdminLoginBody,
     AdminSessionResponse,
     BackfillBody,
@@ -66,6 +67,18 @@ def _clear_admin_session_cookie(response: Response) -> None:
     if settings.admin_cookie_domain:
         kwargs["domain"] = settings.admin_cookie_domain
     response.delete_cookie(**kwargs)
+
+
+@router.get("/auth/ready", response_model=AdminAuthReadyResponse)
+async def admin_auth_ready() -> AdminAuthReadyResponse:
+    """Público: comprueba si el servidor puede emitir sesiones del panel (evita 503 opacos en login)."""
+    ok = bool(settings.admin_jwt_secret.strip())
+    return AdminAuthReadyResponse(
+        login_available=ok,
+        detail=None
+        if ok
+        else "Falta ADMIN_JWT_SECRET en el servidor (p. ej. Render). Sin eso, login y /auth/me responden 503.",
+    )
 
 
 @router.post("/auth/bootstrap", response_model=AdminSessionResponse)

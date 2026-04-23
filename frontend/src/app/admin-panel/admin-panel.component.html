@@ -12,6 +12,25 @@
     estimaciones sin usar la línea de comandos.
   </p>
 
+  @if (authReadyLoading) {
+    <div class="ready-loading">
+      <mat-spinner diameter="36" />
+      <span>Comprobando servidor…</span>
+    </div>
+  }
+
+  @if (!authReadyLoading && configBanner) {
+    <mat-card class="card config-banner-card" appearance="outlined">
+      <mat-card-content>
+        <p class="config-banner-text">{{ configBanner }}</p>
+        <p class="config-banner-hint">
+          En Render (u otro host), añade la variable <code>ADMIN_JWT_SECRET</code> con un valor largo y aleatorio,
+          vuelve a desplegar y prueba de nuevo.
+        </p>
+      </mat-card-content>
+    </mat-card>
+  }
+
   @if (!loggedIn()) {
     <mat-card class="card" appearance="outlined">
       <mat-card-header>
@@ -36,7 +55,13 @@
         @if (loginError) {
           <p class="err">{{ loginError }}</p>
         }
-        <button mat-flat-button color="primary" type="button" (click)="login()" [disabled]="loginLoading">
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          (click)="login()"
+          [disabled]="loginLoading || !!configBanner"
+        >
           @if (loginLoading) {
             <mat-spinner diameter="22" />
           }

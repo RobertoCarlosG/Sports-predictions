@@ -14,6 +14,13 @@ class AdminSessionResponse(BaseModel):
     username: str
 
 
+class AdminAuthReadyResponse(BaseModel):
+    """Sin autenticación: indica si el login del panel puede funcionar (hay ADMIN_JWT_SECRET)."""
+
+    login_available: bool
+    detail: str | None = None
+
+
 class RebuildSnapshotsBody(BaseModel):
     season: str | None = None
     window: int = Field(default=10, ge=1, le=50)
