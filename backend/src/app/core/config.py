@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://user:pass@localhost:5432/sports_predictions"
     cors_origins: str = "http://localhost:4200"
     mlb_api_base_url: str = "https://statsapi.mlb.com/api/v1"
+    # Límite global MLB: tras N peticiones, pausa (0 = desactivado).
+    mlb_api_rate_limit_burst_size: int = 5
+    mlb_api_rate_limit_cooldown_seconds: float = 25.0
     open_meteo_base_url: str = "https://api.open-meteo.com/v1"
     # Path to bundled stadium coordinates (JSON) relative to cwd or absolute
     mlb_stadiums_path: str = "src/app/data/mlb_stadiums.json"

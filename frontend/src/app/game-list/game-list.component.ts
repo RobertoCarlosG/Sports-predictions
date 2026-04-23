@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,7 +8,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
-import { DateChipSelectorComponent, type DateChipSelection } from '../components/date-chip-selector/date-chip-selector.component';
+import {
+  DateChipSelectorComponent,
+  type DateChipPreset,
+  type DateChipSelection,
+} from '../components/date-chip-selector/date-chip-selector.component';
 import { FriendlyErrorBannerComponent } from '../components/friendly-error-banner/friendly-error-banner.component';
 import { MatchCardComponent } from '../components/match-card/match-card.component';
 import type { GameDetail } from '../models/game';
@@ -19,6 +24,7 @@ import { currentSeasonDateBounds } from '../utils/date-bounds';
   standalone: true,
   imports: [
     CommonModule,
+    RouterLink,
     MatButtonModule,
     MatCardModule,
     MatIconModule,
@@ -47,14 +53,35 @@ export class GameListComponent implements OnInit {
   /** Preset de fechas actual (para subtítulos). */
   dateSummary = '';
 
+  pageTitle = 'Hoy en MLB';
+  pageLede = 'Partidos del día con estimación de victoria del equipo local.';
+
   ngOnInit(): void {
     /* La carga inicial la dispara DateChipSelector al emitir en ngOnInit. */
   }
 
   onDateSelection(sel: DateChipSelection): void {
     this.dateSummary = this.formatDateSummary(sel);
+    this.applyHeadlines(sel.preset);
     this.loadForDates(sel.dates);
   }
+
+  private applyHeadlines(preset: DateChipPreset): void {
+    if (preset === 'week') {
+      this.pageTitle = 'Esta semana en MLB';
+      this.pageLede =
+        'Semana calendario (lunes a domingo) recortada hasta hoy. Estimación de victoria del equipo local.';
+      return;
+    }
+    if (preset === 'tomorrow') {
+      this.pageTitle = 'Mañana en MLB';
+      this.pageLede = 'Partidos del día siguiente con estimación de victoria del equipo local.';
+      return;
+    }
+    this.pageTitle = 'Hoy en MLB';
+    this.pageLede = 'Partidos del día con estimación de victoria del equipo local.';
+  }
+
 
   retry(): void {
     this.loadError = false;

@@ -57,3 +57,27 @@ export function consecutiveIsoDatesClamped(startIso: string, count: number, maxI
   }
   return out;
 }
+
+/** Lunes de la semana calendario que contiene `iso` (lunes–domingo, locale del navegador). */
+export function mondayOfIsoWeek(iso: string): string {
+  const cur = new Date(`${iso}T12:00:00`);
+  const dow = cur.getDay(); // 0 = domingo, 1 = lunes, …
+  const offset = dow === 0 ? -6 : 1 - dow;
+  cur.setDate(cur.getDate() + offset);
+  return toIsoDate(cur);
+}
+
+/**
+ * Días de la semana actual (lun → dom) que caen en [minIso, maxIso] (p. ej. max = hoy).
+ * Así «Esta semana» no se confunde con «solo hoy» cuando maxIso es hoy y antes se avanzaba al futuro.
+ */
+export function calendarWeekRangeClamped(iso: string, minIso: string, maxIso: string): string[] {
+  const mon = mondayOfIsoWeek(iso);
+  const sun = addDaysIso(mon, 6);
+  const start = mon < minIso ? minIso : mon;
+  const end = sun > maxIso ? maxIso : sun;
+  if (start > end) {
+    return [];
+  }
+  return eachIsoDateInRange(start, end);
+}

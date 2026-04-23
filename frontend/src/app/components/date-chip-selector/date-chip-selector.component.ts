@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 
-import { addDaysIso, consecutiveIsoDatesClamped, currentSeasonDateBounds } from '../../utils/date-bounds';
+import { addDaysIso, calendarWeekRangeClamped, currentSeasonDateBounds } from '../../utils/date-bounds';
 
 export type DateChipPreset = 'today' | 'tomorrow' | 'week';
 
@@ -64,7 +64,7 @@ export class DateChipSelectorComponent implements OnInit {
       }
       return [iso];
     }
-    const start = max < min ? min : max;
-    return consecutiveIsoDatesClamped(start, 7, max);
+    const anchor = max < min ? min : max;
+    return calendarWeekRangeClamped(anchor, min, max);
   }
 }

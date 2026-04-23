@@ -5,18 +5,31 @@ from typing import Any, cast
 import httpx
 
 from app.data.mlb_team_abbreviations import team_abbr_for_display
+from app.services.mlb_throttle import MlbRateLimiter, get_mlb_rate_limiter
 
 
 class MlbApiClient:
     """Async client for statsapi.mlb.com (no API key)."""
 
-    def __init__(self, base_url: str, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        client: httpx.AsyncClient,
+        *,
+        rate_limiter: MlbRateLimiter | None = None,
+    ) -> None:
         self._base = base_url.rstrip("/")
         self._client = client
+        self._limiter = rate_limiter if rate_limiter is not None else get_mlb_rate_limiter()
+
+    async def _throttle(self) -> None:
+        if self._limiter is not None:
+            await self._limiter.acquire()
 
     async def schedule(self, date_str: str, sport_id: int = 1) -> dict[str, Any]:
         # Without hydrate=team, each team is only id/name/link; hydrate=team adds
         # abbreviation, teamName, fileCode, etc. (MLB Stats API schedule).
+        await self._throttle()
         r = await self._client.get(
             f"{self._base}/schedule",
             params={
@@ -30,6 +43,7 @@ class MlbApiClient:
 
     async def schedule_for_game(self, game_pk: int, sport_id: int = 1) -> dict[str, Any]:
         """Schedule filtrado por un solo `gamePk` (útil para sync puntual sin iterar el día)."""
+        await self._throttle()
         r = await self._client.get(
             f"{self._base}/schedule",
             params={
@@ -42,17 +56,20 @@ class MlbApiClient:
         return cast(dict[str, Any], r.json())
 
     async def boxscore(self, game_pk: int) -> dict[str, Any]:
+        await self._throttle()
         r = await self._client.get(f"{self._base}/game/{game_pk}/boxscore")
         r.raise_for_status()
         return cast(dict[str, Any], r.json())
 
     async def live_feed(self, game_pk: int) -> dict[str, Any]:
+        await self._throttle()
         r = await self._client.get(f"{self._base}/game/{game_pk}/feed/live")
         r.raise_for_status()
         return cast(dict[str, Any], r.json())
 
     async def linescore(self, game_pk: int) -> dict[str, Any]:
         """Ligero; incluye runs por equipo (útil si el schedule no trae score y no hay boxscore)."""
+        await self._throttle()
         r = await self._client.get(f"{self._base}/game/{game_pk}/linescore")
         r.raise_for_status()
         return cast(dict[str, Any], r.json())

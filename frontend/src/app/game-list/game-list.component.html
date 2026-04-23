@@ -1,8 +1,8 @@
 <div class="page">
   <header class="page-head">
     <div class="titles">
-      <h1 class="title">Hoy en MLB</h1>
-      <p class="lede">Partidos del día con estimación de victoria del equipo local.</p>
+      <h1 class="title">{{ pageTitle }}</h1>
+      <p class="lede">{{ pageLede }}</p>
     </div>
     <app-date-chip-selector
       [minIso]="seasonBounds.min"
@@ -10,6 +10,22 @@
       (selectionChange)="onDateSelection($event)"
     />
   </header>
+
+  <mat-card class="pipeline-hint" appearance="outlined">
+    <mat-card-content class="pipeline-hint-inner">
+      <div class="pipeline-hint-text">
+        <strong>¿Misma probabilidad (~50&nbsp;%) en todos los partidos?</strong>
+        <span>
+          Hace falta histórico en base de datos, indicadores (snapshots) y un modelo entrenado con
+          <code>train_from_db</code>. Usa el panel
+          <a routerLink="/mlb/operaciones">Operaciones</a>
+          (importar fechas → recalcular indicadores → entrenar → recargar modelo) o el CLI del backend; guía en
+          <code>docs/MODELO_ENTRENAMIENTO.md</code> del repositorio.
+        </span>
+      </div>
+      <a mat-stroked-button color="primary" routerLink="/mlb/operaciones">Abrir Operaciones</a>
+    </mat-card-content>
+  </mat-card>
 
   @if (loading && games.length === 0) {
     <div class="loading-block">
