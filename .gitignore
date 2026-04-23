@@ -41,9 +41,10 @@ yarn-error.log*
 Thumbs.db
 
 # ML artifacts (large)
-backend/**/*.joblib
 backend/**/models/*.pkl
-!backend/src/app/ml/.gitkeep
+# Solo se versiona el modelo elegido para despliegue: cópialo como model.joblib en artifacts/.
+backend/src/app/ml/artifacts/*.joblib
+!backend/src/app/ml/artifacts/model.joblib
 
 # Local docs symlink / parent (if copied)
 # Keep project docs/ tracked in Sports-Predictions/docs

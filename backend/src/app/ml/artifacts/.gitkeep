@@ -1,0 +1,2 @@
+# Modelo a subir: 
+# cp modelo.joblib model.joblib && git add model.joblib
