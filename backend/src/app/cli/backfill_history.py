@@ -14,6 +14,9 @@ import asyncio
 import datetime as dt
 import logging
 import sys
+from collections.abc import Awaitable, Callable
+from typing import Any
+
 import httpx
 
 from app.core.config import settings
@@ -45,6 +48,7 @@ async def _run_backfill(
     *,
     fetch_details: bool,
     sleep_s: float,
+    on_progress: Callable[[int, int, str], Awaitable[Any]] | None = None,
 ) -> None:
     dates = _daterange(start, end)
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -70,6 +74,8 @@ async def _run_backfill(
                     await session.rollback()
                     log.exception("backfill failed for %s", d.isoformat())
                     raise
+            if on_progress is not None:
+                await on_progress(i + 1, len(dates), d.isoformat())
             if sleep_s > 0 and i + 1 < len(dates):
                 await asyncio.sleep(sleep_s)
 
@@ -100,6 +106,7 @@ def main(argv: list[str] | None = None) -> None:
             end,
             fetch_details=args.fetch_details,
             sleep_s=args.sleep,
+            on_progress=None,
         )
     )
 

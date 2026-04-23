@@ -19,6 +19,21 @@ export interface AdminAuthReadyResponse {
 export interface MessageResponse {
   message: string;
   detail: string | null;
+  job_id?: string | null;
+}
+
+export interface BackfillJobStatusResponse {
+  status: string;
+  job_id: string | null;
+  started_at: number | null;
+  finished_at: number | null;
+  date_start: string | null;
+  date_end: string | null;
+  days_total: number;
+  days_done: number;
+  current_date: string | null;
+  error_detail: string | null;
+  result_message: string | null;
 }
 
 export interface TrainResultResponse {
@@ -121,5 +136,9 @@ export class AdminApiService {
       { start, end, fetch_details: fetchDetails, sleep_s: sleepS },
       this.opts(),
     );
+  }
+
+  getBackfillStatus(): Observable<BackfillJobStatusResponse> {
+    return this.http.get<BackfillJobStatusResponse>(`${this.base}/pipeline/backfill-status`, this.opts());
   }
 }

@@ -15,7 +15,6 @@ from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps_admin import AdminUserDep
-from app.cli.backfill_history import _run_backfill
 from app.core.admin_security import create_access_token, hash_password
 from app.core.config import settings
 from app.db.session import get_db
@@ -26,12 +25,19 @@ from app.schemas.admin_api import (
     AdminLoginBody,
     AdminSessionResponse,
     BackfillBody,
+    BackfillJobStatusResponse,
     MessageResponse,
     RebuildSnapshotsBody,
     TrainModelBody,
     TrainResultResponse,
 )
 from app.services.admin_auth import AdminAuthError, login_with_password
+from app.services.admin_backfill_state import (
+    backfill_is_busy,
+    initial_backfill_job_state,
+    prepare_backfill_job,
+    run_tracked_backfill,
+)
 from app.services.feature_snapshots import rebuild_game_feature_snapshots
 from app.services.prediction_cache import clear_prediction_cache
 
@@ -268,24 +274,43 @@ async def admin_train_model(
     )
 
 
+@router.get("/pipeline/backfill-status", response_model=BackfillJobStatusResponse)
+async def admin_backfill_status(
+    request: Request,
+    _username: AdminUserDep,
+) -> BackfillJobStatusResponse:
+    job = getattr(request.app.state, "backfill_job", None) or initial_backfill_job_state()
+    return BackfillJobStatusResponse.model_validate(job)
+
+
 @router.post("/pipeline/backfill", response_model=MessageResponse)
 async def admin_backfill(
     body: BackfillBody,
     background_tasks: BackgroundTasks,
+    request: Request,
     _username: AdminUserDep,
 ) -> MessageResponse:
+    if backfill_is_busy(request.app):
+        raise HTTPException(
+            status_code=409,
+            detail="Ya hay una importación por fechas en curso (en cola o ejecutándose). Espera o revisa el progreso.",
+        )
     start = dt.date.fromisoformat(body.start)
     end = dt.date.fromisoformat(body.end)
+    jid = prepare_backfill_job(request.app, start, end)
     background_tasks.add_task(
-        _run_backfill,
+        run_tracked_backfill,
+        request.app,
         start,
         end,
         fetch_details=body.fetch_details,
         sleep_s=body.sleep_s,
+        job_id=jid,
     )
     return MessageResponse(
         message="Importación por fechas iniciada en segundo plano.",
-        detail="Puede tardar varios minutos. Revisa los logs del servidor.",
+        detail=f"Rango: {body.start} — {body.end}.",
+        job_id=jid,
     )
 
 

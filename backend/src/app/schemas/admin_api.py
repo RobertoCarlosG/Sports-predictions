@@ -14,6 +14,22 @@ class AdminSessionResponse(BaseModel):
     username: str
 
 
+class BackfillJobStatusResponse(BaseModel):
+    """Estado de la última importación por fechas (panel Operaciones)."""
+
+    status: str = "idle"
+    job_id: str | None = None
+    started_at: float | None = None
+    finished_at: float | None = None
+    date_start: str | None = None
+    date_end: str | None = None
+    days_total: int = 0
+    days_done: int = 0
+    current_date: str | None = None
+    error_detail: str | None = None
+    result_message: str | None = None
+
+
 class AdminAuthReadyResponse(BaseModel):
     """Sin autenticación: JWT configurado y tabla admin_users accesible."""
 
@@ -49,6 +65,7 @@ class BackfillBody(BaseModel):
 class MessageResponse(BaseModel):
     message: str
     detail: str | None = None
+    job_id: str | None = None
 
 
 class TrainResultResponse(BaseModel):

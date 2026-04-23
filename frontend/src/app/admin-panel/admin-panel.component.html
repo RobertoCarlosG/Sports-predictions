@@ -33,46 +33,57 @@
   }
 
   @if (!loggedIn()) {
-    <mat-card class="card" appearance="outlined">
-      <mat-card-header>
-        <mat-card-title>Iniciar sesión</mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="login-fields">
-        <mat-form-field appearance="outline" class="full">
-          <mat-label>Usuario</mat-label>
-          <input matInput name="user" [(ngModel)]="username" autocomplete="username" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="full">
-          <mat-label>Contraseña</mat-label>
-          <input
-            matInput
-            type="password"
-            name="pass"
-            [(ngModel)]="password"
-            autocomplete="current-password"
-            (keyup.enter)="login()"
-          />
-        </mat-form-field>
-        @if (loginError) {
-          <p class="err">{{ loginError }}</p>
-        }
-        <button
-          mat-flat-button
-          color="primary"
-          type="button"
-          (click)="login()"
-          [disabled]="loginLoading || !!configBanner"
-        >
-          @if (loginLoading) {
-            <mat-spinner diameter="22" />
+    <div class="login-shell">
+      <mat-card class="card login-card" appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Iniciar sesión</mat-card-title>
+        </mat-card-header>
+        <mat-card-content class="login-fields">
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Usuario</mat-label>
+            <input matInput name="user" [(ngModel)]="username" autocomplete="username" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Contraseña</mat-label>
+            <input
+              matInput
+              [type]="hidePassword ? 'password' : 'text'"
+              name="pass"
+              [(ngModel)]="password"
+              autocomplete="current-password"
+              (keyup.enter)="login()"
+            />
+            <button
+              mat-icon-button
+              matSuffix
+              type="button"
+              (click)="hidePassword = !hidePassword"
+              [attr.aria-label]="hidePassword ? 'Mostrar contraseña' : 'Ocultar contraseña'"
+            >
+              <mat-icon>{{ hidePassword ? 'visibility' : 'visibility_off' }}</mat-icon>
+            </button>
+          </mat-form-field>
+          @if (loginError) {
+            <p class="err">{{ loginError }}</p>
           }
-          Entrar
-        </button>
-      </mat-card-content>
-    </mat-card>
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="login()"
+            [disabled]="loginLoading || !!configBanner"
+          >
+            @if (loginLoading) {
+              <mat-spinner diameter="22" />
+            }
+            Entrar
+          </button>
+        </mat-card-content>
+      </mat-card>
+    </div>
   } @else {
     <div class="toolbar-actions">
-      <button mat-stroked-button type="button" (click)="refreshStatus()" [disabled]="busy">
+      <button mat-stroked-button type="button" (click)="refreshStatus()" [disabled]="operationsLocked">
         <mat-icon>info</mat-icon>
         Ver estado
       </button>
@@ -90,11 +101,37 @@
       </mat-card>
     }
 
-    @if (lastActionMessage) {
-      <p class="feedback">{{ lastActionMessage }}</p>
+    @if (busy && lastActionMessage && !backfillTracking) {
+      <div class="inline-loading">
+        <mat-spinner diameter="22" />
+        <span>{{ lastActionMessage }}</span>
+      </div>
     }
     @if (lastActionError) {
       <p class="feedback err">{{ lastActionError }}</p>
+    }
+
+    @if (backfillTracking) {
+      <mat-card class="card progress-card" appearance="outlined">
+        <mat-card-content class="progress-inner">
+          <div class="progress-head">
+            <mat-spinner diameter="28" />
+            <div class="progress-titles">
+              <span class="progress-title">{{ backfillTaskLabel }}</span>
+              <span class="progress-phase">{{ backfillPhaseLabel }}</span>
+            </div>
+          </div>
+          <p class="progress-detail">
+            @if (backfillStatus?.current_date) {
+              Día actual: <strong>{{ backfillStatus?.current_date }}</strong>
+            } @else {
+              Preparando…
+            }
+            — {{ backfillStatus?.days_done ?? 0 }} / {{ backfillStatus?.days_total ?? '?' }} días
+          </p>
+          <mat-progress-bar mode="determinate" [value]="backfillProgressPercent" />
+        </mat-card-content>
+      </mat-card>
     }
 
     <div class="grid">
@@ -116,7 +153,7 @@
             <mat-label>Pausa entre días (segundos)</mat-label>
             <input matInput type="number" step="0.1" min="0" [(ngModel)]="backfillSleep" name="bfs" />
           </mat-form-field>
-          <button mat-stroked-button type="button" (click)="backfill()" [disabled]="busy">
+          <button mat-stroked-button type="button" (click)="backfill()" [disabled]="operationsLocked">
             <mat-icon>download</mat-icon>
             Iniciar importación
           </button>
@@ -137,7 +174,7 @@
             <mat-label>Ventana de partidos previos</mat-label>
             <input matInput type="number" min="1" max="50" [(ngModel)]="snapshotWindow" name="win" />
           </mat-form-field>
-          <button mat-stroked-button type="button" (click)="rebuildSnapshots()" [disabled]="busy">
+          <button mat-stroked-button type="button" (click)="rebuildSnapshots()" [disabled]="operationsLocked">
             <mat-icon>analytics</mat-icon>
             Recalcular indicadores
           </button>
@@ -162,11 +199,11 @@
             <mat-label>Nombre de versión</mat-label>
             <input matInput [(ngModel)]="trainModelVersion" name="mv" />
           </mat-form-field>
-          <button mat-flat-button color="primary" type="button" (click)="train()" [disabled]="busy">
+          <button mat-flat-button color="primary" type="button" (click)="train()" [disabled]="operationsLocked">
             <mat-icon>model_training</mat-icon>
             Entrenar con datos guardados
           </button>
-          <button mat-stroked-button type="button" (click)="reloadModel()" [disabled]="busy">
+          <button mat-stroked-button type="button" (click)="reloadModel()" [disabled]="operationsLocked">
             <mat-icon>refresh</mat-icon>
             Recargar modelo en memoria
           </button>
@@ -179,7 +216,7 @@
           <mat-card-subtitle>Obliga a recalcular la próxima vez que se consulte</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
-          <button mat-stroked-button type="button" color="warn" (click)="clearCache()" [disabled]="busy">
+          <button mat-stroked-button type="button" color="warn" (click)="clearCache()" [disabled]="operationsLocked">
             <mat-icon>delete_sweep</mat-icon>
             Vaciar caché
           </button>

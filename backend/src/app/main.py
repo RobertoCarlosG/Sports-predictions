@@ -19,6 +19,7 @@ from app.core.exception_handlers import (
 )
 from app.db.session import engine
 from app.ml.predictor import MlbPredictionService, ensure_model_exists, resolve_model_path
+from app.services.admin_backfill_state import initial_backfill_job_state
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ log = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.http_client = httpx.AsyncClient(timeout=30.0)
+    app.state.backfill_job = initial_backfill_job_state()
     model_path = resolve_model_path(settings.ml_model_path)
     if not model_path.is_file() and settings.ml_auto_synthetic_on_missing:
         log.warning("ML model missing; training synthetic placeholder (ml_auto_synthetic_on_missing=true).")

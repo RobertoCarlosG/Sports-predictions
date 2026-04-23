@@ -1,18 +1,25 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
-import { Observable } from 'rxjs';
+import { Observable, Subscription, interval } from 'rxjs';
+import { startWith, switchMap } from 'rxjs/operators';
 
-import { AdminApiService } from '../services/admin-api.service';
+import {
+  AdminApiService,
+  type BackfillJobStatusResponse,
+} from '../services/admin-api.service';
+import { AdminOpResultData, AdminOpResultDialogComponent } from './admin-op-result-dialog.component';
 
 @Component({
   selector: 'app-admin-panel',
@@ -26,19 +33,23 @@ import { AdminApiService } from '../services/admin-api.service';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatProgressBarModule,
     MatProgressSpinnerModule,
   ],
   templateUrl: './admin-panel.component.html',
   styleUrl: './admin-panel.component.scss',
 })
-export class AdminPanelComponent implements OnInit {
+export class AdminPanelComponent implements OnInit, OnDestroy {
   private readonly admin = inject(AdminApiService);
+  private readonly dialog = inject(MatDialog);
+
+  private backfillPollSub: Subscription | null = null;
 
   username = '';
   password = '';
+  hidePassword = true;
   loginLoading = false;
   loginError: string | null = null;
-  /** Si no es null, el API no tiene ADMIN_JWT_SECRET (o falló /auth/ready). */
   configBanner: string | null = null;
   authReadyLoading = true;
 
@@ -57,6 +68,12 @@ export class AdminPanelComponent implements OnInit {
   trainSeason = '';
   trainModelVersion = 'rf-db-v1';
 
+  /** Seguimiento de importación en segundo plano. */
+  backfillTracking = false;
+  backfillStatus: BackfillJobStatusResponse | null = null;
+  private pendingBackfillJobId: string | null = null;
+  backfillTaskLabel = '';
+
   ngOnInit(): void {
     this.admin.authReady().subscribe({
       next: (r) => {
@@ -64,9 +81,12 @@ export class AdminPanelComponent implements OnInit {
         this.configBanner = r.login_available ? null : (r.detail ?? 'El servidor no tiene configurado el acceso al panel.');
         if (r.login_available) {
           this.admin.checkSession().subscribe({
-            next: () => this.refreshStatus(),
+            next: () => {
+              void this.refreshStatus();
+              this.tryResumeBackfillPoll();
+            },
             error: () => {
-              /* sin cookie o expirada: formulario de login */
+              /* sin sesión */
             },
           });
         }
@@ -76,6 +96,34 @@ export class AdminPanelComponent implements OnInit {
         this.configBanner = 'No se pudo contactar al API o comprobar la configuración.';
       },
     });
+  }
+
+  ngOnDestroy(): void {
+    this.stopBackfillPoll();
+  }
+
+  get operationsLocked(): boolean {
+    return this.busy || this.backfillTracking;
+  }
+
+  get backfillProgressPercent(): number {
+    const t = this.backfillStatus?.days_total ?? 0;
+    const d = this.backfillStatus?.days_done ?? 0;
+    if (t <= 0) {
+      return 0;
+    }
+    return Math.min(100, Math.round((d / t) * 100));
+  }
+
+  get backfillPhaseLabel(): string {
+    const s = this.backfillStatus?.status;
+    if (s === 'queued') {
+      return 'En cola…';
+    }
+    if (s === 'running') {
+      return 'Sincronizando fechas con la API de MLB…';
+    }
+    return '';
   }
 
   loggedIn(): boolean {
@@ -90,6 +138,7 @@ export class AdminPanelComponent implements OnInit {
         this.loginLoading = false;
         this.password = '';
         void this.refreshStatus();
+        this.tryResumeBackfillPoll();
       },
       error: (err: unknown) => {
         this.loginLoading = false;
@@ -122,6 +171,9 @@ export class AdminPanelComponent implements OnInit {
   }
 
   logout(): void {
+    this.stopBackfillPoll();
+    this.backfillTracking = false;
+    this.pendingBackfillJobId = null;
     this.admin.logout().subscribe({
       next: () => {
         this.statusText = null;
@@ -178,12 +230,102 @@ export class AdminPanelComponent implements OnInit {
 
   backfill(): void {
     if (!this.backfillStart || !this.backfillEnd) {
-      this.lastActionError = 'Indica fecha de inicio y fin.';
+      this.openResultDialog({
+        title: 'Importación',
+        message: 'Indica fecha de inicio y fin.',
+        technicalDetail: null,
+        success: false,
+      });
       return;
     }
-    this._run('Iniciando importación en segundo plano…', () =>
-      this.admin.backfill(this.backfillStart, this.backfillEnd, true, this.backfillSleep),
-    );
+    if (this.backfillTracking) {
+      return;
+    }
+    this.busy = true;
+    this.lastActionError = null;
+    this.lastActionMessage = 'Enviando importación al servidor…';
+    this.admin.backfill(this.backfillStart, this.backfillEnd, true, this.backfillSleep).subscribe({
+      next: (r) => {
+        this.busy = false;
+        this.lastActionMessage = null;
+        this.pendingBackfillJobId = r.job_id ?? null;
+        this.backfillTaskLabel = `Importación MLB (${this.backfillStart} → ${this.backfillEnd})`;
+        this.startBackfillPoll();
+      },
+      error: (err: unknown) => {
+        this.busy = false;
+        this.lastActionMessage = null;
+        this.openResultDialogFromHttp(err, 'Importación');
+      },
+    });
+  }
+
+  private tryResumeBackfillPoll(): void {
+    if (!this.admin.isLoggedIn()) {
+      return;
+    }
+    this.admin.getBackfillStatus().subscribe({
+      next: (s) => {
+        if ((s.status === 'queued' || s.status === 'running') && s.job_id) {
+          this.pendingBackfillJobId = s.job_id;
+          this.backfillTaskLabel = `Importación MLB (${s.date_start ?? '?'} → ${s.date_end ?? '?'})`;
+          this.backfillStatus = s;
+          this.startBackfillPoll();
+        }
+      },
+      error: () => {
+        /* ignorar */
+      },
+    });
+  }
+
+  private startBackfillPoll(): void {
+    this.stopBackfillPoll();
+    this.backfillTracking = true;
+    this.backfillPollSub = interval(2000)
+      .pipe(
+        startWith(0),
+        switchMap(() => this.admin.getBackfillStatus()),
+      )
+      .subscribe({
+        next: (s) => {
+          this.backfillStatus = s;
+          if (!this.pendingBackfillJobId || s.job_id !== this.pendingBackfillJobId) {
+            return;
+          }
+          if (s.status === 'success' || s.status === 'error') {
+            this.stopBackfillPoll();
+            this.backfillTracking = false;
+            const ok = s.status === 'success';
+            this.openResultDialog({
+              title: ok ? 'Importación terminada' : 'Importación fallida',
+              message: ok
+                ? (s.result_message ?? 'Proceso completado.')
+                : 'La importación falló. Pasa el cursor sobre el icono de información para ver el error del servidor.',
+              technicalDetail: ok ? null : s.error_detail,
+              success: ok,
+            });
+            this.pendingBackfillJobId = null;
+            void this.refreshStatus();
+          }
+        },
+        error: () => {
+          this.stopBackfillPoll();
+          this.backfillTracking = false;
+          this.pendingBackfillJobId = null;
+          this.openResultDialog({
+            title: 'Importación',
+            message: 'No se pudo leer el estado de la importación (red o sesión).',
+            technicalDetail: null,
+            success: false,
+          });
+        },
+      });
+  }
+
+  private stopBackfillPoll(): void {
+    this.backfillPollSub?.unsubscribe();
+    this.backfillPollSub = null;
   }
 
   private _run(
@@ -196,16 +338,61 @@ export class AdminPanelComponent implements OnInit {
     op().subscribe({
       next: (r) => {
         this.busy = false;
-        this.lastActionMessage = r.message + (r.detail ? ` — ${r.detail}` : '');
-        if ('stdout_tail' in r && r.stdout_tail) {
-          this.lastActionMessage += ' (ver consola del servidor para detalle completo)';
-        }
+        const line = r.message + (r.detail ? ` — ${r.detail}` : '');
+        this.lastActionMessage = line;
+        const tech =
+          'stdout_tail' in r && r.stdout_tail
+            ? String(r.stdout_tail)
+            : r.detail
+              ? String(r.detail)
+              : null;
+        this.openResultDialog({
+          title: 'Operación completada',
+          message: line,
+          technicalDetail: tech,
+          success: true,
+        });
         void this.refreshStatus();
       },
-      error: () => {
+      error: (err: unknown) => {
         this.busy = false;
-        this.lastActionError = 'La operación no se completó. Revisa conexión, permisos o datos en el servidor.';
+        this.openResultDialogFromHttp(err, 'Operación');
       },
+    });
+  }
+
+  private openResultDialog(data: AdminOpResultData): void {
+    this.dialog.open(AdminOpResultDialogComponent, {
+      width: 'min(96vw, 440px)',
+      autoFocus: 'dialog',
+      data,
+    });
+  }
+
+  private openResultDialogFromHttp(err: unknown, title: string): void {
+    if (err instanceof HttpErrorResponse) {
+      const raw = err.error;
+      let message = `Error HTTP ${err.status}`;
+      let technical: string | null = null;
+      if (raw && typeof raw === 'object') {
+        const o = raw as { message?: unknown; detail?: unknown; technical?: unknown };
+        if (o.message != null) {
+          message = String(o.message);
+        } else if (o.detail != null) {
+          message = String(o.detail);
+        }
+        if (o.technical != null) {
+          technical = String(o.technical);
+        }
+      }
+      this.openResultDialog({ title, message, technicalDetail: technical, success: false });
+      return;
+    }
+    this.openResultDialog({
+      title,
+      message: 'Error inesperado',
+      technicalDetail: err instanceof Error ? err.message : String(err),
+      success: false,
     });
   }
 }

@@ -55,3 +55,10 @@ body {
 .mat-mdc-list-item {
   min-height: 56px;
 }
+
+/* Tooltip largo (detalle técnico panel Operaciones) */
+.admin-op-tech-tooltip {
+  max-width: min(90vw, 520px) !important;
+  white-space: pre-wrap !important;
+  font-size: 12px !important;
+}
