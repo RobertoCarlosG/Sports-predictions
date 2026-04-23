@@ -39,6 +39,7 @@ def test_train_and_predict_roundtrip(tmp_path: Path) -> None:
     pr = svc.predict(game, w)
     assert 0.0 <= pr.home_win_probability <= 1.0
     assert np.isfinite(pr.total_runs_estimate)
+    assert pr.model_version == "rf-synthetic-v0"
 
 
 def test_resolve_model_path_default() -> None:

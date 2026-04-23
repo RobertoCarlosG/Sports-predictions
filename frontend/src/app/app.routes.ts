@@ -20,6 +20,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./game-detail/game-detail.component').then((m) => m.GameDetailComponent),
       },
+      {
+        path: 'operaciones',
+        loadComponent: () =>
+          import('./admin-panel/admin-panel.component').then((m) => m.AdminPanelComponent),
+      },
     ],
   },
   {

@@ -25,5 +25,6 @@ def train_default_model(output_path: Path) -> None:
         "clf": clf,
         "reg": reg,
         "feature_names": FEATURE_NAMES,
+        "model_version": "rf-synthetic-v0",
     }
     joblib.dump(bundle, output_path)

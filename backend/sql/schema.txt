@@ -67,17 +67,43 @@ TABLA: game_feature_snapshots
   feature_vector_json  TEXT NULL         serialización opcional del vector
 
 
+TABLA: prediction_results
+-------------------------
+  Caché de inferencia (una fila por partido). GET /predict puede leer aquí si
+  model_version coincide con el modelo activo en el servidor.
+
+  game_pk               INTEGER NOT NULL  PK, FK → games.game_pk (ON DELETE CASCADE)
+  home_win_probability  DOUBLE PRECISION NOT NULL
+  total_runs_estimate   DOUBLE PRECISION NOT NULL
+  over_under_line       DOUBLE PRECISION NOT NULL
+  model_version         VARCHAR(64) NOT NULL
+  trigger_reason        VARCHAR(64) NULL   motivo del último cálculo (opcional)
+  computed_at           TIMESTAMPTZ NOT NULL  DEFAULT NOW()
+
+
+TABLA: admin_users
+------------------
+  Operadores con acceso al panel «Operaciones» (API /api/v1/admin y frontend /mlb/operaciones).
+
+  id             SERIAL  PK
+  username       VARCHAR(64) NOT NULL UNIQUE
+  password_hash  VARCHAR(256) NOT NULL   hash bcrypt
+  is_active      BOOLEAN NOT NULL DEFAULT TRUE
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+
 RELACIONES (resumen)
 --------------------
   games.home_team_id  → teams.id
   games.away_team_id  → teams.id
   game_weather.game_pk       → games.game_pk
   game_feature_snapshots.game_pk → games.game_pk
+  prediction_results.game_pk → games.game_pk
 
 
 ARCHIVOS SQL
 ------------
-  001_initial_schema.sql   Creación inicial de las cuatro tablas (IF NOT EXISTS).
-  (futuros) 002_*.sql      Alteraciones; documentar aquí y en comentarios del .sql
+  001_initial_schema.sql              Creación inicial de teams, games, game_weather, game_feature_snapshots.
+  002_prediction_cache_and_admin.sql prediction_results + admin_users (IF NOT EXISTS).
 
 ================================================================================

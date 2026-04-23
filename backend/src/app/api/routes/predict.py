@@ -1,41 +1,32 @@
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.ml.predictor import MlbPredictionService
-from app.models.mlb import Game
+from app.services.prediction_cache import get_cached_prediction, upsert_prediction_cache
+from app.services.prediction_infer import compute_prediction_response
 from app.schemas.games import PredictionResponse
 
 router = APIRouter()
+log = logging.getLogger(__name__)
 
 
-async def _compute_prediction_response(
-    session: AsyncSession,
-    svc: MlbPredictionService,
-    game_pk: int,
-) -> PredictionResponse:
-    result = await session.execute(
-        select(Game)
-        .where(Game.game_pk == game_pk)
-        .options(selectinload(Game.weather))
-    )
-    game = result.scalar_one_or_none()
-    if game is None:
-        raise HTTPException(status_code=404, detail="Game not found")
-    pr = svc.predict(game, game.weather)
-    return PredictionResponse(
-        game_pk=pr.game_pk,
-        home_win_probability=pr.home_win_probability,
-        total_runs_estimate=pr.total_runs_estimate,
-        over_under_line=pr.over_under_line,
-        model_version=pr.model_version,
-    )
+def _get_prediction_service(request: Request) -> MlbPredictionService:
+    svc: MlbPredictionService | None = getattr(request.app.state, "prediction_service", None)
+    if svc is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Modelo no disponible. Entrena el modelo, configura ML_MODEL_PATH y usa "
+                "administración para recargar, o reinicia el servicio."
+            ),
+        )
+    return svc
 
 
 @router.get("/predict/{game_pk}", response_model=PredictionResponse)
@@ -44,9 +35,27 @@ async def predict_game(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> PredictionResponse:
-    """Lectura de estimación (en el futuro puede servirse desde caché)."""
-    svc: MlbPredictionService = request.app.state.prediction_service
-    return await _compute_prediction_response(session, svc, game_pk)
+    """Sirve estimación desde caché si coincide la versión del modelo; si no, calcula y guarda."""
+    model_version: str = getattr(request.app.state, "active_model_version", "") or ""
+    if model_version:
+        cached = await get_cached_prediction(session, game_pk, model_version)
+        if cached is not None:
+            return cached
+
+    svc = _get_prediction_service(request)
+    try:
+        out = await compute_prediction_response(session, svc, game_pk)
+    except HTTPException:
+        raise
+    except Exception:
+        log.exception("predict failed game_pk=%s", game_pk)
+        raise HTTPException(status_code=500, detail="Error al calcular la estimación.") from None
+
+    try:
+        await upsert_prediction_cache(session, out, "api_get")
+    except Exception:
+        log.warning("prediction cache upsert failed game_pk=%s", game_pk, exc_info=True)
+    return out
 
 
 @router.post("/predict/{game_pk}/refresh", response_model=PredictionResponse)
@@ -55,6 +64,18 @@ async def refresh_prediction_game(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> PredictionResponse:
-    """Recalcula la estimación al momento (útil si falló un proceso en segundo plano o hay datos nuevos)."""
-    svc: MlbPredictionService = request.app.state.prediction_service
-    return await _compute_prediction_response(session, svc, game_pk)
+    """Recalcula y actualiza la caché."""
+    svc = _get_prediction_service(request)
+    try:
+        out = await compute_prediction_response(session, svc, game_pk)
+    except HTTPException:
+        raise
+    except Exception:
+        log.exception("predict refresh failed game_pk=%s", game_pk)
+        raise HTTPException(status_code=500, detail="Error al calcular la estimación.") from None
+
+    try:
+        await upsert_prediction_cache(session, out, "api_refresh")
+    except Exception:
+        log.warning("prediction cache upsert failed game_pk=%s", game_pk, exc_info=True)
+    return out

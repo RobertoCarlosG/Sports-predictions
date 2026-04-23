@@ -1,14 +1,16 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+import logging
 
 import httpx
+import joblib
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from starlette.responses import Response
 
-from app.api.routes import games, health, mlb, predict
+from app.api.routes import admin, games, health, mlb, predict
 from app.core.config import settings
 from app.core.cors_utils import cors_headers_for_request
 from app.core.exception_handlers import (
@@ -18,13 +20,30 @@ from app.core.exception_handlers import (
 from app.db.session import engine
 from app.ml.predictor import MlbPredictionService, ensure_model_exists, resolve_model_path
 
+log = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.http_client = httpx.AsyncClient(timeout=30.0)
     model_path = resolve_model_path(settings.ml_model_path)
-    ensure_model_exists(model_path)
-    app.state.prediction_service = MlbPredictionService(model_path)
+    if not model_path.is_file() and settings.ml_auto_synthetic_on_missing:
+        log.warning("ML model missing; training synthetic placeholder (ml_auto_synthetic_on_missing=true).")
+        ensure_model_exists(model_path)
+
+    if model_path.is_file():
+        bundle = joblib.load(model_path)
+        app.state.active_model_version = str(bundle.get("model_version", "rf-v0"))
+        app.state.prediction_service = MlbPredictionService(model_path)
+        log.info("ML model loaded from %s version=%s", model_path, app.state.active_model_version)
+    else:
+        log.warning(
+            "No ML model at %s — predict endpoints return 503 until you train and reload or restart.",
+            model_path,
+        )
+        app.state.prediction_service = None
+        app.state.active_model_version = ""
+
     yield
     await app.state.http_client.aclose()
     await engine.dispose()
@@ -48,6 +67,7 @@ def create_app() -> FastAPI:
     application.include_router(games.router, prefix="/api/v1", tags=["games"])
     application.include_router(mlb.router, prefix="/api/v1", tags=["mlb"])
     application.include_router(predict.router, prefix="/api/v1", tags=["predict"])
+    application.include_router(admin.router, prefix="/api/v1", tags=["admin"])
 
     application.add_exception_handler(ProgrammingError, programming_error_handler)  # type: ignore[arg-type]
     application.add_exception_handler(SQLAlchemyError, sqlalchemy_error_handler)  # type: ignore[arg-type]

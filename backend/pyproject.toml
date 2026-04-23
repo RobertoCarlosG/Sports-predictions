@@ -19,6 +19,8 @@ dependencies = [
     "pandas>=2.2",
     "scikit-learn>=1.5",
     "joblib>=1.4",
+    "passlib[bcrypt]>=1.7.4",
+    "PyJWT>=2.9",
 ]
 
 [project.optional-dependencies]

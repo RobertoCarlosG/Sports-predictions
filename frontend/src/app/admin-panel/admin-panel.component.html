@@ -1,0 +1,164 @@
+<div class="page">
+  <nav class="back-row">
+    <a mat-button color="primary" routerLink="/mlb">
+      <mat-icon>arrow_back</mat-icon>
+      Volver
+    </a>
+  </nav>
+
+  <h1 class="title">Operaciones</h1>
+  <p class="lede">
+    Acceso restringido. Aquí puedes importar datos, recalcular indicadores, entrenar el modelo y vaciar la caché de
+    estimaciones sin usar la línea de comandos.
+  </p>
+
+  @if (!loggedIn()) {
+    <mat-card class="card" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>Iniciar sesión</mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="login-fields">
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Usuario</mat-label>
+          <input matInput name="user" [(ngModel)]="username" autocomplete="username" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Contraseña</mat-label>
+          <input
+            matInput
+            type="password"
+            name="pass"
+            [(ngModel)]="password"
+            autocomplete="current-password"
+            (keyup.enter)="login()"
+          />
+        </mat-form-field>
+        @if (loginError) {
+          <p class="err">{{ loginError }}</p>
+        }
+        <button mat-flat-button color="primary" type="button" (click)="login()" [disabled]="loginLoading">
+          @if (loginLoading) {
+            <mat-spinner diameter="22" />
+          }
+          Entrar
+        </button>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <div class="toolbar-actions">
+      <button mat-stroked-button type="button" (click)="refreshStatus()" [disabled]="busy">
+        <mat-icon>info</mat-icon>
+        Ver estado
+      </button>
+      <button mat-button type="button" color="warn" (click)="logout()">Cerrar sesión</button>
+    </div>
+
+    @if (statusText) {
+      <mat-card class="card status-card" appearance="outlined">
+        <mat-card-content>
+          <p class="status-msg">{{ statusText }}</p>
+          @if (statusDetail) {
+            <p class="status-detail">{{ statusDetail }}</p>
+          }
+        </mat-card-content>
+      </mat-card>
+    }
+
+    @if (lastActionMessage) {
+      <p class="feedback">{{ lastActionMessage }}</p>
+    }
+    @if (lastActionError) {
+      <p class="feedback err">{{ lastActionError }}</p>
+    }
+
+    <div class="grid">
+      <mat-card appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Importar partidos por fechas</mat-card-title>
+          <mat-card-subtitle>Descarga desde la fuente oficial día a día</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content class="stack">
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Desde</mat-label>
+            <input matInput type="date" [(ngModel)]="backfillStart" name="bf1" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Hasta</mat-label>
+            <input matInput type="date" [(ngModel)]="backfillEnd" name="bf2" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Pausa entre días (segundos)</mat-label>
+            <input matInput type="number" step="0.1" min="0" [(ngModel)]="backfillSleep" name="bfs" />
+          </mat-form-field>
+          <button mat-stroked-button type="button" (click)="backfill()" [disabled]="busy">
+            <mat-icon>download</mat-icon>
+            Iniciar importación
+          </button>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Indicadores para estimación</mat-card-title>
+          <mat-card-subtitle>Recalcula a partir de partidos ya guardados</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content class="stack">
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Temporada (opcional)</mat-label>
+            <input matInput [(ngModel)]="seasonFilter" name="seas" placeholder="ej. 2025" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Ventana de partidos previos</mat-label>
+            <input matInput type="number" min="1" max="50" [(ngModel)]="snapshotWindow" name="win" />
+          </mat-form-field>
+          <button mat-stroked-button type="button" (click)="rebuildSnapshots()" [disabled]="busy">
+            <mat-icon>analytics</mat-icon>
+            Recalcular indicadores
+          </button>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Modelo</mat-card-title>
+          <mat-card-subtitle>Entrenar y activar sin reiniciar el servidor (tras entrenar, recarga)</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content class="stack">
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Validación desde (opcional)</mat-label>
+            <input matInput type="date" [(ngModel)]="trainValFrom" name="tv" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Temporada entrenamiento (opcional)</mat-label>
+            <input matInput [(ngModel)]="trainSeason" name="ts" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Nombre de versión</mat-label>
+            <input matInput [(ngModel)]="trainModelVersion" name="mv" />
+          </mat-form-field>
+          <button mat-flat-button color="primary" type="button" (click)="train()" [disabled]="busy">
+            <mat-icon>model_training</mat-icon>
+            Entrenar con datos guardados
+          </button>
+          <button mat-stroked-button type="button" (click)="reloadModel()" [disabled]="busy">
+            <mat-icon>refresh</mat-icon>
+            Recargar modelo en memoria
+          </button>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Caché de estimaciones</mat-card-title>
+          <mat-card-subtitle>Obliga a recalcular la próxima vez que se consulte</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <button mat-stroked-button type="button" color="warn" (click)="clearCache()" [disabled]="busy">
+            <mat-icon>delete_sweep</mat-icon>
+            Vaciar caché
+          </button>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  }
+</div>

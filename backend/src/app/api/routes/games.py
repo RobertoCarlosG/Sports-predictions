@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -15,6 +15,7 @@ from app.schemas.games import GameDetailResponse
 from app.schemas.team_display import team_out_from_model
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_sync import sync_games_for_date
+from app.services.pipeline_hooks import refresh_prediction_cache_for_games
 from app.services.weather_open_meteo import upsert_weather_for_game
 
 router = APIRouter()
@@ -51,6 +52,7 @@ def game_detail_response(game: Game, weather: GameWeather | None) -> GameDetailR
 @router.get("/games", response_model=list[GameDetailResponse])
 async def list_games(
     request: Request,
+    background_tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_db)],
     game_date: Annotated[dt.date, Query(alias="date")],
     sync: Annotated[bool, Query(description="Fetch from MLB API and upsert")] = True,
@@ -78,6 +80,13 @@ async def list_games(
     out: list[GameDetailResponse] = []
     for g in rows:
         out.append(game_detail_response(g, g.weather))
+    if sync and rows and settings.pipeline_auto_cache_predictions:
+        background_tasks.add_task(
+            refresh_prediction_cache_for_games,
+            request.app,
+            [g.game_pk for g in rows],
+            "sync_schedule",
+        )
     return out
 
 
@@ -105,6 +114,7 @@ async def get_game(
 async def refresh_weather(
     game_pk: int,
     request: Request,
+    background_tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> GameDetailResponse:
     result = await session.execute(
@@ -138,4 +148,11 @@ async def refresh_weather(
     )
     game = result.scalar_one_or_none()
     assert game is not None
+    if settings.pipeline_auto_cache_predictions:
+        background_tasks.add_task(
+            refresh_prediction_cache_for_games,
+            request.app,
+            [game_pk],
+            "weather_refresh",
+        )
     return game_detail_response(game, game.weather)

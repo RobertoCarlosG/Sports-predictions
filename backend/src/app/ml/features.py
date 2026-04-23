@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 
-from app.models.mlb import Game, GameWeather
+from app.models.mlb import Game, GameFeatureSnapshot, GameWeather
 
 FEATURE_NAMES: list[str] = [
     "home_wins_roll",
@@ -17,14 +17,64 @@ FEATURE_NAMES: list[str] = [
 ]
 
 
-def build_feature_matrix_row(_game: Game, weather: GameWeather | None) -> NDArray[np.float64]:
-    """Build a single row of features; uses placeholders for rolling stats when missing."""
-    hw = 0.5
-    aw = 0.5
-    hra = 4.5
-    ara = 4.5
-    t = float(weather.temperature_c) if weather and weather.temperature_c is not None else 20.0
-    h = float(weather.humidity_pct) if weather and weather.humidity_pct is not None else 50.0
-    w = float(weather.wind_speed_mps) if weather and weather.wind_speed_mps is not None else 2.0
-    e = float(weather.elevation_m) if weather and weather.elevation_m is not None else 100.0
+def build_feature_matrix_row(
+    _game: Game,
+    weather: GameWeather | None,
+    snapshot: GameFeatureSnapshot | None = None,
+) -> NDArray[np.float64]:
+    """Una fila de features alineada con FEATURE_NAMES.
+
+    Si existe ``snapshot`` (p. ej. tras `rebuild_game_feature_snapshots`), se usan rachas y
+    clima persistidos; si no, rachas por defecto y clima del objeto weather en vivo.
+    """
+    if snapshot is not None:
+        hw = float(snapshot.home_wins_roll) if snapshot.home_wins_roll is not None else 0.5
+        aw = float(snapshot.away_wins_roll) if snapshot.away_wins_roll is not None else 0.5
+        hra = float(snapshot.home_runs_avg_roll) if snapshot.home_runs_avg_roll is not None else 4.5
+        ara = float(snapshot.away_runs_avg_roll) if snapshot.away_runs_avg_roll is not None else 4.5
+        t = (
+            float(snapshot.temperature_c)
+            if snapshot.temperature_c is not None
+            else (
+                float(weather.temperature_c)
+                if weather and weather.temperature_c is not None
+                else 20.0
+            )
+        )
+        h = (
+            float(snapshot.humidity_pct)
+            if snapshot.humidity_pct is not None
+            else (
+                float(weather.humidity_pct)
+                if weather and weather.humidity_pct is not None
+                else 50.0
+            )
+        )
+        w = (
+            float(snapshot.wind_speed_mps)
+            if snapshot.wind_speed_mps is not None
+            else (
+                float(weather.wind_speed_mps)
+                if weather and weather.wind_speed_mps is not None
+                else 2.0
+            )
+        )
+        e = (
+            float(snapshot.elevation_m)
+            if snapshot.elevation_m is not None
+            else (
+                float(weather.elevation_m)
+                if weather and weather.elevation_m is not None
+                else 100.0
+            )
+        )
+    else:
+        hw = 0.5
+        aw = 0.5
+        hra = 4.5
+        ara = 4.5
+        t = float(weather.temperature_c) if weather and weather.temperature_c is not None else 20.0
+        h = float(weather.humidity_pct) if weather and weather.humidity_pct is not None else 50.0
+        w = float(weather.wind_speed_mps) if weather and weather.wind_speed_mps is not None else 2.0
+        e = float(weather.elevation_m) if weather and weather.elevation_m is not None else 100.0
     return np.array([[hw, aw, hra, ara, t, h, w, e]], dtype=np.float64)

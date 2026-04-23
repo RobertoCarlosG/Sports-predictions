@@ -1,0 +1,102 @@
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem 1rem 2.5rem;
+}
+
+.back-row {
+  margin-bottom: 0.75rem;
+}
+
+.title {
+  margin: 0 0 6px;
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+.lede {
+  margin: 0 0 1.25rem;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+  max-width: 40rem;
+}
+
+.card {
+  margin-bottom: 1rem;
+}
+
+.login-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px !important;
+}
+
+.full {
+  width: 100%;
+}
+
+.err {
+  margin: 0;
+  font-size: 13px;
+  color: var(--mat-sys-error, #b3261e);
+}
+
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.status-card {
+  margin-bottom: 1rem;
+}
+
+.status-msg {
+  margin: 0 0 6px;
+  font-weight: 500;
+}
+
+.status-detail {
+  margin: 0;
+  font-size: 13px;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+}
+
+.feedback {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.75));
+}
+
+.feedback.err {
+  color: var(--mat-sys-error, #b3261e);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 800px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px !important;
+}
+
+button mat-spinner {
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: middle;
+}

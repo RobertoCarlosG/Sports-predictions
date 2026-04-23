@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -22,6 +22,7 @@ from app.schemas.history import (
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_history import compute_winner_team_id, query_mlb_history
 from app.services.mlb_sync import sync_games_for_date, sync_single_game
+from app.services.pipeline_hooks import refresh_prediction_cache_for_games
 from app.api.routes.games import game_detail_response
 
 router = APIRouter(prefix="/mlb", tags=["mlb"])
@@ -90,6 +91,7 @@ async def list_mlb_history(
 async def sync_mlb_date_range(
     body: MlbSyncRangeBody,
     request: Request,
+    background_tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> MlbSyncRangeResponse:
     if body.end_date < body.start_date:
@@ -118,6 +120,21 @@ async def sync_mlb_date_range(
             fetch_details=body.fetch_details,
         )
         d += dt.timedelta(days=1)
+    if settings.pipeline_auto_cache_predictions:
+        pk_result = await session.execute(
+            select(Game.game_pk).where(
+                Game.game_date >= body.start_date,
+                Game.game_date <= body.end_date,
+            )
+        )
+        pks = [row[0] for row in pk_result.all()]
+        if pks:
+            background_tasks.add_task(
+                refresh_prediction_cache_for_games,
+                request.app,
+                pks,
+                "sync_range",
+            )
     return MlbSyncRangeResponse(
         start_date=body.start_date,
         end_date=body.end_date,
@@ -130,6 +147,7 @@ async def sync_mlb_single_game(
     game_pk: int,
     body: MlbSyncGameBody,
     request: Request,
+    background_tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> GameDetailResponse:
     client = MlbApiClient(settings.mlb_api_base_url, request.app.state.http_client)
@@ -155,6 +173,13 @@ async def sync_mlb_single_game(
     )
     row = result.scalar_one_or_none()
     assert row is not None
+    if settings.pipeline_auto_cache_predictions:
+        background_tasks.add_task(
+            refresh_prediction_cache_for_games,
+            request.app,
+            [game_pk],
+            "sync_single",
+        )
     return game_detail_response(row, row.weather)
 
 
