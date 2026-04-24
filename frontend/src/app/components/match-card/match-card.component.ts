@@ -55,9 +55,17 @@ export class MatchCardComponent {
     return this.prediction != null;
   }
 
-  get isEvaluated(): boolean {
+  /**
+   * Solo mostramos acierto/fallo y bloque de evaluación si hubo pick explícito.
+   * Sin `predicted_winner` el backend puede tener `is_correct`/`home_win_probability` incoherentes.
+   */
+  get showEvaluatedPick(): boolean {
     const pred = this.prediction;
-    return pred != null && pred.is_correct != null;
+    return (
+      pred != null &&
+      pred.predicted_winner != null &&
+      pred.is_correct != null
+    );
   }
 
   get predictionCorrect(): boolean {
@@ -91,7 +99,9 @@ export class MatchCardComponent {
 
   get confidencePercent(): string {
     const pred = this.prediction;
-    if (!pred) return '';
+    if (!pred || pred.predicted_winner == null) {
+      return '';
+    }
     const percent = Math.round(pred.home_win_probability * 100);
     if (pred.predicted_winner === 'home') {
       return `${percent}% confianza`;

@@ -8,6 +8,14 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
+/** Asegura `YYYY-MM-DD` para comparar con las fechas pedidas (API puede mandar sufijo de tiempo). */
+function isoDateOnly(raw: string | undefined | null): string {
+  if (raw == null || raw === '') {
+    return '';
+  }
+  return raw.slice(0, 10);
+}
+
 import {
   DateChipSelectorComponent,
   type DateChipPreset,
@@ -72,6 +80,12 @@ export class GameListComponent implements OnInit {
 
   private lastSelection: string[] = [];
 
+  /**
+   * Evita condición de carrera entre peticiones HTTP (p. ej. cambiar chip rápido).
+   * Los `computed`/signals solo memorizan derivados en memoria; no sustituyen este control.
+   */
+  private loadGeneration = 0;
+
   ngOnInit(): void {
     /* La carga inicial la dispara DateChipSelector al emitir en ngOnInit. */
   }
@@ -124,24 +138,41 @@ export class GameListComponent implements OnInit {
       this.homeWinByPk.set({});
       return;
     }
+    const gen = ++this.loadGeneration;
     this.loading.set(true);
     this.loadError.set(false);
+    /** Sin vaciar la lista, `loading && games.length===0` nunca se cumple y siguen viéndose partidos viejos. */
+    this.games.set([]);
     this.homeWinByPk.set({});
 
-    const reqs = dates.map((d) => this.api.listGames(d, true));
+    const allowed = new Set(dates);
+    const reqs = dates.map((d) =>
+      this.api.listGames(d, true).pipe(
+        catchError(() => of<GameDetail[]>([])),
+      ),
+    );
     forkJoin(reqs).subscribe({
       next: (chunks) => {
-        const merged = this.mergeGames(chunks.flat());
+        if (gen !== this.loadGeneration) {
+          return;
+        }
+        const flat = chunks
+          .flat()
+          .filter((g) => allowed.has(isoDateOnly(g.game_date)));
+        const merged = this.mergeGames(flat);
         this.games.set(merged);
         this.loading.set(false);
         if (merged.length > 0 && !('prediction' in merged[0])) {
-          this.loadPredictions(merged);
+          this.loadPredictions(merged, gen);
         } else {
           this.applyPredictionsFromPayload(merged);
           this.predictionsLoading.set(false);
         }
       },
       error: () => {
+        if (gen !== this.loadGeneration) {
+          return;
+        }
         this.loading.set(false);
         this.loadError.set(true);
         this.games.set([]);
@@ -178,7 +209,7 @@ export class GameListComponent implements OnInit {
   }
 
   /** API antiguo sin ``prediction`` en el JSON: una petición /predict por partido. */
-  private loadPredictions(games: GameDetail[]): void {
+  private loadPredictions(games: GameDetail[], gen: number): void {
     if (games.length === 0) {
       return;
     }
@@ -189,6 +220,9 @@ export class GameListComponent implements OnInit {
       ),
     ).subscribe({
       next: (preds) => {
+        if (gen !== this.loadGeneration) {
+          return;
+        }
         const map: Record<number, number | null> = {};
         preds.forEach((p, i) => {
           const pk = games[i].game_pk;
@@ -198,6 +232,9 @@ export class GameListComponent implements OnInit {
         this.predictionsLoading.set(false);
       },
       error: () => {
+        if (gen !== this.loadGeneration) {
+          return;
+        }
         this.predictionsLoading.set(false);
       },
     });

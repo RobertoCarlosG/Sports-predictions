@@ -5,9 +5,22 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.ml.predictor import MlbPredictionService
+from app.ml.predictor import MlbPredictionService, PredictionResult
 from app.models.mlb import Game, GameFeatureSnapshot
 from app.schemas.games import PredictionResponse
+
+
+def prediction_response_from_result(pr: PredictionResult) -> PredictionResponse:
+    """Alineado con ``upsert_prediction_cache``: pick explícito para API y front."""
+    predicted_winner = "home" if pr.home_win_probability > 0.5 else "away"
+    return PredictionResponse(
+        game_pk=pr.game_pk,
+        home_win_probability=pr.home_win_probability,
+        total_runs_estimate=pr.total_runs_estimate,
+        over_under_line=pr.over_under_line,
+        model_version=pr.model_version,
+        predicted_winner=predicted_winner,
+    )
 
 
 async def compute_prediction_response(
@@ -28,10 +41,4 @@ async def compute_prediction_response(
     )
     snapshot = snap_row.scalar_one_or_none()
     pr = svc.predict(game, game.weather, snapshot)
-    return PredictionResponse(
-        game_pk=pr.game_pk,
-        home_win_probability=pr.home_win_probability,
-        total_runs_estimate=pr.total_runs_estimate,
-        over_under_line=pr.over_under_line,
-        model_version=pr.model_version,
-    )
+    return prediction_response_from_result(pr)

@@ -27,7 +27,7 @@
     </mat-card-content>
   </mat-card>
 
-  @if (loading() && games().length === 0) {
+  @if (loading()) {
     <div class="loading-block">
       <mat-spinner diameter="40" />
       <p>Cargando partidos…</p>
@@ -38,7 +38,7 @@
     <app-friendly-error-banner (retry)="retry()" />
   }
 
-  @if (!loading() || games().length > 0) {
+  @if (!loading()) {
     @if (games().length > 0) {
       <p class="range-label">{{ games().length }} partido(s) · {{ dateSummary() }}</p>
     }
@@ -56,7 +56,7 @@
       </section>
     }
 
-    @if (!loading() && games().length === 0 && !loadError()) {
+    @if (games().length === 0 && !loadError()) {
       <mat-card class="empty-card" appearance="outlined">
         <mat-card-content>
           <p class="empty-hint">No hay partidos en este rango.</p>

@@ -19,6 +19,7 @@ from app.services.mlb_client import MlbApiClient
 from app.services.mlb_sync import sync_games_for_date
 from app.services.pipeline_hooks import refresh_prediction_cache_for_games
 from app.services.prediction_cache import get_cached_prediction, upsert_prediction_cache, evaluate_prediction
+from app.services.prediction_infer import prediction_response_from_result
 from app.services.weather_open_meteo import upsert_weather_for_game
 
 log = logging.getLogger(__name__)
@@ -106,13 +107,7 @@ async def _compute_or_cache_prediction(
     
     try:
         pr = svc.predict(game, game.weather, snapshot)
-        out = PredictionResponse(
-            game_pk=pr.game_pk,
-            home_win_probability=pr.home_win_probability,
-            total_runs_estimate=pr.total_runs_estimate,
-            over_under_line=pr.over_under_line,
-            model_version=pr.model_version,
-        )
+        out = prediction_response_from_result(pr)
         try:
             await upsert_prediction_cache(session, out, cache_reason)
         except Exception:
