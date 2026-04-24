@@ -33,6 +33,10 @@ class PredictionResponse(BaseModel):
     total_runs_estimate: float
     over_under_line: float
     model_version: str
+    predicted_winner: str | None = None
+    actual_winner: str | None = None
+    is_correct: bool | None = None
+    evaluated_at: str | None = None
 
 
 class GameDetailResponse(GameSummaryResponse):

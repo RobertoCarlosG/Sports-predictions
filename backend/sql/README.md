@@ -6,12 +6,18 @@ La base se define y evoluciona con **archivos `.sql` versionados** en este direc
 
 1. Abre [Supabase](https://supabase.com) → tu proyecto → **SQL** → **New query**.
 2. Copia y ejecuta el contenido de `001_initial_schema.sql` (solo en bases vacías o la primera vez).
-3. Para cambios posteriores, añade `002_nombre_descriptivo.sql`, documenta en `schema.txt` y ejecuta el nuevo script en el mismo editor.
+3. Ejecuta en orden los siguientes scripts:
+   - `002_game_scores.sql`
+   - `002_prediction_cache_and_admin.sql`
+   - `003_pitching_and_starters.sql`
+   - `004_prediction_evaluation.sql` (nuevo: campos para tracking de aciertos/fallos)
+4. Para cambios posteriores, añade un nuevo archivo SQL numerado, documenta en `schema.txt` y ejecuta el nuevo script en el mismo editor.
 
 ## Referencia legible
 
 - **[schema.txt](schema.txt)** — descripción de tablas y columnas (fuente de verdad humana).
 - **`001_initial_schema.sql`** — DDL equivalente para Postgres/Supabase.
+- **`004_prediction_evaluation.sql`** — Añade campos para evaluar predicciones contra resultados reales.
 
 Tras crear tablas, configura `DATABASE_URL` en el backend (asyncpg) como siempre.
 
@@ -30,3 +36,17 @@ No hay usuarios de ejemplo en el SQL (no se versionan contraseñas).
      Quitar `ADMIN_BOOTSTRAP_SECRET` del entorno después del alta.
 
 Más usuarios: solo CLI (`create_admin`).
+
+## Nuevas características de evaluación de predicciones
+
+Después de aplicar `004_prediction_evaluation.sql`, el sistema puede:
+
+- **Guardar predicciones en BD** con información sobre el ganador predicho
+- **Evaluar automáticamente** predicciones cuando los juegos terminan
+- **Mostrar métricas** de aciertos/fallos en el panel de operaciones
+- **Visualizar comparaciones** entre predicciones y resultados reales
+
+Endpoints nuevos en `/api/v1/admin`:
+- `GET /predictions/metrics` - Métricas agregadas (accuracy, total evaluadas, etc.)
+- `GET /predictions/evaluations` - Lista de predicciones evaluadas con detalles
+- `POST /predictions/evaluate-pending` - Evaluar manualmente predicciones pendientes

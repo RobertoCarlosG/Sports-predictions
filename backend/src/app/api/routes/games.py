@@ -18,7 +18,7 @@ from app.schemas.team_display import team_out_from_model
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_sync import sync_games_for_date
 from app.services.pipeline_hooks import refresh_prediction_cache_for_games
-from app.services.prediction_cache import get_cached_prediction, upsert_prediction_cache
+from app.services.prediction_cache import get_cached_prediction, upsert_prediction_cache, evaluate_prediction
 from app.services.weather_open_meteo import upsert_weather_for_game
 
 log = logging.getLogger(__name__)
@@ -73,6 +73,37 @@ async def _compute_or_cache_prediction(
         cached = await get_cached_prediction(session, game.game_pk, model_version)
         if cached is not None:
             return cached
+    
+    now = dt.datetime.now(dt.timezone.utc)
+    game_is_future = False
+    
+    if game.game_datetime_utc is not None:
+        if game.game_datetime_utc.tzinfo is None:
+            game_dt = game.game_datetime_utc.replace(tzinfo=dt.timezone.utc)
+        else:
+            game_dt = game.game_datetime_utc
+        game_is_future = game_dt > now
+    else:
+        today = now.date()
+        game_is_future = game.game_date > today
+    
+    game_status_lower = game.status.lower()
+    game_is_live_or_scheduled = any(
+        status in game_status_lower
+        for status in ["scheduled", "pre-game", "warmup", "in progress", "live", "delayed"]
+    )
+    
+    should_predict = game_is_future or game_is_live_or_scheduled
+    
+    if not should_predict:
+        log.info(
+            "game_pk=%s is in the past (date=%s, status=%s) with no cached prediction, skipping prediction",
+            game.game_pk,
+            game.game_date,
+            game.status,
+        )
+        return None
+    
     try:
         pr = svc.predict(game, game.weather, snapshot)
         out = PredictionResponse(
@@ -126,6 +157,18 @@ async def list_games(
         )
     )
     rows = result.scalars().unique().all()
+    
+    if sync and rows:
+        for g in rows:
+            game_status_lower = g.status.lower()
+            is_final = any(status in game_status_lower for status in ["final", "completed", "game over"])
+            if is_final and g.home_score is not None and g.away_score is not None:
+                try:
+                    await evaluate_prediction(session, g.game_pk)
+                except Exception:
+                    log.warning("Failed to evaluate prediction for game_pk=%s", g.game_pk, exc_info=True)
+        await session.commit()
+    
     snap_by_pk: dict[int, GameFeatureSnapshot] = {}
     if include_predictions and rows:
         pks = [g.game_pk for g in rows]

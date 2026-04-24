@@ -71,3 +71,37 @@ class MessageResponse(BaseModel):
 class TrainResultResponse(BaseModel):
     message: str
     stdout_tail: str | None = None
+
+
+class PredictionMetricsResponse(BaseModel):
+    """Métricas de rendimiento del sistema de predicciones."""
+    
+    total_predictions: int = Field(description="Total de predicciones hechas")
+    total_evaluated: int = Field(description="Total de predicciones evaluadas contra resultados reales")
+    total_correct: int = Field(description="Total de predicciones correctas")
+    total_incorrect: int = Field(description="Total de predicciones incorrectas")
+    accuracy_percentage: float | None = Field(description="Porcentaje de acierto (0-100)", default=None)
+    pending_evaluation: int = Field(description="Predicciones pendientes de evaluar")
+
+
+class PredictionEvaluationItem(BaseModel):
+    """Item individual de evaluación de predicción."""
+    
+    game_pk: int
+    game_date: str
+    home_team_name: str
+    away_team_name: str
+    predicted_winner: str
+    actual_winner: str
+    is_correct: bool
+    home_win_probability: float
+    home_score: int | None
+    away_score: int | None
+    evaluated_at: str
+
+
+class PredictionEvaluationsResponse(BaseModel):
+    """Lista de predicciones evaluadas con detalles."""
+    
+    items: list[PredictionEvaluationItem]
+    total: int

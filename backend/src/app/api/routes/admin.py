@@ -19,7 +19,7 @@ from app.core.admin_security import create_access_token, hash_password
 from app.core.config import settings
 from app.db.session import get_db
 from app.ml.predictor import MlbPredictionService, resolve_model_path
-from app.models.mlb import AdminUser
+from app.models.mlb import AdminUser, Game, GamePredictionCache, Team
 from app.schemas.admin_api import (
     AdminAuthReadyResponse,
     AdminLoginBody,
@@ -27,6 +27,9 @@ from app.schemas.admin_api import (
     BackfillBody,
     BackfillJobStatusResponse,
     MessageResponse,
+    PredictionEvaluationItem,
+    PredictionEvaluationsResponse,
+    PredictionMetricsResponse,
     RebuildSnapshotsBody,
     TrainModelBody,
     TrainResultResponse,
@@ -40,7 +43,7 @@ from app.services.admin_backfill_state import (
 )
 from app.services.feature_snapshots import rebuild_game_feature_snapshots
 from app.services.mlb_client import MlbApiClient
-from app.services.prediction_cache import clear_prediction_cache
+from app.services.prediction_cache import clear_prediction_cache, evaluate_all_pending_predictions
 
 log = logging.getLogger(__name__)
 
@@ -215,6 +218,28 @@ async def admin_clear_prediction_cache(
     return MessageResponse(message="Caché de estimaciones vaciada.", detail=f"Filas eliminadas: {n}")
 
 
+@router.post("/predictions/evaluate-pending", response_model=MessageResponse)
+async def evaluate_pending_predictions(
+    _username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> MessageResponse:
+    """Evaluar todas las predicciones que tienen juegos finalizados pero aún no se han evaluado."""
+    evaluated, correct = await evaluate_all_pending_predictions(session)
+    await session.commit()
+    
+    if evaluated == 0:
+        return MessageResponse(
+            message="No hay predicciones pendientes de evaluación.",
+            detail="Todas las predicciones con juegos finalizados ya han sido evaluadas.",
+        )
+    
+    accuracy = round((correct / evaluated) * 100, 2) if evaluated > 0 else 0
+    return MessageResponse(
+        message=f"Se evaluaron {evaluated} predicciones.",
+        detail=f"Correctas: {correct}, Incorrectas: {evaluated - correct}, Precisión: {accuracy}%",
+    )
+
+
 @router.post("/model/reload", response_model=MessageResponse)
 async def admin_reload_model(request: Request, _username: AdminUserDep) -> MessageResponse:
     path = resolve_model_path(settings.ml_model_path)
@@ -331,3 +356,101 @@ async def admin_status(request: Request, _username: AdminUserDep) -> MessageResp
         f"Cargado en memoria: {'sí' if loaded else 'no'}. Versión activa: {ver}"
     )
     return MessageResponse(message="Estado del motor de estimación", detail=detail)
+
+
+@router.get("/predictions/metrics", response_model=PredictionMetricsResponse)
+async def get_prediction_metrics(
+    _username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> PredictionMetricsResponse:
+    """Obtener métricas agregadas del sistema de predicciones."""
+    total_predictions_result = await session.scalar(
+        select(func.count()).select_from(GamePredictionCache)
+    )
+    total_predictions = total_predictions_result or 0
+    
+    total_evaluated_result = await session.scalar(
+        select(func.count()).select_from(GamePredictionCache)
+        .where(GamePredictionCache.evaluated_at.is_not(None))
+    )
+    total_evaluated = total_evaluated_result or 0
+    
+    total_correct_result = await session.scalar(
+        select(func.count()).select_from(GamePredictionCache)
+        .where(GamePredictionCache.is_correct == True)
+    )
+    total_correct = total_correct_result or 0
+    
+    total_incorrect_result = await session.scalar(
+        select(func.count()).select_from(GamePredictionCache)
+        .where(GamePredictionCache.is_correct == False)
+    )
+    total_incorrect = total_incorrect_result or 0
+    
+    pending_evaluation = total_predictions - total_evaluated
+    
+    accuracy_percentage = None
+    if total_evaluated > 0:
+        accuracy_percentage = round((total_correct / total_evaluated) * 100, 2)
+    
+    return PredictionMetricsResponse(
+        total_predictions=total_predictions,
+        total_evaluated=total_evaluated,
+        total_correct=total_correct,
+        total_incorrect=total_incorrect,
+        accuracy_percentage=accuracy_percentage,
+        pending_evaluation=pending_evaluation,
+    )
+
+
+@router.get("/predictions/evaluations", response_model=PredictionEvaluationsResponse)
+async def get_prediction_evaluations(
+    _username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = 50,
+    offset: int = 0,
+) -> PredictionEvaluationsResponse:
+    """Obtener lista de predicciones evaluadas con detalles."""
+    from sqlalchemy.orm import aliased, selectinload
+    
+    HomeTeam = aliased(Team)
+    AwayTeam = aliased(Team)
+    
+    result = await session.execute(
+        select(GamePredictionCache, Game, HomeTeam, AwayTeam)
+        .join(Game, GamePredictionCache.game_pk == Game.game_pk)
+        .join(HomeTeam, Game.home_team_id == HomeTeam.team_id)
+        .join(AwayTeam, Game.away_team_id == AwayTeam.team_id)
+        .where(GamePredictionCache.evaluated_at.is_not(None))
+        .order_by(GamePredictionCache.evaluated_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    
+    rows = result.all()
+    items = []
+    
+    for pred_cache, game, home_team, away_team in rows:
+        items.append(
+            PredictionEvaluationItem(
+                game_pk=pred_cache.game_pk,
+                game_date=game.game_date.isoformat(),
+                home_team_name=home_team.display_name or "Home",
+                away_team_name=away_team.display_name or "Away",
+                predicted_winner=pred_cache.predicted_winner or "unknown",
+                actual_winner=pred_cache.actual_winner or "unknown",
+                is_correct=pred_cache.is_correct or False,
+                home_win_probability=pred_cache.home_win_probability,
+                home_score=game.home_score,
+                away_score=game.away_score,
+                evaluated_at=pred_cache.evaluated_at.isoformat() if pred_cache.evaluated_at else "",
+            )
+        )
+    
+    total_result = await session.scalar(
+        select(func.count()).select_from(GamePredictionCache)
+        .where(GamePredictionCache.evaluated_at.is_not(None))
+    )
+    total = total_result or 0
+    
+    return PredictionEvaluationsResponse(items=items, total=total)

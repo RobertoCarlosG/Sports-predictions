@@ -120,6 +120,13 @@ class GamePredictionCache(Base):
         nullable=False,
         server_default=func.now(),
     )
+    predicted_winner: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    actual_winner: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    is_correct: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    evaluated_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
 
 class AdminUser(Base):
