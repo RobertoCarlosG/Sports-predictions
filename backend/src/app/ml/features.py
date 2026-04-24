@@ -4,6 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from app.models.mlb import Game, GameFeatureSnapshot, GameWeather
+from app.services.pitching_stats import DEFAULT_ERA, DEFAULT_STAFF_ERA
 
 FEATURE_NAMES: list[str] = [
     "home_wins_roll",
@@ -14,6 +15,10 @@ FEATURE_NAMES: list[str] = [
     "humidity_pct",
     "wind_speed_mps",
     "elevation_m",
+    "home_starter_era",
+    "away_starter_era",
+    "home_bullpen_era",
+    "away_bullpen_era",
 ]
 
 
@@ -68,6 +73,10 @@ def build_feature_matrix_row(
                 else 100.0
             )
         )
+        hse = float(snapshot.home_starter_era) if snapshot.home_starter_era is not None else DEFAULT_ERA
+        ase = float(snapshot.away_starter_era) if snapshot.away_starter_era is not None else DEFAULT_ERA
+        hbe = float(snapshot.home_bullpen_era) if snapshot.home_bullpen_era is not None else DEFAULT_STAFF_ERA
+        abe = float(snapshot.away_bullpen_era) if snapshot.away_bullpen_era is not None else DEFAULT_STAFF_ERA
     else:
         hw = 0.5
         aw = 0.5
@@ -77,4 +86,10 @@ def build_feature_matrix_row(
         h = float(weather.humidity_pct) if weather and weather.humidity_pct is not None else 50.0
         w = float(weather.wind_speed_mps) if weather and weather.wind_speed_mps is not None else 2.0
         e = float(weather.elevation_m) if weather and weather.elevation_m is not None else 100.0
-    return np.array([[hw, aw, hra, ara, t, h, w, e]], dtype=np.float64)
+        hse = DEFAULT_ERA
+        ase = DEFAULT_ERA
+        hbe = DEFAULT_STAFF_ERA
+        abe = DEFAULT_STAFF_ERA
+    return np.array(
+        [[hw, aw, hra, ara, t, h, w, e, hse, ase, hbe, abe]], dtype=np.float64
+    )

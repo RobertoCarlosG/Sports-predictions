@@ -18,6 +18,8 @@ export interface GameDetail {
   lineups: Record<string, unknown> | null;
   boxscore: Record<string, unknown> | null;
   weather: Record<string, unknown> | null;
+  /** Presente en GET /games?include_predictions=true; null = sin estimación. */
+  prediction?: PredictionOut | null;
 }
 
 export interface PredictionOut {

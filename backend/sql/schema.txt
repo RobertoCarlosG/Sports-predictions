@@ -31,6 +31,8 @@ TABLA: games
   venue_name         VARCHAR(256) NULL
   lineups_json       JSONB NULL        feed en vivo / alineaciones (payload)
   boxscore_json      JSONB NULL        boxscore completo (payload)
+  home_starter_id    INTEGER NULL      statsapi: probable o boxscore pitchers[0]
+  away_starter_id    INTEGER NULL
 
 
 TABLA: game_weather
@@ -64,6 +66,10 @@ TABLA: game_feature_snapshots
   elevation_m          DOUBLE PRECISION NULL
   home_win             INTEGER NULL        etiqueta: 1 local, 0 visitante
   total_runs           DOUBLE PRECISION NULL
+  home_starter_era     DOUBLE PRECISION NULL  ERA de temporada (abridor)
+  away_starter_era     DOUBLE PRECISION NULL
+  home_bullpen_era     DOUBLE PRECISION NULL  proxy: ERA pitcheo colectivo del equipo
+  away_bullpen_era     DOUBLE PRECISION NULL
   feature_vector_json  TEXT NULL         serialización opcional del vector
 
 
@@ -104,9 +110,18 @@ RELACIONES (resumen)
   prediction_results.game_pk → games.game_pk
 
 
+TABLA: pitching_era_cache
+-------------------------
+  Caché de ERA (jugador o equipo) por temporada; evita reconsultar la API en rebuilds.
+
+  kind  VARCHAR(1)  P = people (pitcher), T = team (staff)
+  ref_id, season, era, updated_at
+
+
 ARCHIVOS SQL
 ------------
   001_initial_schema.sql              Creación inicial de teams, games, game_weather, game_feature_snapshots.
   002_prediction_cache_and_admin.sql prediction_results + admin_users (IF NOT EXISTS).
+  003_pitching_and_starters.sql        Abridores en games, 4 columnas en snapshots, pitching_era_cache.
 
 ================================================================================

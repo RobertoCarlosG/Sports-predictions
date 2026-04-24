@@ -39,6 +39,7 @@ from app.services.admin_backfill_state import (
     run_tracked_backfill,
 )
 from app.services.feature_snapshots import rebuild_game_feature_snapshots
+from app.services.mlb_client import MlbApiClient
 from app.services.prediction_cache import clear_prediction_cache
 
 log = logging.getLogger(__name__)
@@ -190,12 +191,17 @@ async def admin_me(username: AdminUserDep) -> AdminSessionResponse:
 
 @router.post("/pipeline/rebuild-snapshots", response_model=MessageResponse)
 async def admin_rebuild_snapshots(
+    request: Request,
     body: RebuildSnapshotsBody,
     _username: AdminUserDep,
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> MessageResponse:
+    mlb = MlbApiClient(settings.mlb_api_base_url, request.app.state.http_client)
     n = await rebuild_game_feature_snapshots(
-        session, rolling_window=body.window, season=body.season
+        session,
+        rolling_window=body.window,
+        season=body.season,
+        mlb=mlb,
     )
     return MessageResponse(message=f"Indicadores recalculados para {n} partidos.", detail=None)
 

@@ -122,7 +122,12 @@ export class GameListComponent implements OnInit {
         this.games = merged;
         this.dayKeys = this.computeDayKeys(merged);
         this.loading = false;
-        this.loadPredictions(merged);
+        if (merged.length > 0 && !('prediction' in merged[0])) {
+          this.loadPredictions(merged);
+        } else {
+          this.applyPredictionsFromPayload(merged);
+          this.predictionsLoading = false;
+        }
       },
       error: () => {
         this.loading = false;
@@ -148,6 +153,20 @@ export class GameListComponent implements OnInit {
     });
   }
 
+  private applyPredictionsFromPayload(games: GameDetail[]): void {
+    const map: Record<number, number | null> = {};
+    for (const g of games) {
+      const p = g.prediction;
+      if (p != null && typeof p.home_win_probability === 'number') {
+        map[g.game_pk] = p.home_win_probability;
+      } else {
+        map[g.game_pk] = null;
+      }
+    }
+    this.homeWinByPk = map;
+  }
+
+  /** API antiguo sin ``prediction`` en el JSON: una petición /predict por partido. */
   private loadPredictions(games: GameDetail[]): void {
     if (games.length === 0) {
       return;

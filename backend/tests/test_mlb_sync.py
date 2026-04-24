@@ -1,4 +1,4 @@
-from app.services.mlb_sync import lineups_from_boxscore
+from app.services.mlb_sync import lineups_from_boxscore, starters_from_boxscore
 
 
 def test_lineups_from_boxscore_extracts_batters() -> None:
@@ -40,3 +40,20 @@ def test_lineups_from_boxscore_extracts_batters() -> None:
 def test_lineups_from_boxscore_returns_none_without_teams() -> None:
     assert lineups_from_boxscore({}) is None
     assert lineups_from_boxscore({"teams": {}}) is None
+
+
+def test_starters_from_boxscore_first_pitchers() -> None:
+    box = {
+        "teams": {
+            "home": {"pitchers": [123, 456]},
+            "away": {"pitchers": [999]},
+        }
+    }
+    h, a = starters_from_boxscore(box)
+    assert h == 123
+    assert a == 999
+
+
+def test_starters_from_boxscore_empty() -> None:
+    assert starters_from_boxscore({}) == (None, None)
+    assert starters_from_boxscore({"teams": {"home": {}, "away": {}}}) == (None, None)

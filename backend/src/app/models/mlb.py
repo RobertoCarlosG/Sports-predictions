@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -38,6 +38,9 @@ class Game(Base):
     away_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     lineups_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     boxscore_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # statsapi: probablePitcher (schedule) o primer `pitchers[]` en box score.
+    home_starter_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    away_starter_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     home_team: Mapped[Team] = relationship(foreign_keys=[home_team_id])
     away_team: Mapped[Team] = relationship(foreign_keys=[away_team_id])
@@ -77,7 +80,28 @@ class GameFeatureSnapshot(Base):
     elevation_m: Mapped[float | None] = mapped_column(Float, nullable=True)
     home_win: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 1 home, 0 away
     total_runs: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Abridor: ERA de temporada; «bullpen»: ERA de staff (todo el cuerpo) vía /teams/…/stats.
+    home_starter_era: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_starter_era: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_bullpen_era: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_bullpen_era: Mapped[float | None] = mapped_column(Float, nullable=True)
     feature_vector_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class PitchingEraCache(Base):
+    """Caché de ERA (temporada) para abridores y staff de equipo; evita reconsultar la API."""
+
+    __tablename__ = "pitching_era_cache"
+    __table_args__ = (UniqueConstraint("kind", "ref_id", "season", name="ux_pitching_era_cache"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(1), nullable=False)  # P = people, T = team
+    ref_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    season: Mapped[str] = mapped_column(String(8), nullable=False)
+    era: Mapped[float] = mapped_column(Float, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class GamePredictionCache(Base):

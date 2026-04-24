@@ -27,17 +27,19 @@ class GameSummaryResponse(BaseModel):
     away_score: int | None = None
 
 
-class GameDetailResponse(GameSummaryResponse):
-    venue_id: int | None
-    venue_name: str | None
-    lineups: dict[str, Any] | None
-    boxscore: dict[str, Any] | None
-    weather: dict[str, Any] | None
-
-
 class PredictionResponse(BaseModel):
     game_pk: int
     home_win_probability: float
     total_runs_estimate: float
     over_under_line: float
     model_version: str
+
+
+class GameDetailResponse(GameSummaryResponse):
+    venue_id: int | None
+    venue_name: str | None
+    lineups: dict[str, Any] | None
+    boxscore: dict[str, Any] | None
+    weather: dict[str, Any] | None
+    # Si ``include_predictions`` en GET /games o /games/{pk}; null = sin estimación o modelo no cargado.
+    prediction: PredictionResponse | None = None

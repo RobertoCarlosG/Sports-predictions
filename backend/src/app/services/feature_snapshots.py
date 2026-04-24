@@ -9,6 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.mlb import Game, GameFeatureSnapshot
+from app.services.mlb_client import MlbApiClient
+from app.services.mlb_sync import starters_from_boxscore
+from app.services.pitching_stats import game_pitching_feature_values
 
 
 def is_final_game_status(status: str) -> bool:
@@ -27,6 +30,15 @@ def game_has_final_scores(game: Game) -> bool:
         and game.away_score is not None
         and is_final_game_status(game.status)
     )
+
+
+def _game_starter_ids(g: Game) -> tuple[int | None, int | None]:
+    h, a = g.home_starter_id, g.away_starter_id
+    if g.boxscore_json:
+        bh, ba = starters_from_boxscore(g.boxscore_json)
+        h = h if h is not None else bh
+        a = a if a is not None else ba
+    return h, a
 
 
 def _rolling_win_rate_and_runs(
@@ -48,6 +60,7 @@ async def rebuild_game_feature_snapshots(
     *,
     rolling_window: int = 10,
     season: str | None = None,
+    mlb: MlbApiClient | None = None,
 ) -> int:
     """Recalcula filas en `game_feature_snapshots`.
 
@@ -56,6 +69,8 @@ async def rebuild_game_feature_snapshots(
     reescriben snapshots de esa temporada; el resto de partidos solo alimenta el historial.
 
     - `home_win` / `total_runs` solo para partidos finalizados con marcador.
+    - ERA de abridores y del staff (proxy «bullpen») si ``mlb`` está disponible; si no, se usan
+      valores por defecto (ver ``pitching_stats``).
     Devuelve el número de filas escritas.
     """
     stmt = (
@@ -98,6 +113,17 @@ async def rebuild_game_feature_snapshots(
             home_win = 1 if g.home_score > g.away_score else 0
             total_runs = float(g.home_score + g.away_score)
 
+        h_sid, a_sid = _game_starter_ids(g)
+        hse, ase, hbe, abe = await game_pitching_feature_values(
+            session,
+            mlb,
+            season=str(g.season),
+            home_team_id=g.home_team_id,
+            away_team_id=g.away_team_id,
+            home_starter_id=h_sid,
+            away_starter_id=a_sid,
+        )
+
         if persist_season is None or g.season == persist_season:
             row = GameFeatureSnapshot(
                 game_pk=g.game_pk,
@@ -109,6 +135,10 @@ async def rebuild_game_feature_snapshots(
                 humidity_pct=hum,
                 wind_speed_mps=wind,
                 elevation_m=elev,
+                home_starter_era=hse,
+                away_starter_era=ase,
+                home_bullpen_era=hbe,
+                away_bullpen_era=abe,
                 home_win=home_win,
                 total_runs=total_runs,
                 feature_vector_json=None,

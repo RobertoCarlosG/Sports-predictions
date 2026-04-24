@@ -11,16 +11,27 @@ export class GamesApiService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiUrl}/api/v1`;
 
-  listGames(date: string, sync = true): Observable<GameDetail[]> {
-    const params = new HttpParams()
+  listGames(
+    date: string,
+    sync = true,
+    options?: { includePredictions?: boolean },
+  ): Observable<GameDetail[]> {
+    let params = new HttpParams()
       .set('date', date)
       .set('sync', String(sync))
-      .set('fetch_details', 'true');
+      .set('fetch_details', 'true')
+      .set('include_predictions', String(options?.includePredictions !== false));
     return this.http.get<GameDetail[]>(`${this.base}/games`, { params });
   }
 
-  getGame(gamePk: number): Observable<GameDetail> {
-    return this.http.get<GameDetail>(`${this.base}/games/${gamePk}`);
+  getGame(
+    gamePk: number,
+    options?: { includePredictions?: boolean },
+  ): Observable<GameDetail> {
+    const include = options?.includePredictions !== false;
+    return this.http.get<GameDetail>(`${this.base}/games/${gamePk}`, {
+      params: new HttpParams().set('include_predictions', String(include)),
+    });
   }
 
   refreshWeather(gamePk: number): Observable<GameDetail> {

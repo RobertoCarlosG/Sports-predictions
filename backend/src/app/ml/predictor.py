@@ -13,6 +13,22 @@ from app.ml.features import build_feature_matrix_row
 from app.models.mlb import Game, GameFeatureSnapshot, GameWeather
 
 
+def _align_x_to_forest(
+    x: NDArray[np.float64],
+    clf: RandomForestClassifier,
+    reg: RandomForestRegressor,
+) -> NDArray[np.float64]:
+    """Recorta a ``n_features_in_`` (modelo antiguo 8, pipeline nuevo 12) o rellena con ceros si hace falta."""
+    n_clf = getattr(clf, "n_features_in_", None)
+    n_reg = getattr(reg, "n_features_in_", None)
+    n = int(n_clf) if n_clf is not None else (int(n_reg) if n_reg is not None else x.shape[1])
+    if n == x.shape[1]:
+        return x
+    if x.shape[1] > n:
+        return x[:, :n]
+    return np.hstack([x, np.zeros((1, n - x.shape[1]), dtype=np.float64)])
+
+
 @dataclass
 class PredictionResult:
     game_pk: int
@@ -44,6 +60,7 @@ class MlbPredictionService:
         clf: RandomForestClassifier = bundle["clf"]
         reg: RandomForestRegressor = bundle["reg"]
         x: NDArray[np.float64] = build_feature_matrix_row(game, weather, snapshot)
+        x = _align_x_to_forest(x, clf, reg)
         proba = clf.predict_proba(x)
         p_home = float(proba[0][1]) if proba.shape[1] > 1 else float(proba[0][0])
         total_runs = float(reg.predict(x)[0])

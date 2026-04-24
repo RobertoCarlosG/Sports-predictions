@@ -32,6 +32,36 @@ async def _set_local_statement_timeout_for_mlb_write(session: AsyncSession) -> N
     await session.execute(text(f"SET LOCAL statement_timeout = '{sec}s'"))
 
 
+def starters_from_boxscore(box: dict[str, Any]) -> tuple[int | None, int | None]:
+    """Abridores: el primer `pitchers[]` en el box de MLB (partido finalizado o avanzado)."""
+    teams = box.get("teams")
+    if not isinstance(teams, dict):
+        return None, None
+
+    def _first_pitcher(side: str) -> int | None:
+        t = teams.get(side) or {}
+        if not isinstance(t, dict):
+            t = {}
+        plist = t.get("pitchers")
+        if not isinstance(plist, list) or len(plist) < 1:
+            return None
+        try:
+            return int(plist[0])
+        except (TypeError, ValueError):
+            return None
+
+    return _first_pitcher("home"), _first_pitcher("away")
+
+
+def _int_or_none(x: object) -> int | None:
+    if x is None:
+        return None
+    try:
+        return int(x)
+    except (TypeError, ValueError):
+        return None
+
+
 def _scores_from_boxscore(box: dict[str, Any]) -> tuple[int | None, int | None]:
     try:
         hr = int(box["teams"]["home"]["teamStats"]["batting"]["runs"])
@@ -210,6 +240,15 @@ async def _upsert_game_from_schedule_item(
         except Exception:
             pass
 
+    home_starter = _int_or_none(item.get("home_starter_id"))
+    away_starter = _int_or_none(item.get("away_starter_id"))
+    if boxscore_json is not None:
+        sp_h, sp_a = starters_from_boxscore(boxscore_json)
+        if sp_h is not None:
+            home_starter = sp_h
+        if sp_a is not None:
+            away_starter = sp_a
+
     if game is None:
         game = Game(
             game_pk=item["game_pk"],
@@ -225,6 +264,8 @@ async def _upsert_game_from_schedule_item(
             away_score=away_score,
             lineups_json=lineups_json,
             boxscore_json=boxscore_json,
+            home_starter_id=home_starter,
+            away_starter_id=away_starter,
         )
         session.add(game)
     else:
@@ -240,6 +281,10 @@ async def _upsert_game_from_schedule_item(
             game.lineups_json = lineups_json
         if boxscore_json is not None:
             game.boxscore_json = boxscore_json
+        if home_starter is not None:
+            game.home_starter_id = home_starter
+        if away_starter is not None:
+            game.away_starter_id = away_starter
 
     await session.flush()
     return game

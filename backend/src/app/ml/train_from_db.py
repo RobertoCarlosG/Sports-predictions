@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import async_session_factory
 from app.ml.features import FEATURE_NAMES
 from app.models.mlb import Game, GameFeatureSnapshot
+from app.services.pitching_stats import DEFAULT_ERA, DEFAULT_STAFF_ERA
 
 log = logging.getLogger(__name__)
 
@@ -70,6 +71,14 @@ async def _load_xy(
                 float(snap.humidity_pct if snap.humidity_pct is not None else 50.0),
                 float(snap.wind_speed_mps if snap.wind_speed_mps is not None else 2.0),
                 float(snap.elevation_m if snap.elevation_m is not None else 100.0),
+                float(snap.home_starter_era if snap.home_starter_era is not None else DEFAULT_ERA),
+                float(snap.away_starter_era if snap.away_starter_era is not None else DEFAULT_ERA),
+                float(
+                    snap.home_bullpen_era if snap.home_bullpen_era is not None else DEFAULT_STAFF_ERA
+                ),
+                float(
+                    snap.away_bullpen_era if snap.away_bullpen_era is not None else DEFAULT_STAFF_ERA
+                ),
             ]
         )
         assert snap.home_win is not None and snap.total_runs is not None

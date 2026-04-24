@@ -13,23 +13,29 @@ import asyncio
 import logging
 import sys
 
+import httpx
+
+from app.core.config import settings
 from app.db.session import async_session_factory
 from app.services.feature_snapshots import rebuild_game_feature_snapshots
+from app.services.mlb_client import MlbApiClient
 
 log = logging.getLogger(__name__)
 
 
 async def _run(*, season: str | None, window: int) -> None:
-    async with async_session_factory() as session:
-        try:
-            n = await rebuild_game_feature_snapshots(
-                session, rolling_window=window, season=season
-            )
-            await session.commit()
-            log.info("rebuilt %d feature snapshot rows", n)
-        except Exception:
-            await session.rollback()
-            raise
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        mlb = MlbApiClient(settings.mlb_api_base_url, client)
+        async with async_session_factory() as session:
+            try:
+                n = await rebuild_game_feature_snapshots(
+                    session, rolling_window=window, season=season, mlb=mlb
+                )
+                await session.commit()
+                log.info("rebuilt %d feature snapshot rows", n)
+            except Exception:
+                await session.rollback()
+                raise
 
 
 def main(argv: list[str] | None = None) -> None:

@@ -89,7 +89,12 @@ export class GameDetailComponent implements OnInit {
       next: (g) => {
         this.game = g;
         this.loading = false;
-        this.loadPrediction(gamePk);
+        if ('prediction' in g) {
+          this.prediction = g.prediction ?? null;
+          this.predLoading = false;
+        } else {
+          this.loadPrediction(gamePk);
+        }
         this.loadHeadToHead(g);
       },
       error: () => {
