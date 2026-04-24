@@ -199,6 +199,20 @@
             <mat-label>Nombre de versión</mat-label>
             <input matInput [(ngModel)]="trainModelVersion" name="mv" />
           </mat-form-field>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Árboles (n_estimators)</mat-label>
+            <input matInput type="number" min="10" max="500" [(ngModel)]="trainTrees" name="trt" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Profundidad máxima (max_depth)</mat-label>
+            <input matInput type="number" min="2" max="48" [(ngModel)]="trainMaxDepth" name="trd" />
+            <mat-hint>Más alta suele dar P(home) más dispersa si hay features variadas</mat-hint>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Mín. muestras por hoja</mat-label>
+            <input matInput type="number" min="1" max="50" [(ngModel)]="trainMinSamplesLeaf" name="trl" />
+            <mat-hint>Menor valor → hojas más finas (más dispersión; riesgo si hay poco dato)</mat-hint>
+          </mat-form-field>
           <button mat-flat-button color="primary" type="button" (click)="train()" [disabled]="operationsLocked">
             <mat-icon>model_training</mat-icon>
             Entrenar con datos guardados

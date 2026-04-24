@@ -126,6 +126,8 @@ export class AdminApiService {
     val_from?: string | null;
     model_version?: string;
     trees?: number;
+    max_depth?: number;
+    min_samples_leaf?: number;
   }): Observable<TrainResultResponse> {
     return this.http.post<TrainResultResponse>(`${this.base}/pipeline/train`, body, this.opts());
   }

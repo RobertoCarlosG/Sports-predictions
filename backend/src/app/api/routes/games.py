@@ -172,6 +172,19 @@ async def list_games(
         )
         for s in res_sn.scalars().all():
             snap_by_pk[s.game_pk] = s
+        missing = [g.game_pk for g in rows if g.game_pk not in snap_by_pk]
+        if missing:
+            sample = ", ".join(str(pk) for pk in missing[:5])
+            more = f" (+{len(missing) - 5} más)" if len(missing) > 5 else ""
+            log.warning(
+                "list_games date=%s: %d partido(s) sin fila en game_feature_snapshots (ej. %s%s). "
+                "La inferencia usa valores por defecto (0.5/4.5/ERA default) → P(home) casi igual en todos. "
+                "Operaciones → Recalcular indicadores.",
+                game_date,
+                len(missing),
+                sample,
+                more,
+            )
 
     out: list[GameDetailResponse] = []
     for g in rows:
@@ -221,6 +234,12 @@ async def get_game(
             select(GameFeatureSnapshot).where(GameFeatureSnapshot.game_pk == game_pk)
         )
         snap = snap_row.scalar_one_or_none()
+        if snap is None:
+            log.warning(
+                "get_game game_pk=%s sin game_feature_snapshots: predicción con features por defecto. "
+                "Recalcular indicadores en Operaciones.",
+                game_pk,
+            )
         pred = await _compute_or_cache_prediction(request, session, game, snap, "get_game")
     return game_detail_response(game, game.weather, pred)
 

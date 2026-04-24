@@ -130,6 +130,53 @@ def lineups_from_boxscore(box: dict[str, Any]) -> dict[str, Any] | None:
     return out
 
 
+def _home_away_team_specs(
+    item: dict[str, Any],
+) -> list[tuple[int, str, str, int | None, str | None]]:
+    """Pares (team_id, …) del partido, ordenados por id (misma convención que en upsert de juego)."""
+    hid = item.get("home_team_id")
+    aid = item.get("away_team_id")
+    if hid is None or aid is None:
+        return []
+    home_name = str(item.get("home_team_name") or "Home")
+    away_name = str(item.get("away_team_name") or "Away")
+    h_abbr = team_abbr_for_display(
+        int(hid), str(item.get("home_team_abbr") or ""), home_name
+    )
+    a_abbr = team_abbr_for_display(
+        int(aid), str(item.get("away_team_abbr") or ""), away_name
+    )
+    venue_id = item.get("venue_id")
+    venue_name = item.get("venue_name")
+    specs = [
+        (int(hid), home_name, h_abbr, venue_id, venue_name),
+        (int(aid), away_name, a_abbr, venue_id, venue_name),
+    ]
+    specs.sort(key=lambda t: t[0])
+    return specs
+
+
+async def _upsert_teams_for_full_schedule(
+    session: AsyncSession,
+    parsed: list[dict[str, Any]],
+) -> None:
+    """
+    Bloquea/actualiza filas de `teams` una sola vez en orden global por id.
+
+    Evita deadlocks cuando varias fechas se sincronizan en paralelo: dentro de una
+    transacción, recorrer partidos en orden del calendario implica un orden de ids
+    distinto al de otra transacción (p. ej. 146→138 vs 138→146).
+    """
+    merged: dict[int, tuple[str, str, int | None, str | None]] = {}
+    for item in parsed:
+        for tid, name, abbr, vid, vname in _home_away_team_specs(item):
+            merged[tid] = (name, abbr, vid, vname)
+    for tid in sorted(merged):
+        name, abbr, vid, vname = merged[tid]
+        await upsert_team(session, tid, name, abbr, vid, vname)
+    await session.flush()
+
+
 async def upsert_team(
     session: AsyncSession,
     team_id: int,
@@ -178,35 +225,16 @@ async def _upsert_game_from_schedule_item(
     item: dict[str, Any],
     *,
     fetch_details: bool,
+    skip_team_upsert: bool = False,
 ) -> Game:
     hid = item.get("home_team_id")
     aid = item.get("away_team_id")
     if hid is None or aid is None:
         raise ValueError("schedule item missing team ids")
-    home_name = str(item.get("home_team_name") or "Home")
-    away_name = str(item.get("away_team_name") or "Away")
-    h_abbr = team_abbr_for_display(
-        int(hid), str(item.get("home_team_abbr") or ""), home_name
-    )
-    a_abbr = team_abbr_for_display(
-        int(aid), str(item.get("away_team_abbr") or ""), away_name
-    )
-    # Orden fijo por id evita deadlocks entre peticiones concurrentes que tocaban
-    # home/away en distinto orden (mismas filas en `teams`, distinto orden de locks).
-    venue_id = item.get("venue_id")
-    venue_name = item.get("venue_name")
-    for tid, name, abbr in sorted(
-        [
-            (int(hid), home_name, h_abbr),
-            (int(aid), away_name, a_abbr),
-        ],
-        key=lambda t: t[0],
-    ):
-        await upsert_team(session, tid, name, abbr, venue_id, venue_name)
-    
-    # Flush explícito para liberar locks en tabla teams antes de continuar
-    # Reduce contención cuando múltiples requests actualizan los mismos equipos
-    await session.flush()
+    if not skip_team_upsert:
+        for tid, name, abbr, vid, vname in _home_away_team_specs(item):
+            await upsert_team(session, tid, name, abbr, vid, vname)
+        await session.flush()
 
     gd = dt.date.fromisoformat(str(item["game_date"]))
     gdt: dt.datetime | None = None
@@ -320,6 +348,7 @@ async def sync_games_for_date(
     await _set_local_statement_timeout_for_mlb_write(session)
     raw = await client.schedule(date_str)
     parsed = parse_schedule_games(raw)
+    await _upsert_teams_for_full_schedule(session, parsed)
     games: list[Game] = []
     for item in parsed:
         hid = item.get("home_team_id")
@@ -327,7 +356,11 @@ async def sync_games_for_date(
         if hid is None or aid is None:
             continue
         g = await _upsert_game_from_schedule_item(
-            session, client, item, fetch_details=fetch_details
+            session,
+            client,
+            item,
+            fetch_details=fetch_details,
+            skip_team_upsert=True,
         )
         games.append(g)
     return games

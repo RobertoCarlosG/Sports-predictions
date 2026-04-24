@@ -53,6 +53,18 @@ class TrainModelBody(BaseModel):
     val_from: str | None = Field(default=None, description="YYYY-MM-DD")
     model_version: str = "rf-db-v1"
     trees: int = Field(default=128, ge=10, le=500)
+    max_depth: int = Field(
+        default=16,
+        ge=2,
+        le=48,
+        description="Profundidad máxima del bosque (subir si P(home) sale casi plana y hay datos variados)",
+    )
+    min_samples_leaf: int = Field(
+        default=2,
+        ge=1,
+        le=50,
+        description="Hojas más pequeñas => predict_proba más dispersa (cuidado con poco dato)",
+    )
 
 
 class BackfillBody(BaseModel):

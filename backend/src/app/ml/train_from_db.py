@@ -16,6 +16,7 @@ import asyncio
 import datetime as dt
 import json
 import logging
+import sys
 from pathlib import Path
 
 import joblib
@@ -89,7 +90,28 @@ async def _load_xy(
     x_arr = np.asarray(xs, dtype=np.float64)
     y_h = np.asarray(y_home, dtype=np.int_)
     y_r = np.asarray(y_runs, dtype=np.float64)
+    _log_feature_health(x_arr)
     return x_arr, y_h, y_r, dates
+
+
+def _log_feature_health(x: NDArray[np.float64]) -> None:
+    """Si casi no hay varianza en X, el RF tenderá a ~P(victoria local) constante (p. ej. ~48 %)."""
+    std = np.std(x, axis=0)
+    nz = np.count_nonzero(std > 1e-6)
+    log.info(
+        "features: rows=%d cols=%d | columns with std>1e-6: %d/%d | mean std=%.4f",
+        x.shape[0],
+        x.shape[1],
+        nz,
+        x.shape[1],
+        float(np.mean(std)),
+    )
+    if nz < 4 or float(np.mean(std)) < 0.02:
+        log.warning(
+            "Las features están muy planas: revisa backfill + «recalcular indicadores» "
+            "(game_feature_snapshots). Un modelo sintético (Gauss) parece más «disperso» "
+            "pero no refleja datos reales."
+        )
 
 
 def _split_temporal(
@@ -128,14 +150,14 @@ async def _async_main(args: argparse.Namespace) -> None:
     clf = RandomForestClassifier(
         n_estimators=args.trees,
         random_state=42,
-        max_depth=12,
-        min_samples_leaf=3,
+        max_depth=args.max_depth,
+        min_samples_leaf=args.min_samples_leaf,
     )
     reg = RandomForestRegressor(
         n_estimators=args.trees,
         random_state=42,
-        max_depth=12,
-        min_samples_leaf=3,
+        max_depth=args.max_depth,
+        min_samples_leaf=args.min_samples_leaf,
     )
     clf.fit(x_tr, yh_tr)
     reg.fit(x_tr, yr_tr)
@@ -146,6 +168,15 @@ async def _async_main(args: argparse.Namespace) -> None:
     mae = mean_absolute_error(yr_va, pred_r)
     log.info("validation accuracy (home win): %.4f", acc)
     log.info("validation MAE (total runs): %.4f", mae)
+    proba_va = clf.predict_proba(x_va)
+    val_proba_std: float | None = None
+    if proba_va.shape[1] > 1:
+        val_proba_std = float(np.std(proba_va[:, 1]))
+        log.info(
+            "validation P(home) std=%.4f (mayor => más dispersión entre partidos; "
+            "cerca de 0 => casi misma prob. para todos)",
+            val_proba_std,
+        )
 
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -153,7 +184,11 @@ async def _async_main(args: argparse.Namespace) -> None:
         "feature_names": FEATURE_NAMES,
         "trained_on_games": int(len(dates)),
         "val_from": val_from.isoformat() if val_from else "80pct_split",
-        "metrics": {"val_accuracy_home": acc, "val_mae_total_runs": mae},
+        "metrics": {
+            "val_accuracy_home": acc,
+            "val_mae_total_runs": mae,
+            "val_proba_home_std": val_proba_std,
+        },
     }
     bundle = {
         "clf": clf,
@@ -167,7 +202,13 @@ async def _async_main(args: argparse.Namespace) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    # stdout: el panel admin muestra stdout_tail del subproceso (stderr se fusiona allí también).
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s %(message)s",
+        stream=sys.stdout,
+        force=True,
+    )
     p = argparse.ArgumentParser(description="Train RF from game_feature_snapshots (real labels).")
     p.add_argument(
         "--output",
@@ -181,6 +222,18 @@ def main(argv: list[str] | None = None) -> None:
         help="YYYY-MM-DD: validation is games on or after this date",
     )
     p.add_argument("--trees", type=int, default=128, help="n_estimators per forest")
+    p.add_argument(
+        "--max-depth",
+        type=int,
+        default=16,
+        help="Profundidad máxima de cada árbol (más alta => más variación en predict_proba; riesgo de sobreajuste)",
+    )
+    p.add_argument(
+        "--min-samples-leaf",
+        type=int,
+        default=2,
+        help="Mínimo de muestras por hoja (menor => árboles más finos y probs más dispersas)",
+    )
     p.add_argument(
         "--model-version",
         default="rf-db-v1",

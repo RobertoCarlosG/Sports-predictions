@@ -67,6 +67,9 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
   trainValFrom = '';
   trainSeason = '';
   trainModelVersion = 'rf-db-v1';
+  trainTrees = 128;
+  trainMaxDepth = 16;
+  trainMinSamplesLeaf = 2;
 
   /** Seguimiento de importación en segundo plano. */
   backfillTracking = false;
@@ -224,6 +227,9 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
         season: this.trainSeason.trim() || null,
         val_from: this.trainValFrom.trim() || null,
         model_version: this.trainModelVersion.trim() || 'rf-db-v1',
+        trees: this.trainTrees,
+        max_depth: this.trainMaxDepth,
+        min_samples_leaf: this.trainMinSamplesLeaf,
       }),
     );
   }

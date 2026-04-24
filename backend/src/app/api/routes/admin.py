@@ -274,6 +274,10 @@ async def admin_train_model(
         body.model_version,
         "--trees",
         str(body.trees),
+        "--max-depth",
+        str(body.max_depth),
+        "--min-samples-leaf",
+        str(body.min_samples_leaf),
     ]
     if body.season:
         cmd.extend(["--season", body.season])
@@ -291,9 +295,12 @@ async def admin_train_model(
         )
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="Entrenamiento excedió el tiempo máximo.") from None
-    tail = (proc.stdout or "")[-4000:]
+    out_txt = (proc.stdout or "").strip()
+    err_txt = (proc.stderr or "").strip()
+    combined = "\n".join(x for x in (out_txt, err_txt) if x)
+    tail = combined[-4000:] if combined else ""
     if proc.returncode != 0:
-        err = (proc.stderr or proc.stdout or "")[-2000:]
+        err = combined[-2000:] if combined else ""
         log.error("train failed: %s", err)
         raise HTTPException(
             status_code=400,
