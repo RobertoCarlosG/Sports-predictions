@@ -16,16 +16,19 @@ export function eachIsoDateInRange(start: string, end: string): string[] {
   return out;
 }
 
-/** Límites de fecha para temporada en curso (solo año civil actual, sin futuro). */
+/** Límites de fecha para temporada en curso (año civil actual con margen futuro de 30 días). */
 export function currentSeasonDateBounds(): { min: string; max: string; year: number } {
   const today = new Date();
   const y = today.getFullYear();
-  const m = String(today.getMonth() + 1).padStart(2, '0');
-  const d = String(today.getDate()).padStart(2, '0');
+  const futureDate = new Date(today);
+  futureDate.setDate(futureDate.getDate() + 30);
+  const maxY = futureDate.getFullYear();
+  const maxM = String(futureDate.getMonth() + 1).padStart(2, '0');
+  const maxD = String(futureDate.getDate()).padStart(2, '0');
   return {
     year: y,
     min: `${y}-01-01`,
-    max: `${y}-${m}-${d}`,
+    max: `${maxY}-${maxM}-${maxD}`,
   };
 }
 

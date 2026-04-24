@@ -53,18 +53,26 @@ export class DateChipSelectorComponent implements OnInit {
     const max = this.maxIso;
     const min = this.minIso;
     if (p === 'today') {
-      const d = max < min ? min : max;
-      return [d];
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, '0');
+      const d = String(today.getDate()).padStart(2, '0');
+      return [`${y}-${m}-${d}`];
     }
     if (p === 'tomorrow') {
-      const base = max < min ? min : max;
-      const iso = addDaysIso(base, 1);
-      if (iso > max || iso < min) {
-        return [base];
-      }
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, '0');
+      const d = String(today.getDate()).padStart(2, '0');
+      const todayIso = `${y}-${m}-${d}`;
+      const iso = addDaysIso(todayIso, 1);
       return [iso];
     }
-    const anchor = max < min ? min : max;
-    return calendarWeekRangeClamped(anchor, min, max);
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const todayIso = `${y}-${m}-${d}`;
+    return calendarWeekRangeClamped(todayIso, min, max);
   }
 }

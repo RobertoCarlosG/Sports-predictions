@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -41,57 +41,71 @@ export class GameListComponent implements OnInit {
 
   readonly seasonBounds = currentSeasonDateBounds();
 
-  games: GameDetail[] = [];
-  /** Fechas únicas ordenadas (evita recomputar en plantilla). */
-  dayKeys: string[] = [];
-  /** Probabilidad victoria local por partido (fracción 0–1). */
-  homeWinByPk: Record<number, number | null> = {};
-  loading = false;
-  predictionsLoading = false;
-  loadError = false;
+  // Signals para reactividad optimizada (como useMemo + useState)
+  games = signal<GameDetail[]>([]);
+  homeWinByPk = signal<Record<number, number | null>>({});
+  loading = signal(false);
+  predictionsLoading = signal(false);
+  loadError = signal(false);
+  dateSummary = signal('');
+  pageTitle = signal('Hoy en MLB');
+  pageLede = signal('Partidos del día con estimación de victoria del equipo local.');
 
-  /** Preset de fechas actual (para subtítulos). */
-  dateSummary = '';
+  // Computed: Se recalcula SOLO cuando games() cambia (como useMemo)
+  dayKeys = computed(() => {
+    const s = new Set(this.games().map((g) => g.game_date));
+    return [...s].sort();
+  });
 
-  pageTitle = 'Hoy en MLB';
-  pageLede = 'Partidos del día con estimación de victoria del equipo local.';
+  // Computed: Mapa optimizado de juegos por fecha
+  gamesByDate = computed(() => {
+    const map = new Map<string, GameDetail[]>();
+    for (const game of this.games()) {
+      const date = game.game_date;
+      if (!map.has(date)) {
+        map.set(date, []);
+      }
+      map.get(date)!.push(game);
+    }
+    return map;
+  });
+
+  private lastSelection: string[] = [];
 
   ngOnInit(): void {
     /* La carga inicial la dispara DateChipSelector al emitir en ngOnInit. */
   }
 
   onDateSelection(sel: DateChipSelection): void {
-    this.dateSummary = this.formatDateSummary(sel);
+    this.dateSummary.set(this.formatDateSummary(sel));
     this.applyHeadlines(sel.preset);
     this.loadForDates(sel.dates);
   }
 
   private applyHeadlines(preset: DateChipPreset): void {
     if (preset === 'week') {
-      this.pageTitle = 'Esta semana en MLB';
-      this.pageLede =
-        'Semana calendario (lunes a domingo) recortada hasta hoy. Estimación de victoria del equipo local.';
+      this.pageTitle.set('Esta semana en MLB');
+      this.pageLede.set(
+        'Semana calendario (lunes a domingo) con partidos pasados y próximos. Estimación de victoria del equipo local.'
+      );
       return;
     }
     if (preset === 'tomorrow') {
-      this.pageTitle = 'Mañana en MLB';
-      this.pageLede = 'Partidos del día siguiente con estimación de victoria del equipo local.';
+      this.pageTitle.set('Mañana en MLB');
+      this.pageLede.set('Partidos del día siguiente con estimación de victoria del equipo local.');
       return;
     }
-    this.pageTitle = 'Hoy en MLB';
-    this.pageLede = 'Partidos del día con estimación de victoria del equipo local.';
+    this.pageTitle.set('Hoy en MLB');
+    this.pageLede.set('Partidos del día con estimación de victoria del equipo local.');
   }
 
-
   retry(): void {
-    this.loadError = false;
+    this.loadError.set(false);
     const sel = this.lastSelection;
     if (sel.length > 0) {
       this.loadForDates(sel);
     }
   }
-
-  private lastSelection: string[] = [];
 
   private formatDateSummary(sel: DateChipSelection): string {
     if (sel.dates.length === 0) {
@@ -106,34 +120,31 @@ export class GameListComponent implements OnInit {
   private loadForDates(dates: string[]): void {
     this.lastSelection = dates;
     if (dates.length === 0) {
-      this.games = [];
-      this.dayKeys = [];
-      this.homeWinByPk = {};
+      this.games.set([]);
+      this.homeWinByPk.set({});
       return;
     }
-    this.loading = true;
-    this.loadError = false;
-    this.homeWinByPk = {};
+    this.loading.set(true);
+    this.loadError.set(false);
+    this.homeWinByPk.set({});
 
     const reqs = dates.map((d) => this.api.listGames(d, true));
     forkJoin(reqs).subscribe({
       next: (chunks) => {
         const merged = this.mergeGames(chunks.flat());
-        this.games = merged;
-        this.dayKeys = this.computeDayKeys(merged);
-        this.loading = false;
+        this.games.set(merged);
+        this.loading.set(false);
         if (merged.length > 0 && !('prediction' in merged[0])) {
           this.loadPredictions(merged);
         } else {
           this.applyPredictionsFromPayload(merged);
-          this.predictionsLoading = false;
+          this.predictionsLoading.set(false);
         }
       },
       error: () => {
-        this.loading = false;
-        this.loadError = true;
-        this.games = [];
-        this.dayKeys = [];
+        this.loading.set(false);
+        this.loadError.set(true);
+        this.games.set([]);
       },
     });
   }
@@ -163,7 +174,7 @@ export class GameListComponent implements OnInit {
         map[g.game_pk] = null;
       }
     }
-    this.homeWinByPk = map;
+    this.homeWinByPk.set(map);
   }
 
   /** API antiguo sin ``prediction`` en el JSON: una petición /predict por partido. */
@@ -171,7 +182,7 @@ export class GameListComponent implements OnInit {
     if (games.length === 0) {
       return;
     }
-    this.predictionsLoading = true;
+    this.predictionsLoading.set(true);
     forkJoin(
       games.map((g) =>
         this.api.predict(g.game_pk).pipe(catchError(() => of(null))),
@@ -183,27 +194,23 @@ export class GameListComponent implements OnInit {
           const pk = games[i].game_pk;
           map[pk] = p ? p.home_win_probability : null;
         });
-        this.homeWinByPk = map;
-        this.predictionsLoading = false;
+        this.homeWinByPk.set(map);
+        this.predictionsLoading.set(false);
       },
       error: () => {
-        this.predictionsLoading = false;
+        this.predictionsLoading.set(false);
       },
     });
   }
 
+  // Método optimizado: usa el mapa computado en lugar de filtrar cada vez
   gamesForDate(iso: string): GameDetail[] {
-    return this.games.filter((g) => g.game_date === iso);
-  }
-
-  private computeDayKeys(games: GameDetail[]): string[] {
-    const s = new Set(games.map((g) => g.game_date));
-    return [...s].sort();
+    return this.gamesByDate().get(iso) || [];
   }
 
   probFor(g: GameDetail): number | null | undefined {
-    const v = this.homeWinByPk[g.game_pk];
-    if (this.predictionsLoading && v === undefined) {
+    const v = this.homeWinByPk()[g.game_pk];
+    if (this.predictionsLoading() && v === undefined) {
       return undefined;
     }
     return v ?? null;

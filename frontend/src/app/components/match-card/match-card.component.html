@@ -7,6 +7,12 @@
       <div class="row-top">
         <app-status-badge [apiStatus]="game.status" />
         <app-weather-chip [weather]="weather" />
+        @if (isEvaluated) {
+          <div class="prediction-badge" [class.correct]="predictionCorrect" [class.incorrect]="predictionIncorrect">
+            <mat-icon>{{ predictionCorrect ? 'check_circle' : 'cancel' }}</mat-icon>
+            <span>{{ predictionCorrect ? 'Acierto' : 'Fallo' }}</span>
+          </div>
+        }
       </div>
       <div class="teams">
         <span class="team away">{{ abbr(game.away_team) }}</span>
@@ -17,7 +23,24 @@
         }
       </div>
       <p class="meta">{{ game.game_date }}</p>
-      <app-probability-bar [probability]="homeWinProbability" />
+      
+      @if (isEvaluated) {
+        <div class="prediction-evaluation">
+          <div class="prediction-row">
+            <span class="label">Predicción:</span>
+            <span class="value">{{ predictedWinnerLabel }}</span>
+          </div>
+          <div class="prediction-row">
+            <span class="label">Resultado:</span>
+            <span class="value">{{ actualWinnerLabel }}</span>
+          </div>
+          <div class="prediction-row confidence">
+            <span class="confidence-text">{{ confidencePercent }}</span>
+          </div>
+        </div>
+      } @else {
+        <app-probability-bar [probability]="homeWinProbability" />
+      }
     </mat-card-content>
   </mat-card>
 </a>

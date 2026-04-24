@@ -150,10 +150,25 @@ async def upsert_team(
         )
         session.add(row)
     else:
-        row.name = name
-        row.abbreviation = abbreviation[:8]
-        row.venue_id = venue_id
-        row.venue_name = venue_name
+        # Solo actualizar si hay cambios reales (reduce contención de locks)
+        needs_update = False
+        if row.name != name:
+            row.name = name
+            needs_update = True
+        abbr_short = abbreviation[:8]
+        if row.abbreviation != abbr_short:
+            row.abbreviation = abbr_short
+            needs_update = True
+        if row.venue_id != venue_id:
+            row.venue_id = venue_id
+            needs_update = True
+        if row.venue_name != venue_name:
+            row.venue_name = venue_name
+            needs_update = True
+        
+        # Si no hay cambios, marcar como "sin cambios" para SQLAlchemy
+        if not needs_update:
+            session.expire(row)
     return row
 
 
@@ -188,6 +203,10 @@ async def _upsert_game_from_schedule_item(
         key=lambda t: t[0],
     ):
         await upsert_team(session, tid, name, abbr, venue_id, venue_name)
+    
+    # Flush explícito para liberar locks en tabla teams antes de continuar
+    # Reduce contención cuando múltiples requests actualizan los mismos equipos
+    await session.flush()
 
     gd = dt.date.fromisoformat(str(item["game_date"]))
     gdt: dt.datetime | None = None

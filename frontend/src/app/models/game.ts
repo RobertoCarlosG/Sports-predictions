@@ -28,4 +28,8 @@ export interface PredictionOut {
   total_runs_estimate: number;
   over_under_line: number;
   model_version: string;
+  predicted_winner?: 'home' | 'away' | null;
+  actual_winner?: 'home' | 'away' | 'tie' | null;
+  is_correct?: boolean | null;
+  evaluated_at?: string | null;
 }
