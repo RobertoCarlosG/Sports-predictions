@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnInit, Output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 
 import { addDaysIso, calendarWeekRangeClamped, currentSeasonDateBounds } from '../../utils/date-bounds';
@@ -26,7 +26,7 @@ export class DateChipSelectorComponent implements OnInit {
 
   @Output() readonly selectionChange = new EventEmitter<DateChipSelection>();
 
-  preset: DateChipPreset = 'today';
+  preset = signal<DateChipPreset>('today');
 
   ngOnInit(): void {
     const b = currentSeasonDateBounds();
@@ -36,11 +36,11 @@ export class DateChipSelectorComponent implements OnInit {
     if (!this.minIso) {
       this.minIso = b.min;
     }
-    this.emitPreset(this.preset);
+    this.emitPreset(this.preset());
   }
 
   select(p: DateChipPreset): void {
-    this.preset = p;
+    this.preset.set(p);
     this.emitPreset(p);
   }
 

@@ -10,7 +10,8 @@ La base se define y evoluciona con **archivos `.sql` versionados** en este direc
    - `002_game_scores.sql`
    - `002_prediction_cache_and_admin.sql`
    - `003_pitching_and_starters.sql`
-   - `004_prediction_evaluation.sql` (nuevo: campos para tracking de aciertos/fallos)
+   - `004_prediction_evaluation.sql` (campos para tracking de aciertos/fallos)
+   - `005_teams_optimization.sql` (índices para reducir lock contention)
 4. Para cambios posteriores, añade un nuevo archivo SQL numerado, documenta en `schema.txt` y ejecuta el nuevo script en el mismo editor.
 
 ## Referencia legible
@@ -18,6 +19,7 @@ La base se define y evoluciona con **archivos `.sql` versionados** en este direc
 - **[schema.txt](schema.txt)** — descripción de tablas y columnas (fuente de verdad humana).
 - **`001_initial_schema.sql`** — DDL equivalente para Postgres/Supabase.
 - **`004_prediction_evaluation.sql`** — Añade campos para evaluar predicciones contra resultados reales.
+- **`005_teams_optimization.sql`** — Optimización de tabla teams para alta concurrencia.
 
 Tras crear tablas, configura `DATABASE_URL` en el backend (asyncpg) como siempre.
 

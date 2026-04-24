@@ -29,6 +29,7 @@ engine = create_async_engine(
     echo=False,
     poolclass=NullPool,
     connect_args=_connect_args,
+    pool_pre_ping=True,
 )
 
 async_session_factory = async_sessionmaker(

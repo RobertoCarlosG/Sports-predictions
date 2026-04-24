@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     # Límite de tiempo por sentencia SQL al conectar (p. ej. evita 8s por defecto en poolers).
     # El sync MLB aplica además SET LOCAL a max(este valor, 300)s por transacción al escribir boxscore.
     # 0 = no fijar al conectar (sigue el default del servidor); el sync aún usa mín. 300s en esa transacción.
-    database_statement_timeout_seconds: int = 120
+    database_statement_timeout_seconds: int = 300
 
     @field_validator("admin_jwt_secret", "admin_bootstrap_secret", mode="before")
     @classmethod
