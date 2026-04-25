@@ -14,7 +14,10 @@ def train_default_model(output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(42)
     n = 400
-    x = rng.normal(size=(n, len(FEATURE_NAMES)))
+    n12 = len(FEATURE_NAMES) - 1  # última columna: flag 0/1
+    x12 = rng.normal(size=(n, n12))
+    flags = rng.binomial(1, 0.25, size=(n, 1)).astype(np.float64)
+    x = np.hstack([x12, flags])
     y_home = (rng.random(n) > 0.48).astype(int)
     y_runs = rng.uniform(4.0, 12.0, size=n)
     clf = RandomForestClassifier(n_estimators=64, random_state=42, max_depth=8)

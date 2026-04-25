@@ -19,65 +19,96 @@ FEATURE_NAMES: list[str] = [
     "away_starter_era",
     "home_bullpen_era",
     "away_bullpen_era",
+    # 1 = parte del vector rellenada con constantes (NULL o sin snapshot); 0 = todo observado.
+    "defaults_injected",
 ]
 
 
-def build_feature_matrix_row(
+def _build_feature_values_12(
     _game: Game,
     weather: GameWeather | None,
-    snapshot: GameFeatureSnapshot | None = None,
-) -> NDArray[np.float64]:
-    """Una fila de features alineada con FEATURE_NAMES.
+    snapshot: GameFeatureSnapshot | None,
+) -> tuple[list[float], bool]:
+    """12 números + si hubo imputación explícita con constantes del pipeline (no clima real vía API)."""
+    injected = False
 
-    Si existe ``snapshot`` (p. ej. tras `rebuild_game_feature_snapshots`), se usan rachas y
-    clima persistidos; si no, rachas por defecto y clima del objeto weather en vivo.
-    """
     if snapshot is not None:
-        hw = float(snapshot.home_wins_roll) if snapshot.home_wins_roll is not None else 0.5
-        aw = float(snapshot.away_wins_roll) if snapshot.away_wins_roll is not None else 0.5
-        hra = float(snapshot.home_runs_avg_roll) if snapshot.home_runs_avg_roll is not None else 4.5
-        ara = float(snapshot.away_runs_avg_roll) if snapshot.away_runs_avg_roll is not None else 4.5
-        t = (
-            float(snapshot.temperature_c)
-            if snapshot.temperature_c is not None
-            else (
-                float(weather.temperature_c)
-                if weather and weather.temperature_c is not None
-                else 20.0
-            )
-        )
-        h = (
-            float(snapshot.humidity_pct)
-            if snapshot.humidity_pct is not None
-            else (
-                float(weather.humidity_pct)
-                if weather and weather.humidity_pct is not None
-                else 50.0
-            )
-        )
-        w = (
-            float(snapshot.wind_speed_mps)
-            if snapshot.wind_speed_mps is not None
-            else (
-                float(weather.wind_speed_mps)
-                if weather and weather.wind_speed_mps is not None
-                else 2.0
-            )
-        )
-        e = (
-            float(snapshot.elevation_m)
-            if snapshot.elevation_m is not None
-            else (
-                float(weather.elevation_m)
-                if weather and weather.elevation_m is not None
-                else 100.0
-            )
-        )
-        hse = float(snapshot.home_starter_era) if snapshot.home_starter_era is not None else DEFAULT_ERA
-        ase = float(snapshot.away_starter_era) if snapshot.away_starter_era is not None else DEFAULT_ERA
-        hbe = float(snapshot.home_bullpen_era) if snapshot.home_bullpen_era is not None else DEFAULT_STAFF_ERA
-        abe = float(snapshot.away_bullpen_era) if snapshot.away_bullpen_era is not None else DEFAULT_STAFF_ERA
+        if snapshot.home_wins_roll is None:
+            injected = True
+            hw = 0.5
+        else:
+            hw = float(snapshot.home_wins_roll)
+        if snapshot.away_wins_roll is None:
+            injected = True
+            aw = 0.5
+        else:
+            aw = float(snapshot.away_wins_roll)
+        if snapshot.home_runs_avg_roll is None:
+            injected = True
+            hra = 4.5
+        else:
+            hra = float(snapshot.home_runs_avg_roll)
+        if snapshot.away_runs_avg_roll is None:
+            injected = True
+            ara = 4.5
+        else:
+            ara = float(snapshot.away_runs_avg_roll)
+
+        if snapshot.temperature_c is not None:
+            t = float(snapshot.temperature_c)
+        elif weather and weather.temperature_c is not None:
+            t = float(weather.temperature_c)
+        else:
+            injected = True
+            t = 20.0
+
+        if snapshot.humidity_pct is not None:
+            h = float(snapshot.humidity_pct)
+        elif weather and weather.humidity_pct is not None:
+            h = float(weather.humidity_pct)
+        else:
+            injected = True
+            h = 50.0
+
+        if snapshot.wind_speed_mps is not None:
+            w = float(snapshot.wind_speed_mps)
+        elif weather and weather.wind_speed_mps is not None:
+            w = float(weather.wind_speed_mps)
+        else:
+            injected = True
+            w = 2.0
+
+        if snapshot.elevation_m is not None:
+            e = float(snapshot.elevation_m)
+        elif weather and weather.elevation_m is not None:
+            e = float(weather.elevation_m)
+        else:
+            injected = True
+            e = 100.0
+
+        if snapshot.home_starter_era is None:
+            injected = True
+            hse = DEFAULT_ERA
+        else:
+            hse = float(snapshot.home_starter_era)
+        if snapshot.away_starter_era is None:
+            injected = True
+            ase = DEFAULT_ERA
+        else:
+            ase = float(snapshot.away_starter_era)
+        if snapshot.home_bullpen_era is None:
+            injected = True
+            hbe = DEFAULT_STAFF_ERA
+        else:
+            hbe = float(snapshot.home_bullpen_era)
+        if snapshot.away_bullpen_era is None:
+            injected = True
+            abe = DEFAULT_STAFF_ERA
+        else:
+            abe = float(snapshot.away_bullpen_era)
     else:
+        # Sin fila de snapshot: todo el bloque de rachas/ERA es const; clima = weather o chuta fija.
+        injected = True
         hw = 0.5
         aw = 0.5
         hra = 4.5
@@ -90,6 +121,26 @@ def build_feature_matrix_row(
         ase = DEFAULT_ERA
         hbe = DEFAULT_STAFF_ERA
         abe = DEFAULT_STAFF_ERA
-    return np.array(
-        [[hw, aw, hra, ara, t, h, w, e, hse, ase, hbe, abe]], dtype=np.float64
-    )
+
+    return [hw, aw, hra, ara, t, h, w, e, hse, ase, hbe, abe], injected
+
+
+def build_feature_matrix_row(
+    game: Game,
+    weather: GameWeather | None,
+    snapshot: GameFeatureSnapshot | None = None,
+) -> NDArray[np.float64]:
+    """Fila 1×(12+1) alineada con ``FEATURE_NAMES`` (última columna: 0/1 defaults inyectados)."""
+    vals, injected = _build_feature_values_12(game, weather, snapshot)
+    flag = 1.0 if injected else 0.0
+    return np.array([vals + [flag]], dtype=np.float64)
+
+
+def build_feature_values_for_training(
+    game: Game,
+    weather: GameWeather | None,
+    snapshot: GameFeatureSnapshot,
+) -> list[float]:
+    """Lista de 13 floats para `train_from_db` (misma lógica que inferencia)."""
+    vals, injected = _build_feature_values_12(game, weather, snapshot)
+    return vals + [1.0 if injected else 0.0]

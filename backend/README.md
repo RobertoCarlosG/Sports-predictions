@@ -42,6 +42,40 @@ Desde este directorio (`backend/`), con `DATABASE_URL` cargada:
 
    Luego arranca el API con `ML_MODEL_PATH` apuntando a ese archivo (o copia el joblib sobre el `model.joblib` por defecto).
 
+## Indicadores y entrenamiento en local (BD del servidor)
+
+Puedes ejecutar en tu máquina los mismos pasos que el panel **Operaciones**, pero contra la **misma** PostgreSQL que usa producción (solo cambia dónde corre el proceso).
+
+1. En `backend/`, apunta `DATABASE_URL` a la instancia remota (Supabase/Render, **transaction pooler** + `+asyncpg` si aplica; mismo string que en el servidor).
+2. (Opcional) `export ML_MODEL_PATH=…` si quieres fijar dónde se escribe el `joblib` al entrenar.
+3. **Recalcular indicadores** (equivale a «Recalcular indicadores» en el panel; necesita alcanzar la API MLB desde tu red):
+
+   ```bash
+   python -m app.cli.rebuild_feature_snapshots --season 2026 --window 10
+   ```
+
+   Omite `--season` para recalcular todas las filas; más lento. Necesitas salida a internet a `statsapi.mlb.com` (ERA de abridores/staff vía caché).
+
+4. **Entrenar** y dejar el artefacto en tu disco:
+
+   ```bash
+   python -m app.ml.train_from_db --output src/app/ml/artifacts/model.joblib --model-version rf-db-v1
+   ```
+
+5. **Subir y sustituir** en el despliegue: copia el `model.joblib` (SCP, panel de almacenamiento, imagen Docker, etc.) donde el API espera el modelo y define `ML_MODEL_PATH` a esa ruta, o **POST** `/api/v1/admin/model/reload` con sesión admin si el archivo ya está en el servidor. Reinicia el servicio si el binario se copió en build time.
+
+Nunca abras la BD a `0.0.0.0` sin reglas; usa credenciales del proveedor y, si hace falta, IP allowlist o VPN.
+
+### Si no hay ETL diario (snapshots no se generan solos)
+
+El panel **no programa cron**: los `game_feature_snapshots` existen tras **importar** y pulsar **Recalcular indicadores**, o al ejecutar el CLI `rebuild_feature_snapshots`. Flujo mínimo provisional:
+
+1. **Backfill** (Operaciones o `app.cli.backfill_history`) → filas en `games`.
+2. **Rebuild snapshots** (Operaciones o `python -m app.cli.rebuild_feature_snapshots --season AAAA --window 10`) → rellena `game_feature_snapshots` leyendo `games` en orden; requiere salida a MLB API para ERAs en caché.
+3. **Entrenar** y sustituir el `joblib` en el despliegue; **Recargar modelo** en el API.
+
+**Subir el modelo vía Git (provisional):** en este repo, `*.joblib` bajo `artifacts/` está en `.gitignore` salvo `model.joblib` (excepción explícita). Puedes copiar tu `model.joblib` entrenado a `backend/src/app/ml/artifacts/model.joblib` y `git add -f` solo ese fichero, o usar **Git LFS** si supera un tamaño cómodo. Vuelve a desplegar el servicio que copia el artefacto en la imagen/ disco.
+
 Orden detallado: ver `../../docs/PIPELINE_COMPLETO_TODO.md` (raíz del workspace Predictions).
 
 ## Rutas principales (prefijo `/api/v1` salvo `/health`)

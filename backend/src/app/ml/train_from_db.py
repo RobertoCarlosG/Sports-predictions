@@ -26,10 +26,11 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.metrics import accuracy_score, mean_absolute_error
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 from app.db.session import async_session_factory
-from app.ml.features import FEATURE_NAMES
+from app.ml.features import FEATURE_NAMES, build_feature_values_for_training
 from app.models.mlb import Game, GameFeatureSnapshot
-from app.services.pitching_stats import DEFAULT_ERA, DEFAULT_STAFF_ERA
 
 log = logging.getLogger(__name__)
 
@@ -40,8 +41,9 @@ async def _load_xy(
     season: str | None,
 ) -> tuple[NDArray[np.float64], NDArray[np.int_], NDArray[np.float64], list[dt.date]]:
     stmt = (
-        select(GameFeatureSnapshot, Game.game_date)
+        select(GameFeatureSnapshot, Game)
         .join(Game, Game.game_pk == GameFeatureSnapshot.game_pk)
+        .options(selectinload(Game.weather))
         .where(GameFeatureSnapshot.home_win.is_not(None))
         .where(GameFeatureSnapshot.total_runs.is_not(None))
         .order_by(Game.game_date, Game.game_pk)
@@ -61,31 +63,18 @@ async def _load_xy(
     y_home: list[int] = []
     y_runs: list[float] = []
     dates: list[dt.date] = []
-    for snap, game_date in rows:
+    for snap, game in rows:
         xs.append(
-            [
-                float(snap.home_wins_roll or 0.5),
-                float(snap.away_wins_roll or 0.5),
-                float(snap.home_runs_avg_roll or 4.5),
-                float(snap.away_runs_avg_roll or 4.5),
-                float(snap.temperature_c if snap.temperature_c is not None else 20.0),
-                float(snap.humidity_pct if snap.humidity_pct is not None else 50.0),
-                float(snap.wind_speed_mps if snap.wind_speed_mps is not None else 2.0),
-                float(snap.elevation_m if snap.elevation_m is not None else 100.0),
-                float(snap.home_starter_era if snap.home_starter_era is not None else DEFAULT_ERA),
-                float(snap.away_starter_era if snap.away_starter_era is not None else DEFAULT_ERA),
-                float(
-                    snap.home_bullpen_era if snap.home_bullpen_era is not None else DEFAULT_STAFF_ERA
-                ),
-                float(
-                    snap.away_bullpen_era if snap.away_bullpen_era is not None else DEFAULT_STAFF_ERA
-                ),
-            ]
+            build_feature_values_for_training(
+                game,
+                game.weather,
+                snap,
+            )
         )
         assert snap.home_win is not None and snap.total_runs is not None
         y_home.append(int(snap.home_win))
         y_runs.append(float(snap.total_runs))
-        dates.append(game_date)
+        dates.append(game.game_date)
 
     x_arr = np.asarray(xs, dtype=np.float64)
     y_h = np.asarray(y_home, dtype=np.int_)
@@ -96,14 +85,14 @@ async def _load_xy(
 
 def _log_feature_health(x: NDArray[np.float64]) -> None:
     """Si casi no hay varianza en X, el RF tenderá a ~P(victoria local) constante (p. ej. ~48 %)."""
-    std = np.std(x, axis=0)
+    x12 = x[:, :12] if x.shape[1] > 12 else x
+    std = np.std(x12, axis=0)
     nz = np.count_nonzero(std > 1e-6)
     log.info(
-        "features: rows=%d cols=%d | columns with std>1e-6: %d/%d | mean std=%.4f",
+        "features: rows=%d cols=%d (incl. defaults_injected) | cols 1-12: std>1e-6: %d/12 | mean std=%.4f",
         x.shape[0],
         x.shape[1],
         nz,
-        x.shape[1],
         float(np.mean(std)),
     )
     if nz < 4 or float(np.mean(std)) < 0.02:

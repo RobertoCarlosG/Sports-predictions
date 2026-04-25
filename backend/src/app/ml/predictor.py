@@ -18,7 +18,7 @@ def _align_x_to_forest(
     clf: RandomForestClassifier,
     reg: RandomForestRegressor,
 ) -> NDArray[np.float64]:
-    """Recorta a ``n_features_in_`` (modelo antiguo 8, pipeline nuevo 12) o rellena con ceros si hace falta."""
+    """Recorta a ``n_features_in_`` (modelos viejos 8/12; actual 13 con ``defaults_injected``) o rellena con ceros."""
     n_clf = getattr(clf, "n_features_in_", None)
     n_reg = getattr(reg, "n_features_in_", None)
     n = int(n_clf) if n_clf is not None else (int(n_reg) if n_reg is not None else x.shape[1])
