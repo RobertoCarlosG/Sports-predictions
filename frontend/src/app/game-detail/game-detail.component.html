@@ -87,7 +87,7 @@
       <mat-card appearance="outlined">
         <mat-card-header>
           <mat-card-title>Estimación del partido</mat-card-title>
-          <mat-card-subtitle>Probabilidad de victoria por bando</mat-card-subtitle>
+          <mat-card-subtitle>Favorito del modelo y regresión de carreras totales (O/U)</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           @if (predLoading) {
@@ -98,14 +98,26 @@
           } @else {
             <div class="prob-stack">
               <app-probability-bar
-                label="Victoria local ({{ abbr(game.home_team) }})"
-                [probability]="prediction?.home_win_probability"
-              />
-              <app-probability-bar
-                label="Victoria visitante ({{ abbr(game.away_team) }})"
-                [probability]="awayWinProbability()"
+                [label]="favoriteVictoryLabel()"
+                [probability]="favoriteBarProbability()"
               />
             </div>
+            @if (hasRunsProjection()) {
+              <div class="runs-ou-detail" role="region" aria-label="Total de carreras y línea O/U">
+                <div class="runs-ou-detail-row">
+                  <span class="runs-ou-detail-label">Carreras totales (modelo)</span>
+                  <span class="runs-ou-detail-value">~{{ runsEstimateFormatted() }}</span>
+                </div>
+                <div class="runs-ou-detail-row">
+                  <span class="runs-ou-detail-label">Línea O/U</span>
+                  <span class="runs-ou-detail-value">{{ ouLineFormatted() }}</span>
+                </div>
+                <p class="runs-ou-lean" [ngClass]="runsLeanClass()">
+                  Tendencia respecto a la línea: <strong>{{ runsLeanLabel() }}</strong>
+                </p>
+                <p class="runs-ou-hint">La línea se redondea a medios para lectura; el modelo entrega un valor continuo.</p>
+              </div>
+            }
           }
         </mat-card-content>
       </mat-card>

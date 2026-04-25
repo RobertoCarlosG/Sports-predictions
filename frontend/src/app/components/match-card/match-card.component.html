@@ -41,7 +41,28 @@
           }
         </div>
       } @else {
-        <app-probability-bar [probability]="homeWinProbability" />
+        <app-probability-bar
+          [label]="favoriteVictoryLabel"
+          [probability]="favoriteBarProbability"
+        />
+      }
+      @if (hasRunsLine) {
+        <div class="runs-ou" role="group" [attr.aria-label]="'Total de carreras y O/U'">
+          <div class="runs-ou-primary">
+            <span class="runs-ou-title">Carreras tot.</span>
+            <span class="runs-ou-est">~{{ runsEstimateDisplay }}</span>
+            <span class="runs-ou-sep" aria-hidden="true">·</span>
+            <span class="runs-ou-ou">O/U {{ ouLineDisplay }}</span>
+          </div>
+          <span
+            class="runs-ou-lean"
+            [class.lean-over]="runsOuTendency === 'over'"
+            [class.lean-under]="runsOuTendency === 'under'"
+            [class.lean-push]="runsOuTendency === 'push'"
+          >
+            {{ runsOuTendencyLabel }}
+          </span>
+        </div>
       }
     </mat-card-content>
   </mat-card>

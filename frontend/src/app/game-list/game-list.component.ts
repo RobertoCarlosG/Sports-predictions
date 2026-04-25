@@ -57,7 +57,9 @@ export class GameListComponent implements OnInit {
   loadError = signal(false);
   dateSummary = signal('');
   pageTitle = signal('Hoy en MLB');
-  pageLede = signal('Partidos del día con estimación de victoria del equipo local.');
+  pageLede = signal(
+    'Partidos del día con favorito del modelo (más % de victoria) y total de carreras (O/U).',
+  );
 
   /** Avisos del API (p. ej. snapshots faltantes) sin mirar logs del servidor. */
   listMeta = signal<GamesListMeta | null>(null);
@@ -103,17 +105,21 @@ export class GameListComponent implements OnInit {
     if (preset === 'week') {
       this.pageTitle.set('Esta semana en MLB');
       this.pageLede.set(
-        'Semana calendario (lunes a domingo) con partidos pasados y próximos. Estimación de victoria del equipo local.'
+        'Semana calendario (lunes a domingo) con partidos pasados y próximos. Favorito del modelo y total de carreras (O/U).',
       );
       return;
     }
     if (preset === 'tomorrow') {
       this.pageTitle.set('Mañana en MLB');
-      this.pageLede.set('Partidos del día siguiente con estimación de victoria del equipo local.');
+      this.pageLede.set(
+        'Partidos del día siguiente con favorito del modelo y total de carreras (O/U).',
+      );
       return;
     }
     this.pageTitle.set('Hoy en MLB');
-    this.pageLede.set('Partidos del día con estimación de victoria del equipo local.');
+    this.pageLede.set(
+      'Partidos del día con favorito del modelo (más % de victoria) y total de carreras (O/U).',
+    );
   }
 
   retry(): void {

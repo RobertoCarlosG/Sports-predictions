@@ -18,6 +18,7 @@ import type { GameDetail, PredictionOut, TeamOut } from '../models/game';
 import type { HistoryGame } from '../models/history';
 import { GamesApiService } from '../services/games-api.service';
 import { mlbDisplayAbbrev } from '../utils/mlb-team-abbr';
+import { favoriteFromHomeWinProbability } from '../utils/prediction-favorite';
 
 @Component({
   selector: 'app-game-detail',
@@ -191,12 +192,95 @@ export class GameDetailComponent implements OnInit {
       });
   }
 
-  awayWinProbability(): number | null | undefined {
+  /**
+   * Probabilidad del **favorito** (lado con mayor P de victoria) para la barra única.
+   */
+  favoriteBarProbability(): number | null {
     const p = this.prediction?.home_win_probability;
     if (p == null || Number.isNaN(p)) {
       return null;
     }
-    return Math.min(1, Math.max(0, 1 - p));
+    return favoriteFromHomeWinProbability(p).favoriteWinProb;
+  }
+
+  favoriteVictoryLabel(): string {
+    if (this.game == null) {
+      return 'Victoria del favorito';
+    }
+    const { favorite, favoriteWinProb } = favoriteFromHomeWinProbability(
+      this.prediction?.home_win_probability,
+    );
+    if (favorite === 'none' || favoriteWinProb == null) {
+      return 'Victoria del favorito';
+    }
+    const team = favorite === 'home' ? this.game.home_team : this.game.away_team;
+    return `Victoria ${this.abbr(team)}`;
+  }
+
+  hasRunsProjection(): boolean {
+    const p = this.prediction;
+    return (
+      p != null &&
+      typeof p.total_runs_estimate === 'number' &&
+      Number.isFinite(p.total_runs_estimate) &&
+      typeof p.over_under_line === 'number' &&
+      Number.isFinite(p.over_under_line)
+    );
+  }
+
+  runsEstimateFormatted(): string {
+    const p = this.prediction;
+    if (p == null || !this.hasRunsProjection()) {
+      return '';
+    }
+    return this.formatRunNumber(p.total_runs_estimate);
+  }
+
+  ouLineFormatted(): string {
+    const p = this.prediction;
+    if (p == null || !this.hasRunsProjection()) {
+      return '';
+    }
+    return this.formatRunNumber(p.over_under_line);
+  }
+
+  runsLeanLabel(): string {
+    switch (this.runsLeanKind()) {
+      case 'over':
+        return 'Sobre';
+      case 'under':
+        return 'Bajo';
+      default:
+        return 'En la línea';
+    }
+  }
+
+  runsLeanClass(): Record<string, boolean> {
+    const k = this.runsLeanKind();
+    return {
+      'detail-lean-over': k === 'over',
+      'detail-lean-under': k === 'under',
+      'detail-lean-push': k === 'push',
+    };
+  }
+
+  private runsLeanKind(): 'over' | 'under' | 'push' {
+    const p = this.prediction;
+    if (p == null || !this.hasRunsProjection()) {
+      return 'push';
+    }
+    const d = p.total_runs_estimate - p.over_under_line;
+    if (d > 0.02) {
+      return 'over';
+    }
+    if (d < -0.02) {
+      return 'under';
+    }
+    return 'push';
+  }
+
+  private formatRunNumber(n: number): string {
+    return n.toFixed(1).replace('.', ',');
   }
 
   /** Solo estimación: no descarga calendario ni condiciones. */

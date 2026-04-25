@@ -12,7 +12,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 })
 export class ProbabilityBarComponent {
   readonly probability = input<number | null | undefined>(undefined);
-  readonly label = input<string>('Victoria local');
+  readonly label = input<string>('Victoria del favorito');
   /** Cuando no hay fracción (partido sin estimación, ver ``Comportamiento-predicciones``). */
   readonly noDataText = input<string>('No prediction');
 
