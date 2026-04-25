@@ -13,7 +13,7 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.ml.predictor import MlbPredictionService
 from app.models.mlb import Game, GameFeatureSnapshot, GameWeather
-from app.schemas.games import GameDetailResponse, PredictionResponse
+from app.schemas.games import GameDetailResponse, GamesListMeta, GamesListResponse, PredictionResponse
 from app.schemas.team_display import team_out_from_model
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_sync import sync_games_for_date
@@ -118,7 +118,7 @@ async def _compute_or_cache_prediction(
         return None
 
 
-@router.get("/games", response_model=list[GameDetailResponse])
+@router.get("/games", response_model=GamesListResponse)
 async def list_games(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -132,7 +132,7 @@ async def list_games(
             description="Incluir estimación ML por partido (misma lógica que GET /predict/{game_pk})."
         ),
     ] = True,
-) -> list[GameDetailResponse]:
+) -> GamesListResponse:
     client = MlbApiClient(settings.mlb_api_base_url, request.app.state.http_client)
     if sync:
         await sync_games_for_date(
@@ -165,6 +165,9 @@ async def list_games(
         await session.commit()
     
     snap_by_pk: dict[int, GameFeatureSnapshot] = {}
+    meta_warnings: list[str] = []
+    meta_info: list[str] = []
+    missing_snapshots: list[int] = []
     if include_predictions and rows:
         pks = [g.game_pk for g in rows]
         res_sn = await session.execute(
@@ -172,19 +175,29 @@ async def list_games(
         )
         for s in res_sn.scalars().all():
             snap_by_pk[s.game_pk] = s
-        missing = [g.game_pk for g in rows if g.game_pk not in snap_by_pk]
-        if missing:
-            sample = ", ".join(str(pk) for pk in missing[:5])
-            more = f" (+{len(missing) - 5} más)" if len(missing) > 5 else ""
+        missing_snapshots = [g.game_pk for g in rows if g.game_pk not in snap_by_pk]
+        if missing_snapshots:
+            sample = ", ".join(str(pk) for pk in missing_snapshots[:5])
+            more = f" (+{len(missing_snapshots) - 5} más)" if len(missing_snapshots) > 5 else ""
             log.warning(
                 "list_games date=%s: %d partido(s) sin fila en game_feature_snapshots (ej. %s%s). "
                 "La inferencia usa valores por defecto (0.5/4.5/ERA default) → P(home) casi igual en todos. "
                 "Operaciones → Recalcular indicadores.",
                 game_date,
-                len(missing),
+                len(missing_snapshots),
                 sample,
                 more,
             )
+            meta_warnings.append(
+                f"{len(missing_snapshots)} partido(s) sin indicadores en BD (game_feature_snapshots) para el "
+                f"{game_date.isoformat()}: las estimaciones usan valores por defecto y pueden parecer casi "
+                f"iguales. Ejemplos game_pk: {sample}{more}. "
+                f"En Operaciones → «Recalcular indicadores»."
+            )
+    if include_predictions and getattr(request.app.state, "prediction_service", None) is None:
+        meta_info.append(
+            "Modelo ML no cargado en el API: no hay predicciones nuevas hasta configurar ML_MODEL_PATH y recargar."
+        )
 
     out: list[GameDetailResponse] = []
     for g in rows:
@@ -201,7 +214,12 @@ async def list_games(
             [g.game_pk for g in rows],
             "sync_schedule",
         )
-    return out
+    meta = GamesListMeta(
+        warnings=meta_warnings,
+        info=meta_info,
+        missing_snapshot_count=len(missing_snapshots),
+    )
+    return GamesListResponse(games=out, meta=meta)
 
 
 @router.get("/games/{game_pk}", response_model=GameDetailResponse)

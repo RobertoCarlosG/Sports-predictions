@@ -23,7 +23,7 @@ import {
 } from '../components/date-chip-selector/date-chip-selector.component';
 import { FriendlyErrorBannerComponent } from '../components/friendly-error-banner/friendly-error-banner.component';
 import { MatchCardComponent } from '../components/match-card/match-card.component';
-import type { GameDetail } from '../models/game';
+import type { GameDetail, GamesListMeta } from '../models/game';
 import { GamesApiService } from '../services/games-api.service';
 import { currentSeasonDateBounds } from '../utils/date-bounds';
 
@@ -58,6 +58,9 @@ export class GameListComponent implements OnInit {
   dateSummary = signal('');
   pageTitle = signal('Hoy en MLB');
   pageLede = signal('Partidos del día con estimación de victoria del equipo local.');
+
+  /** Avisos del API (p. ej. snapshots faltantes) sin mirar logs del servidor. */
+  listMeta = signal<GamesListMeta | null>(null);
 
   // Computed: Se recalcula SOLO cuando games() cambia (como useMemo)
   dayKeys = computed(() => {
@@ -136,6 +139,7 @@ export class GameListComponent implements OnInit {
     if (dates.length === 0) {
       this.games.set([]);
       this.homeWinByPk.set({});
+      this.listMeta.set(null);
       return;
     }
     const gen = ++this.loadGeneration;
@@ -146,9 +150,14 @@ export class GameListComponent implements OnInit {
     this.homeWinByPk.set({});
 
     const allowed = new Set(dates);
+    const emptyMeta = (): GamesListMeta => ({
+      warnings: [],
+      info: [],
+      missing_snapshot_count: 0,
+    });
     const reqs = dates.map((d) =>
       this.api.listGames(d, true).pipe(
-        catchError(() => of<GameDetail[]>([])),
+        catchError(() => of({ games: [], meta: emptyMeta() })),
       ),
     );
     forkJoin(reqs).subscribe({
@@ -157,9 +166,13 @@ export class GameListComponent implements OnInit {
           return;
         }
         const flat = chunks
-          .flat()
+          .flatMap((c) => c.games)
           .filter((g) => allowed.has(isoDateOnly(g.game_date)));
         const merged = this.mergeGames(flat);
+        const warnings = [...new Set(chunks.flatMap((c) => c.meta.warnings))];
+        const info = [...new Set(chunks.flatMap((c) => c.meta.info))];
+        const missingTotal = chunks.reduce((acc, c) => acc + c.meta.missing_snapshot_count, 0);
+        this.listMeta.set({ warnings, info, missing_snapshot_count: missingTotal });
         this.games.set(merged);
         this.loading.set(false);
         if (merged.length > 0 && !('prediction' in merged[0])) {

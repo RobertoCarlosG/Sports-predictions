@@ -35,6 +35,36 @@
   margin-bottom: 1.25rem;
 }
 
+.api-meta-card {
+  margin-bottom: 1.25rem;
+  border-color: rgba(179, 96, 0, 0.45) !important;
+}
+
+.api-meta-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.api-meta-title {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.api-meta-warn {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--mat-sys-on-surface, rgba(0, 0, 0, 0.87));
+}
+
+.api-meta-info {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+}
+
 .pipeline-hint-inner {
   display: flex;
   flex-direction: column;

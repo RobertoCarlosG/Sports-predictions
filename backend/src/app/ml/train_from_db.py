@@ -120,16 +120,25 @@ def _split_temporal(
     y_r: NDArray[np.float64],
     dates: list[dt.date],
     val_from: dt.date | None,
-) -> tuple[NDArray, NDArray, NDArray, NDArray, NDArray, NDArray]:
+) -> tuple[NDArray, NDArray, NDArray, NDArray, NDArray, NDArray, str]:
+    """Partición temporal. El último str es etiqueta para metadatos: ``val_from`` | ``80pct``."""
     if val_from is not None:
         mask_train = np.array([d < val_from for d in dates], dtype=bool)
+        split_label = "val_from"
     else:
         n = len(dates)
         cut = int(n * 0.8)
         mask_train = np.zeros(n, dtype=bool)
         mask_train[:cut] = True
-    if mask_train.sum() < 10 or (~mask_train).sum() < 5:
-        raise RuntimeError("Train/val split too small; adjust --val-from or collect more data.")
+        split_label = "80pct"
+    nt = int(mask_train.sum())
+    nv = int((~mask_train).sum())
+    if nt < 10 or nv < 5:
+        raise RuntimeError(
+            f"Partición inválida: train={nt}, val={nv} (se requiere train>=10 y val>=5). "
+            f"val_from={val_from!s}. Deja vacío «validación desde» o elige una fecha con más "
+            f"partidos anteriores (train) y al menos 5 posteriores (validación)."
+        )
     return (
         x[mask_train],
         x[~mask_train],
@@ -137,6 +146,7 @@ def _split_temporal(
         y_h[~mask_train],
         y_r[mask_train],
         y_r[~mask_train],
+        split_label,
     )
 
 
@@ -145,7 +155,25 @@ async def _async_main(args: argparse.Namespace) -> None:
         x, y_h, y_r, dates = await _load_xy(session, season=args.season)
 
     val_from = dt.date.fromisoformat(args.val_from) if args.val_from else None
-    x_tr, x_va, yh_tr, yh_va, yr_tr, yr_va = _split_temporal(x, y_h, y_r, dates, val_from)
+    split_note: str
+    try:
+        x_tr, x_va, yh_tr, yh_va, yr_tr, yr_va, split_note = _split_temporal(
+            x, y_h, y_r, dates, val_from
+        )
+    except RuntimeError as e:
+        if val_from is not None:
+            log.warning(
+                "No se pudo usar val_from=%s (%s). Se aplica partición 80/20 temporal (orden de fechas).",
+                val_from,
+                e,
+            )
+            x_tr, x_va, yh_tr, yh_va, yr_tr, yr_va, split_note = _split_temporal(
+                x, y_h, y_r, dates, None
+            )
+            split_note = "80pct_fallback_after_bad_val_from"
+        else:
+            raise
+    log.info("split: %s | train=%d val=%d", split_note, len(yh_tr), len(yh_va))
 
     clf = RandomForestClassifier(
         n_estimators=args.trees,
@@ -183,7 +211,8 @@ async def _async_main(args: argparse.Namespace) -> None:
     meta = {
         "feature_names": FEATURE_NAMES,
         "trained_on_games": int(len(dates)),
-        "val_from": val_from.isoformat() if val_from else "80pct_split",
+        "val_from_requested": val_from.isoformat() if val_from else None,
+        "split_mode": split_note,
         "metrics": {
             "val_accuracy_home": acc,
             "val_mae_total_runs": mae,

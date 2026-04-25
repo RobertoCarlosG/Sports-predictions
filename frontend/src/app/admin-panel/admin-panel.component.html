@@ -90,6 +90,10 @@
       <button mat-button type="button" color="warn" (click)="logout()">Cerrar sesión</button>
     </div>
 
+    @if (sessionHint) {
+      <p class="session-hint">{{ sessionHint }}</p>
+    }
+
     @if (statusText) {
       <mat-card class="card status-card" appearance="outlined">
         <mat-card-content>

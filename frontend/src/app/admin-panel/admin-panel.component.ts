@@ -17,6 +17,7 @@ import { startWith, switchMap } from 'rxjs/operators';
 
 import {
   AdminApiService,
+  type AdminSessionResponse,
   type BackfillJobStatusResponse,
 } from '../services/admin-api.service';
 import { AdminOpResultData, AdminOpResultDialogComponent } from './admin-op-result-dialog.component';
@@ -45,6 +46,8 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
 
   private backfillPollSub: Subscription | null = null;
 
+  private refreshTickerSub: Subscription | null = null;
+
   username = '';
   password = '';
   hidePassword = true;
@@ -71,6 +74,9 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
   trainMaxDepth = 16;
   trainMinSamplesLeaf = 2;
 
+  /** Texto derivado de GET /auth/me o refresh (caducidad JWT). */
+  sessionHint: string | null = null;
+
   /** Seguimiento de importación en segundo plano. */
   backfillTracking = false;
   backfillStatus: BackfillJobStatusResponse | null = null;
@@ -84,7 +90,8 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
         this.configBanner = r.login_available ? null : (r.detail ?? 'El servidor no tiene configurado el acceso al panel.');
         if (r.login_available) {
           this.admin.checkSession().subscribe({
-            next: () => {
+            next: (s) => {
+              this.applySessionHint(s);
               void this.refreshStatus();
               this.tryResumeBackfillPoll();
             },
@@ -103,6 +110,7 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopBackfillPoll();
+    this.stopRefreshTicker();
   }
 
   get operationsLocked(): boolean {
@@ -137,9 +145,10 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
     this.loginLoading = true;
     this.loginError = null;
     this.admin.login(this.username, this.password).subscribe({
-      next: () => {
+      next: (s) => {
         this.loginLoading = false;
         this.password = '';
+        this.applySessionHint(s);
         void this.refreshStatus();
         this.tryResumeBackfillPoll();
       },
@@ -175,6 +184,8 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
 
   logout(): void {
     this.stopBackfillPoll();
+    this.stopRefreshTicker();
+    this.sessionHint = null;
     this.backfillTracking = false;
     this.pendingBackfillJobId = null;
     this.admin.logout().subscribe({
@@ -285,8 +296,45 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
     });
   }
 
+  private applySessionHint(s: AdminSessionResponse): void {
+    const ttl = s.token_ttl_minutes;
+    const sec = s.seconds_until_expiry;
+    if (sec != null && Number.isFinite(sec)) {
+      const min = Math.max(0, Math.round(sec / 60));
+      const until = s.token_expires_at ? ` (hasta ${s.token_expires_at})` : '';
+      this.sessionHint = `Sesión: ~${min} min restantes${until}. TTL configurado: ${ttl ?? '?'} min. Durante importación se renueva automáticamente.`;
+      return;
+    }
+    if (ttl != null) {
+      this.sessionHint = `Sesión activa. El token dura hasta ${ttl} min desde el último login o renovación.`;
+      return;
+    }
+    this.sessionHint = null;
+  }
+
+  private startRefreshTicker(): void {
+    this.stopRefreshTicker();
+    this.refreshTickerSub = interval(90_000)
+      .pipe(
+        startWith(0),
+        switchMap(() => this.admin.refreshSession()),
+      )
+      .subscribe({
+        next: (s) => this.applySessionHint(s),
+        error: () => {
+          /* 401 aquí: cookie ya inválida */
+        },
+      });
+  }
+
+  private stopRefreshTicker(): void {
+    this.refreshTickerSub?.unsubscribe();
+    this.refreshTickerSub = null;
+  }
+
   private startBackfillPoll(): void {
     this.stopBackfillPoll();
+    this.startRefreshTicker();
     this.backfillTracking = true;
     this.backfillPollSub = interval(2000)
       .pipe(
@@ -315,13 +363,17 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
             void this.refreshStatus();
           }
         },
-        error: () => {
+        error: (err: unknown) => {
           this.stopBackfillPoll();
+          this.stopRefreshTicker();
           this.backfillTracking = false;
           this.pendingBackfillJobId = null;
+          const is401 = err instanceof HttpErrorResponse && err.status === 401;
           this.openResultDialog({
             title: 'Importación',
-            message: 'No se pudo leer el estado de la importación (red o sesión).',
+            message: is401
+              ? 'La sesión del panel expiró (401). El trabajo de importación puede seguir en el servidor; inicia sesión de nuevo para ver el progreso o revisa los logs del API.'
+              : 'No se pudo leer el estado de la importación (red o sesión).',
             technicalDetail: null,
             success: false,
           });
@@ -332,11 +384,17 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
   private stopBackfillPoll(): void {
     this.backfillPollSub?.unsubscribe();
     this.backfillPollSub = null;
+    this.stopRefreshTicker();
   }
 
   private _run(
     label: string,
-    op: () => Observable<{ message: string; detail?: string | null; stdout_tail?: string | null }>,
+    op: () => Observable<{
+      message: string;
+      detail?: string | null;
+      stdout_tail?: string | null;
+      training_meta?: Record<string, unknown> | null;
+    }>,
   ): void {
     this.busy = true;
     this.lastActionMessage = label;
@@ -346,12 +404,15 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
         this.busy = false;
         const line = r.message + (r.detail ? ` — ${r.detail}` : '');
         this.lastActionMessage = line;
+        const parts: string[] = [];
+        if ('stdout_tail' in r && r.stdout_tail) {
+          parts.push(String(r.stdout_tail));
+        }
+        if (r.training_meta && typeof r.training_meta === 'object') {
+          parts.push(`--- training_meta ---\n${JSON.stringify(r.training_meta, null, 2)}`);
+        }
         const tech =
-          'stdout_tail' in r && r.stdout_tail
-            ? String(r.stdout_tail)
-            : r.detail
-              ? String(r.detail)
-              : null;
+          parts.length > 0 ? parts.join('\n\n') : r.detail ? String(r.detail) : null;
         this.openResultDialog({
           title: 'Operación completada',
           message: line,

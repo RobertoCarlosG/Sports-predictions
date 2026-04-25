@@ -4,10 +4,6 @@ import { Observable, catchError, tap, throwError } from 'rxjs';
 
 import { environment } from '../../environments/environment';
 
-export interface AdminSessionResponse {
-  username: string;
-}
-
 /** Respuesta de GET /admin/auth/ready (público). */
 export interface AdminAuthReadyResponse {
   login_available: boolean;
@@ -20,6 +16,13 @@ export interface MessageResponse {
   message: string;
   detail: string | null;
   job_id?: string | null;
+}
+
+export interface AdminSessionResponse {
+  username: string;
+  token_expires_at?: string | null;
+  token_ttl_minutes?: number | null;
+  seconds_until_expiry?: number | null;
 }
 
 export interface BackfillJobStatusResponse {
@@ -39,6 +42,7 @@ export interface BackfillJobStatusResponse {
 export interface TrainResultResponse {
   message: string;
   stdout_tail: string | null;
+  training_meta?: Record<string, unknown> | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -98,6 +102,11 @@ export class AdminApiService {
           this.sessionOk = true;
         }),
       );
+  }
+
+  /** Renueva el JWT (misma duración TTL); usar durante importaciones largas. */
+  refreshSession(): Observable<AdminSessionResponse> {
+    return this.http.post<AdminSessionResponse>(`${this.base}/auth/refresh`, {}, this.opts());
   }
 
   status(): Observable<MessageResponse> {

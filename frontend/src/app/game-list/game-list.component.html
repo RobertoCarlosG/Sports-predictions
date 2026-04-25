@@ -27,6 +27,22 @@
     </mat-card-content>
   </mat-card>
 
+  @if (listMeta(); as lm) {
+    @if (lm.warnings.length > 0 || lm.info.length > 0) {
+      <mat-card class="api-meta-card" appearance="outlined">
+        <mat-card-content class="api-meta-inner">
+          <strong class="api-meta-title">Avisos del servidor</strong>
+          @for (w of lm.warnings; track w) {
+            <p class="api-meta-warn">{{ w }}</p>
+          }
+          @for (i of lm.info; track i) {
+            <p class="api-meta-info">{{ i }}</p>
+          }
+        </mat-card-content>
+      </mat-card>
+    }
+  }
+
   @if (loading()) {
     <div class="loading-block">
       <mat-spinner diameter="40" />

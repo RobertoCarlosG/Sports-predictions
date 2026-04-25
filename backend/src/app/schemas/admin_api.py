@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -12,6 +14,12 @@ class AdminSessionResponse(BaseModel):
     """Perfil tras login; el JWT solo va en cookie HttpOnly."""
 
     username: str
+    token_expires_at: str | None = None
+    """ISO-8601 UTC; ausente si no se pudo leer del token."""
+    token_ttl_minutes: int | None = None
+    """TTL configurado en el servidor (ADMIN_TOKEN_EXPIRE_MINUTES)."""
+    seconds_until_expiry: int | None = None
+    """Segundos hasta exp; negativo si ya venció (no debería ocurrir con cookie válida)."""
 
 
 class BackfillJobStatusResponse(BaseModel):
@@ -83,6 +91,10 @@ class MessageResponse(BaseModel):
 class TrainResultResponse(BaseModel):
     message: str
     stdout_tail: str | None = None
+    training_meta: dict[str, Any] | None = Field(
+        default=None,
+        description="Metadatos del joblib recién escrito (métricas, filas, etc.).",
+    )
 
 
 class PredictionMetricsResponse(BaseModel):

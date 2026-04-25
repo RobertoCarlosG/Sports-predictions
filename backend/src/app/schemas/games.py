@@ -47,3 +47,16 @@ class GameDetailResponse(GameSummaryResponse):
     weather: dict[str, Any] | None
     # Si ``include_predictions`` en GET /games o /games/{pk}; null = sin estimación o modelo no cargado.
     prediction: PredictionResponse | None = None
+
+
+class GamesListMeta(BaseModel):
+    """Metadatos para el cliente (avisos sin depender de logs del servidor)."""
+
+    warnings: list[str] = []
+    info: list[str] = []
+    missing_snapshot_count: int = 0
+
+
+class GamesListResponse(BaseModel):
+    games: list[GameDetailResponse]
+    meta: GamesListMeta

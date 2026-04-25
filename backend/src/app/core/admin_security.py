@@ -38,3 +38,15 @@ def decode_access_token(token: str, secret: str) -> str:
     if not isinstance(sub, str):
         raise jwt.InvalidTokenError("missing sub")
     return sub
+
+
+def decode_token_expires_at_utc(token: str, secret: str) -> dt.datetime | None:
+    """Lee ``exp`` del JWT sin volver a firmar (misma clave que decode_access_token)."""
+    try:
+        payload = jwt.decode(token, secret, algorithms=["HS256"])
+        ts = payload.get("exp")
+        if ts is None:
+            return None
+        return dt.datetime.fromtimestamp(int(ts), tz=dt.UTC)
+    except jwt.PyJWTError:
+        return None

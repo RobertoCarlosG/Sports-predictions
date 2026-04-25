@@ -150,6 +150,17 @@
   align-items: center;
 }
 
+.session-hint {
+  margin: 0 0 1rem;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.75));
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
 .status-card {
   margin-bottom: 1rem;
 }

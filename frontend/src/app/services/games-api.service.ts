@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../environments/environment';
-import type { GameDetail, PredictionOut, TeamOut } from '../models/game';
+import type { GameDetail, GamesListResponse, PredictionOut, TeamOut } from '../models/game';
 import type { HistoryGame, MlbSyncRangeResult } from '../models/history';
 
 @Injectable({ providedIn: 'root' })
@@ -15,13 +15,13 @@ export class GamesApiService {
     date: string,
     sync = true,
     options?: { includePredictions?: boolean },
-  ): Observable<GameDetail[]> {
+  ): Observable<GamesListResponse> {
     let params = new HttpParams()
       .set('date', date)
       .set('sync', String(sync))
       .set('fetch_details', 'true')
       .set('include_predictions', String(options?.includePredictions !== false));
-    return this.http.get<GameDetail[]>(`${this.base}/games`, { params });
+    return this.http.get<GamesListResponse>(`${this.base}/games`, { params });
   }
 
   getGame(

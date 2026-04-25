@@ -8,7 +8,7 @@ from fastapi import Depends, Header, HTTPException, Request
 from app.core.config import settings
 
 
-def _token_from_request(request: Request, authorization: str | None) -> str | None:
+def token_from_request(request: Request, authorization: str | None = None) -> str | None:
     if authorization and authorization.lower().startswith("bearer "):
         return authorization[7:].strip()
     return request.cookies.get(settings.admin_cookie_name)
@@ -23,7 +23,7 @@ async def require_admin_token(
             status_code=503,
             detail="Acceso administrativo no configurado (ADMIN_JWT_SECRET).",
         )
-    token = _token_from_request(request, authorization)
+    token = token_from_request(request, authorization)
     if not token:
         raise HTTPException(status_code=401, detail="Se requiere autenticación.")
     try:

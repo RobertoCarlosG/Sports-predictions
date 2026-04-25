@@ -41,7 +41,8 @@ class Settings(BaseSettings):
     pipeline_auto_cache_predictions: bool = False
     # Secreto HS256 para JWT del panel admin (mín. 16 caracteres en prod). Vacío = login deshabilitado.
     admin_jwt_secret: str = ""
-    admin_token_expire_minutes: int = 120
+    # Panel Operaciones: importaciones largas; sube a 360–720 en prod si hace falta (o usa POST /auth/refresh).
+    admin_token_expire_minutes: int = 240
     # Una sola vez: crear el primer operador vía POST /admin/auth/bootstrap (header X-Admin-Bootstrap-Secret).
     # Vacío = ruta desactivada (404). Quitar de .env tras el primer usuario.
     admin_bootstrap_secret: str = ""

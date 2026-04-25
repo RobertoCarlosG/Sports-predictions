@@ -22,6 +22,18 @@ export interface GameDetail {
   prediction?: PredictionOut | null;
 }
 
+/** Respuesta de GET /api/v1/games (lista por fecha). */
+export interface GamesListMeta {
+  warnings: string[];
+  info: string[];
+  missing_snapshot_count: number;
+}
+
+export interface GamesListResponse {
+  games: GameDetail[];
+  meta: GamesListMeta;
+}
+
 export interface PredictionOut {
   game_pk: number;
   home_win_probability: number;

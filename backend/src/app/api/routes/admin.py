@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import logging
 import os
 import subprocess
@@ -14,8 +15,12 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps_admin import AdminUserDep
-from app.core.admin_security import create_access_token, hash_password
+from app.api.deps_admin import AdminUserDep, token_from_request
+from app.core.admin_security import (
+    create_access_token,
+    decode_token_expires_at_utc,
+    hash_password,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.ml.predictor import MlbPredictionService, resolve_model_path
@@ -50,6 +55,35 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 BACKEND_ROOT = Path(__file__).resolve().parents[4]
+
+
+def _session_after_fresh_login(username: str) -> AdminSessionResponse:
+    now = dt.datetime.now(dt.UTC)
+    exp = now + dt.timedelta(minutes=settings.admin_token_expire_minutes)
+    return AdminSessionResponse(
+        username=username,
+        token_expires_at=exp.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        token_ttl_minutes=settings.admin_token_expire_minutes,
+        seconds_until_expiry=settings.admin_token_expire_minutes * 60,
+    )
+
+
+def _session_from_request_cookie(request: Request, username: str) -> AdminSessionResponse:
+    token = token_from_request(request, None)
+    exp = (
+        decode_token_expires_at_utc(token, settings.admin_jwt_secret)
+        if token
+        else None
+    )
+    now = dt.datetime.now(dt.UTC)
+    sec = int((exp - now).total_seconds()) if exp else None
+    exp_s = exp.replace(microsecond=0).isoformat().replace("+00:00", "Z") if exp else None
+    return AdminSessionResponse(
+        username=username,
+        token_expires_at=exp_s,
+        token_ttl_minutes=settings.admin_token_expire_minutes,
+        seconds_until_expiry=sec,
+    )
 
 
 def _set_admin_session_cookie(response: Response, token: str) -> None:
@@ -162,7 +196,7 @@ async def admin_bootstrap_first_user(
     )
     _set_admin_session_cookie(response, token)
     log.warning("Primer usuario operaciones creado vía bootstrap (usuario=%s).", body.username)
-    return AdminSessionResponse(username=body.username)
+    return _session_after_fresh_login(body.username)
 
 
 @router.post("/auth/login", response_model=AdminSessionResponse)
@@ -178,7 +212,23 @@ async def admin_login(
         code = 503 if "ADMIN_JWT_SECRET" in msg else 401
         raise HTTPException(status_code=code, detail=msg if code == 503 else "Usuario o contraseña incorrectos.") from e
     _set_admin_session_cookie(response, token)
-    return AdminSessionResponse(username=username)
+    return _session_after_fresh_login(username)
+
+
+@router.post("/auth/refresh", response_model=AdminSessionResponse)
+async def admin_refresh_session(
+    response: Response,
+    request: Request,
+    username: AdminUserDep,
+) -> AdminSessionResponse:
+    """Renueva el JWT (misma duración que `ADMIN_TOKEN_EXPIRE_MINUTES`) para operaciones largas (p. ej. importación)."""
+    token = create_access_token(
+        secret=settings.admin_jwt_secret,
+        subject=username,
+        expire_minutes=settings.admin_token_expire_minutes,
+    )
+    _set_admin_session_cookie(response, token)
+    return _session_after_fresh_login(username)
 
 
 @router.post("/auth/logout", response_model=MessageResponse)
@@ -188,8 +238,8 @@ async def admin_logout(response: Response) -> MessageResponse:
 
 
 @router.get("/auth/me", response_model=AdminSessionResponse)
-async def admin_me(username: AdminUserDep) -> AdminSessionResponse:
-    return AdminSessionResponse(username=username)
+async def admin_me(request: Request, username: AdminUserDep) -> AdminSessionResponse:
+    return _session_from_request_cookie(request, username)
 
 
 @router.post("/pipeline/rebuild-snapshots", response_model=MessageResponse)
@@ -306,9 +356,20 @@ async def admin_train_model(
             status_code=400,
             detail="El entrenamiento falló. Revisa datos y logs del servidor.",
         )
+    training_meta: dict | None = None
+    try:
+        bundle = joblib.load(out)
+        raw = bundle.get("training_meta")
+        if isinstance(raw, str):
+            training_meta = json.loads(raw)
+        elif isinstance(raw, dict):
+            training_meta = raw
+    except Exception:
+        log.warning("No se pudo leer training_meta del joblib en %s", out, exc_info=False)
     return TrainResultResponse(
         message="Entrenamiento completado. Usa «Recargar modelo» para activarlo sin reiniciar el API.",
         stdout_tail=tail or None,
+        training_meta=training_meta,
     )
 
 
