@@ -122,6 +122,7 @@ async def rebuild_game_feature_snapshots(
             away_team_id=g.away_team_id,
             home_starter_id=h_sid,
             away_starter_id=a_sid,
+            commit_before_mlb=True,
         )
 
         if persist_season is None or g.season == persist_season:

@@ -75,22 +75,32 @@ class MlbApiClient:
         return cast(dict[str, Any], r.json())
 
     async def team_season_pitching_era(self, team_id: int, season: str) -> float | None:
-        """ERA colectivo de pitcheo del equipo (rotación + bullpen) vía /teams/{id}/stats."""
+        """ERA colectivo de pitcheo del equipo (rotación + bullpen) vía /teams/{id}/stats.
+
+        La API a veces responde **404** (temporada aún sin stats publicados, ID inválido, etc.).
+        En ese caso devolvemos ``None`` para que ``pitching_stats`` use el valor por defecto.
+        """
         await self._throttle()
         r = await self._client.get(
             f"{self._base}/teams/{team_id}/stats",
             params={"season": season, "group": "pitching", "stats": "season", "sportIds": 1},
         )
+        if r.status_code in (400, 404):
+            return None
         r.raise_for_status()
         return _era_from_season_stats_payload(r.json())
 
     async def person_season_pitching_era(self, person_id: int, season: str) -> float | None:
-        """ERA de temporada (pitching) de un jugador vía /people/{id}/stats."""
+        """ERA de temporada (pitching) de un jugador vía /people/{id}/stats.
+
+        Misma tolerancia a **400/404** que en ``team_season_pitching_era``."""
         await self._throttle()
         r = await self._client.get(
             f"{self._base}/people/{person_id}/stats",
             params={"stats": "season", "season": season, "group": "pitching", "sportIds": 1},
         )
+        if r.status_code in (400, 404):
+            return None
         r.raise_for_status()
         return _era_from_season_stats_payload(r.json())
 
