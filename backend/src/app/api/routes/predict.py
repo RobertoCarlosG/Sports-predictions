@@ -36,13 +36,14 @@ async def predict_game(
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> PredictionResponse:
     """Sirve estimación desde caché si coincide la versión del modelo; si no, calcula y guarda."""
-    model_version: str = getattr(request.app.state, "active_model_version", "") or ""
+    svc = _get_prediction_service(request)
+    model_version = svc.model_version
+    request.app.state.active_model_version = model_version
     if model_version:
         cached = await get_cached_prediction(session, game_pk, model_version)
         if cached is not None:
             return cached
 
-    svc = _get_prediction_service(request)
     try:
         out = await compute_prediction_response(session, svc, game_pk)
     except HTTPException:

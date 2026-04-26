@@ -69,7 +69,8 @@ async def _compute_or_cache_prediction(
     svc: MlbPredictionService | None = getattr(request.app.state, "prediction_service", None)
     if svc is None:
         return None
-    model_version: str = getattr(request.app.state, "active_model_version", "") or ""
+    model_version = svc.model_version
+    request.app.state.active_model_version = model_version
     if model_version:
         cached = await get_cached_prediction(session, game.game_pk, model_version)
         if cached is not None:

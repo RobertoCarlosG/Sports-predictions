@@ -298,10 +298,11 @@ async def admin_reload_model(request: Request, _username: AdminUserDep) -> Messa
             status_code=400,
             detail="No hay archivo de modelo en la ruta configurada.",
         )
-    bundle = joblib.load(path)
-    ver = str(bundle.get("model_version", "rf-v0"))
+    svc = MlbPredictionService(path)
+    svc.reload()
+    ver = svc.model_version
     request.app.state.active_model_version = ver
-    request.app.state.prediction_service = MlbPredictionService(path)
+    request.app.state.prediction_service = svc
     return MessageResponse(
         message="Modelo recargado en memoria.",
         detail=f"Versión: {ver}",
@@ -416,8 +417,13 @@ async def admin_backfill(
 @router.get("/status", response_model=MessageResponse)
 async def admin_status(request: Request, _username: AdminUserDep) -> MessageResponse:
     path = resolve_model_path(settings.ml_model_path)
-    loaded = getattr(request.app.state, "prediction_service", None) is not None
-    ver = getattr(request.app.state, "active_model_version", "") or "—"
+    svc: MlbPredictionService | None = getattr(request.app.state, "prediction_service", None)
+    loaded = svc is not None
+    if svc is not None:
+        ver = svc.model_version
+        request.app.state.active_model_version = ver
+    else:
+        ver = getattr(request.app.state, "active_model_version", "") or "—"
     disk = path.is_file()
     detail = (
         f"Archivo en disco: {'sí' if disk else 'no'}. "

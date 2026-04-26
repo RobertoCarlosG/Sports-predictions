@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 import logging
 
 import httpx
-import joblib
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,9 +40,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
 
     if model_path.is_file():
-        bundle = joblib.load(model_path)
-        app.state.active_model_version = str(bundle.get("model_version", "rf-v0"))
-        app.state.prediction_service = MlbPredictionService(model_path)
+        svc = MlbPredictionService(model_path)
+        app.state.prediction_service = svc
+        app.state.active_model_version = svc.model_version
         log.info("ML model loaded from %s version=%s", model_path, app.state.active_model_version)
     else:
         log.warning(
