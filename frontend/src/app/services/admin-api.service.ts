@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, tap, throwError } from 'rxjs';
 
@@ -43,6 +43,58 @@ export interface TrainResultResponse {
   message: string;
   stdout_tail: string | null;
   training_meta?: Record<string, unknown> | null;
+}
+
+export interface BacktestSummary {
+  n_games: number;
+  ml_wins: number;
+  ml_losses: number;
+  ou_wins: number;
+  ou_losses: number;
+  ou_pushes: number;
+  global_hit_rate_pct: number | null;
+  total_decided_picks: number;
+  total_correct_picks: number;
+}
+
+export interface BacktestTimePoint {
+  game_date: string;
+  games_count: number;
+  ml_hit_rate_pct: number | null;
+  ou_hit_rate_pct: number | null;
+  ou_decided: number;
+}
+
+export interface BacktestGameRow {
+  game_pk: number;
+  game_date: string;
+  game_datetime_utc: string | null;
+  away_abbr: string;
+  home_abbr: string;
+  matchup_label: string;
+  p_home: number;
+  ml_confidence: number;
+  predicted_winner: 'home' | 'away';
+  actual_winner: 'home' | 'away' | 'tie';
+  ml_correct: boolean;
+  over_under_line: number;
+  total_runs_estimate: number;
+  predicted_ou: 'over' | 'under';
+  total_runs_actual: number;
+  ou_outcome: 'win' | 'loss' | 'push';
+  ou_correct: boolean | null;
+  success_count: number;
+  success_label: string;
+}
+
+export interface BacktestResponse {
+  date_from: string;
+  date_to: string;
+  min_confidence: number;
+  skip_empty_days: boolean;
+  summary: BacktestSummary;
+  timeseries: BacktestTimePoint[];
+  games: BacktestGameRow[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -151,5 +203,22 @@ export class AdminApiService {
 
   getBackfillStatus(): Observable<BackfillJobStatusResponse> {
     return this.http.get<BackfillJobStatusResponse>(`${this.base}/pipeline/backfill-status`, this.opts());
+  }
+
+  getBacktestReport(params: {
+    dateFrom: string;
+    dateTo: string;
+    minConfidence: number;
+    skipEmptyDays: boolean;
+  }): Observable<BacktestResponse> {
+    let httpParams = new HttpParams()
+      .set('date_from', params.dateFrom)
+      .set('date_to', params.dateTo)
+      .set('min_confidence', String(params.minConfidence))
+      .set('skip_empty_days', String(params.skipEmptyDays));
+    return this.http.get<BacktestResponse>(`${this.base}/predictions/backtest`, {
+      ...this.opts(),
+      params: httpParams,
+    });
   }
 }

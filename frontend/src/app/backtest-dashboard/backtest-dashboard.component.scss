@@ -1,0 +1,180 @@
+.backtest {
+  margin: 1.5rem 0 2rem;
+}
+
+.backtest-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.backtest-lede {
+  margin: 0 0 1rem;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+  max-width: 56rem;
+  line-height: 1.45;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.field-date {
+  min-width: 10rem;
+}
+
+.field-confidence {
+  min-width: 12rem;
+}
+
+.toggle-wrap {
+  display: flex;
+  align-items: center;
+  min-height: 3.5rem;
+  padding: 0 0.25rem;
+}
+
+.err {
+  color: var(--mat-sys-error, #b00020);
+  margin: 0.5rem 0 1rem;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 4rem;
+}
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.kpi {
+  .kpi-value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0.25rem 0;
+  }
+  .kpi-sub {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
+  }
+}
+
+.chart-card {
+  margin-bottom: 1.5rem;
+}
+
+.chart-canvas {
+  height: 18rem;
+  position: relative;
+}
+
+.muted {
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.55));
+  margin: 0;
+}
+
+.table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.table-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.table-wrap {
+  overflow: auto;
+  border-radius: 0.5rem;
+}
+
+.bt-table {
+  width: 100%;
+  min-width: 52rem;
+}
+
+th.mat-mdc-header-cell,
+td.mat-mdc-cell {
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+}
+
+.cell-line {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.label,
+.result {
+  font-weight: 500;
+}
+
+.sep {
+  margin: 0 0.35rem;
+  opacity: 0.5;
+}
+
+.pills {
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.chip {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 1rem;
+  line-height: 1.2;
+}
+
+.chip.hit {
+  background: color-mix(in srgb, var(--mat-sys-primary, #1976d2) 18%, transparent);
+  color: var(--mat-sys-primary, #0d47a1);
+}
+
+.chip.miss {
+  background: color-mix(in srgb, var(--mat-sys-error, #c62828) 16%, transparent);
+  color: var(--mat-sys-error, #8e0000);
+}
+
+.chip.push {
+  background: color-mix(in srgb, var(--mat-sys-on-surface, #000) 10%, transparent);
+  color: var(--mat-sys-on-surface, #333);
+}
+
+.overall {
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+td.empty {
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.55));
+  padding: 1.25rem !important;
+}

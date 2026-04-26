@@ -20,6 +20,7 @@ import {
   type AdminSessionResponse,
   type BackfillJobStatusResponse,
 } from '../services/admin-api.service';
+import { BacktestDashboardComponent } from '../backtest-dashboard/backtest-dashboard.component';
 import { AdminOpResultData, AdminOpResultDialogComponent } from './admin-op-result-dialog.component';
 
 @Component({
@@ -36,6 +37,7 @@ import { AdminOpResultData, AdminOpResultDialogComponent } from './admin-op-resu
     MatInputModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
+    BacktestDashboardComponent,
   ],
   templateUrl: './admin-panel.component.html',
   styleUrl: './admin-panel.component.scss',

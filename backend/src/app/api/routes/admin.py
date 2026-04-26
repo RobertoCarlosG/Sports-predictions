@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Annotated
 
 import joblib
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,6 +38,15 @@ from app.schemas.admin_api import (
     RebuildSnapshotsBody,
     TrainModelBody,
     TrainResultResponse,
+)
+from app.schemas.backtest import BacktestGameRow, BacktestResponse
+from app.services.backtest import (
+    BacktestRowInputs,
+    build_backtest_game_row,
+    build_summary,
+    build_timeseries,
+    is_final_game_status,
+    side_probability,
 )
 from app.services.admin_auth import AdminAuthError, login_with_password
 from app.services.admin_backfill_state import (
@@ -477,6 +486,81 @@ async def get_prediction_metrics(
     )
 
 
+@router.get("/predictions/backtest", response_model=BacktestResponse)
+async def get_predictions_backtest(
+    _username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+    date_from: dt.date | None = Query(None, description="Inicio (inclusive) por game_date. Por defecto: 30 días antes de date_to."),
+    date_to: dt.date | None = Query(None, description="Fin (inclusive) por game_date. Por defecto: hoy."),
+    min_confidence: float = Query(0.5, ge=0.5, le=1.0, description="Mínimo de max(p_home, 1−p_home) para el lado predicho"),
+    skip_empty_days: bool = Query(
+        True,
+        description="Serie temporal: True = solo días con partidos; False = rellenar el calendario [date_from,date_to] con días vacíos",
+    ),
+) -> BacktestResponse:
+    """Resumen, serie diaria y filas (ML + O/U) para el dashboard de backtesting."""
+    from sqlalchemy.orm import aliased
+
+    end = date_to or dt.date.today()
+    start = date_from or (end - dt.timedelta(days=30))
+    if start > end:
+        raise HTTPException(
+            status_code=400,
+            detail="date_from no puede ser posterior a date_to",
+        )
+
+    HomeTeam = aliased(Team)
+    AwayTeam = aliased(Team)
+    result = await session.execute(
+        select(GamePredictionCache, Game, HomeTeam, AwayTeam)
+        .join(Game, GamePredictionCache.game_pk == Game.game_pk)
+        .join(HomeTeam, Game.home_team_id == HomeTeam.id)
+        .join(AwayTeam, Game.away_team_id == AwayTeam.id)
+        .where(
+            GamePredictionCache.evaluated_at.is_not(None),
+            Game.game_date >= start,
+            Game.game_date <= end,
+        )
+        .order_by(Game.game_date.desc(), Game.game_pk.desc())
+    )
+    game_rows: list[BacktestGameRow] = []
+    for pred_cache, game, home_team, away_team in result.all():
+        if game.home_score is None or game.away_score is None:
+            continue
+        if not is_final_game_status(game.status):
+            continue
+        if side_probability(pred_cache.home_win_probability) < min_confidence:
+            continue
+        r = BacktestRowInputs(
+            game_pk=game.game_pk,
+            game_date=game.game_date,
+            game_datetime_utc=game.game_datetime_utc,
+            away_abbr=away_team.abbreviation,
+            home_abbr=home_team.abbreviation,
+            home_win_probability=pred_cache.home_win_probability,
+            over_under_line=pred_cache.over_under_line,
+            total_runs_estimate=pred_cache.total_runs_estimate,
+            predicted_winner=pred_cache.predicted_winner,
+            actual_winner=pred_cache.actual_winner,
+            is_correct=pred_cache.is_correct,
+            home_score=game.home_score,
+            away_score=game.away_score,
+        )
+        game_rows.append(build_backtest_game_row(r))
+
+    summary = build_summary(game_rows)
+    timeseries = build_timeseries(game_rows, start, end, skip_empty_days)
+    return BacktestResponse(
+        date_from=start,
+        date_to=end,
+        min_confidence=min_confidence,
+        skip_empty_days=skip_empty_days,
+        summary=summary,
+        timeseries=timeseries,
+        games=game_rows,
+    )
+
+
 @router.get("/predictions/evaluations", response_model=PredictionEvaluationsResponse)
 async def get_prediction_evaluations(
     _username: AdminUserDep,
@@ -485,32 +569,32 @@ async def get_prediction_evaluations(
     offset: int = 0,
 ) -> PredictionEvaluationsResponse:
     """Obtener lista de predicciones evaluadas con detalles."""
-    from sqlalchemy.orm import aliased, selectinload
-    
+    from sqlalchemy.orm import aliased
+
     HomeTeam = aliased(Team)
     AwayTeam = aliased(Team)
-    
+
     result = await session.execute(
         select(GamePredictionCache, Game, HomeTeam, AwayTeam)
         .join(Game, GamePredictionCache.game_pk == Game.game_pk)
-        .join(HomeTeam, Game.home_team_id == HomeTeam.team_id)
-        .join(AwayTeam, Game.away_team_id == AwayTeam.team_id)
+        .join(HomeTeam, Game.home_team_id == HomeTeam.id)
+        .join(AwayTeam, Game.away_team_id == AwayTeam.id)
         .where(GamePredictionCache.evaluated_at.is_not(None))
         .order_by(GamePredictionCache.evaluated_at.desc())
         .limit(limit)
         .offset(offset)
     )
-    
+
     rows = result.all()
     items = []
-    
+
     for pred_cache, game, home_team, away_team in rows:
         items.append(
             PredictionEvaluationItem(
                 game_pk=pred_cache.game_pk,
                 game_date=game.game_date.isoformat(),
-                home_team_name=home_team.display_name or "Home",
-                away_team_name=away_team.display_name or "Away",
+                home_team_name=home_team.name,
+                away_team_name=away_team.name,
                 predicted_winner=pred_cache.predicted_winner or "unknown",
                 actual_winner=pred_cache.actual_winner or "unknown",
                 is_correct=pred_cache.is_correct or False,

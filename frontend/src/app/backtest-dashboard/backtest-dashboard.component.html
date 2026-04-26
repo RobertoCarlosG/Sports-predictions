@@ -1,0 +1,199 @@
+<section class="backtest" aria-label="Backtesting y resultados">
+  <h2 class="backtest-title">Banco de pruebas (predicción vs. resultado)</h2>
+  <p class="backtest-lede">
+    Compara predicciones históricas (Moneyline y O/U) con el resultado real. Requiere partidos finalizados y
+    predicción evaluada.
+  </p>
+
+  <div class="filters">
+    <mat-form-field appearance="outline" class="field-date">
+      <mat-label>Desde</mat-label>
+      <input matInput type="date" name="btd1" [(ngModel)]="dateFrom" (change)="load()" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="field-date">
+      <mat-label>Hasta</mat-label>
+      <input matInput type="date" name="btd2" [(ngModel)]="dateTo" (change)="load()" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="field-confidence">
+      <mat-label>Confianza mín. ML (lado predicho)</mat-label>
+      <input
+        matInput
+        type="number"
+        name="bfc"
+        min="0.5"
+        max="0.99"
+        step="0.01"
+        [(ngModel)]="minConfidence"
+        (ngModelChange)="onConfidenceSliderChange()"
+      />
+      <mat-hint>max p(home) frente a visitante (lado predicho)</mat-hint>
+    </mat-form-field>
+    <div class="toggle-wrap">
+      <mat-slide-toggle [(ngModel)]="skipEmptyDays" name="bskip" (ngModelChange)="load()">
+        Solo días con partidos (serie)
+      </mat-slide-toggle>
+    </div>
+    <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">
+      <mat-icon>refresh</mat-icon>
+      Actualizar
+    </button>
+  </div>
+
+  @if (error) {
+    <p class="err">{{ error }}</p>
+  }
+
+  @if (loading) {
+    <div class="loading">
+      <mat-spinner diameter="36" />
+    </div>
+  } @else if (report) {
+    <div class="kpi-row">
+      <mat-card class="kpi" appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Tasa global</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="kpi-value">
+            @if (report.summary.global_hit_rate_pct != null) {
+              {{ report.summary.global_hit_rate_pct | number: '1.0-1' }}%
+            } @else {
+              —
+            }
+          </p>
+          <p class="kpi-sub">
+            {{ report.summary.total_correct_picks }} / {{ report.summary.total_decided_picks }} picks
+            ({{ report.summary.n_games }} partidos)
+          </p>
+        </mat-card-content>
+      </mat-card>
+      <mat-card class="kpi" appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Moneyline</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="kpi-value">{{ report.summary.ml_wins }} – {{ report.summary.ml_losses }}</p>
+          <p class="kpi-sub">Ganadas vs perdidas</p>
+        </mat-card-content>
+      </mat-card>
+      <mat-card class="kpi" appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Over/Under</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="kpi-value">
+            {{ report.summary.ou_wins }} – {{ report.summary.ou_losses }} – {{ report.summary.ou_pushes }}
+          </p>
+          <p class="kpi-sub">Ganadas – Perdidas – Push</p>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <mat-card class="chart-card" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>Rendimiento diario (hit rate %)</mat-card-title>
+        <mat-card-subtitle>
+          Eje X: fechas. Dos series: % acierto ML y % acierto O/U por día (según filtro).
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (report.timeseries.length) {
+          <div class="chart-canvas">
+            <canvas
+              baseChart
+              [type]="chartType"
+              [data]="chartData"
+              [options]="chartOptions"
+            >
+            </canvas>
+          </div>
+        } @else {
+          <p class="muted">No hay datos en el rango seleccionado.</p>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <div class="table-toolbar">
+      <h3 class="table-title">Resultados por partido</h3>
+      <div class="table-actions">
+        <button mat-stroked-button type="button" (click)="exportCsv()" [disabled]="!report.games.length">
+          <mat-icon>table_chart</mat-icon>
+          Exportar CSV
+        </button>
+        <button mat-stroked-button type="button" (click)="exportXlsx()" [disabled]="!report.games.length">
+          <mat-icon>file_download</mat-icon>
+          Exportar .xlsx
+        </button>
+      </div>
+    </div>
+
+    <div class="table-wrap mat-elevation-z1">
+      <table mat-table [dataSource]="report.games" class="bt-table">
+        <ng-container matColumnDef="when">
+          <th mat-header-cell *matHeaderCellDef>Fecha y hora</th>
+          <td mat-cell *matCellDef="let row">
+            @if (row.game_datetime_utc) {
+              {{ row.game_datetime_utc | date: 'short' }}
+            } @else {
+              {{ row.game_date }}
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="matchup">
+          <th mat-header-cell *matHeaderCellDef>Partido</th>
+          <td mat-cell *matCellDef="let row">{{ row.matchup_label }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="ml">
+          <th mat-header-cell *matHeaderCellDef>ML predicción | resultado</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="cell-line">
+              <span class="label">{{ mlPredLabel(row) }}</span>
+              <span class="sep">|</span>
+              <span class="result">{{ mlActualLabel(row) }}</span>
+            </span>
+            <span class="pills">
+              <span class="chip" [class.hit]="row.ml_correct" [class.miss]="!row.ml_correct">
+                {{ row.ml_correct ? 'Acierto' : 'Fallo' }}
+              </span>
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="ou">
+          <th mat-header-cell *matHeaderCellDef>O/U predicción | resultado</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="cell-line">
+              <span class="label">{{ ouPredLabel(row) }}</span>
+              <span class="sep">|</span>
+              <span class="result">{{ row.total_runs_actual }} carr.</span>
+            </span>
+            <span class="pills">
+              @if (row.ou_outcome === 'push') {
+                <span class="chip push">Push</span>
+              } @else {
+                <span class="chip" [class.hit]="row.ou_correct" [class.miss]="row.ou_correct === false">
+                  {{ row.ou_correct ? 'Acierto' : 'Fallo' }}
+                </span>
+              }
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="overall">
+          <th mat-header-cell *matHeaderCellDef>Estado</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="overall" [matTooltip]="row.success_label">{{ row.success_label }}</span>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        <tr *matNoDataRow>
+          <td [attr.colspan]="displayedColumns.length" class="empty">Sin filas con los filtros actuales</td>
+        </tr>
+      </table>
+    </div>
+  }
+</section>
