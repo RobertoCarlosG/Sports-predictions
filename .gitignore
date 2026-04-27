@@ -21,7 +21,11 @@ build/
 htmlcov/
 *.cover
 
-docs/
+# Solo la carpeta docs en la raíz del repo (no backend/docs/*)
+/docs/
+
+# Caché local de pip-audit (no versionar)
+.pip-audit-cache/
 
 # Node / Angular
 node_modules/
