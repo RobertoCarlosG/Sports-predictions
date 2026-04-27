@@ -1,13 +1,25 @@
+:host {
+  display: block;
+  height: 100%;
+  min-height: 0;
+}
+
 .shell {
   display: flex;
   align-items: stretch;
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
   background: var(--mat-sys-surface-container-lowest, #f5f5f5);
 }
 
 .main-shell {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 100vh;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   background: var(--mat-sys-surface-container-lowest, #f5f5f5);
 }

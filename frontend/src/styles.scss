@@ -28,12 +28,20 @@ html {
 
 html {
   color-scheme: light;
+  height: 100%;
 }
 
 body {
   margin: 0;
+  height: 100%;
+  overflow: hidden;
   font-family: Roboto, 'Helvetica Neue', sans-serif;
   line-height: 1.45;
+}
+
+app-root {
+  display: block;
+  height: 100%;
 }
 
 *,
