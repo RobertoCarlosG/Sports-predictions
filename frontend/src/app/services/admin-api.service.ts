@@ -205,6 +205,17 @@ export class AdminApiService {
     return this.http.get<BackfillJobStatusResponse>(`${this.base}/pipeline/backfill-status`, this.opts());
   }
 
+  /**
+   * Mismo ETL que el job diario (hoy+mañana UTC): sync MLB, indicadores, regenera predicciones.
+   */
+  runMlbDailySnapshot(): Observable<MessageResponse> {
+    return this.http.post<MessageResponse>(
+      `${this.base}/pipeline/mlb-daily-snapshot`,
+      {},
+      this.opts(),
+    );
+  }
+
   getBacktestReport(params: {
     dateFrom: string;
     dateTo: string;

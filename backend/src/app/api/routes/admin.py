@@ -57,8 +57,11 @@ from app.services.admin_backfill_state import (
 )
 from app.services.feature_snapshots import rebuild_game_feature_snapshots
 from app.services.mlb_client import MlbApiClient
+from app.services.mlb_daily_snapshot import run_mlb_daily_snapshot
+from app.services.pipeline_hooks import refresh_prediction_cache_for_games
 from app.services.prediction_cache import (
     clear_prediction_cache,
+    delete_prediction_cache_for_game_pks,
     evaluate_all_pending_predictions,
     recompute_all_moneyline_evaluations,
 )
@@ -253,6 +256,47 @@ async def admin_logout(response: Response) -> MessageResponse:
 @router.get("/auth/me", response_model=AdminSessionResponse)
 async def admin_me(request: Request, username: AdminUserDep) -> AdminSessionResponse:
     return _session_from_request_cookie(request, username)
+
+
+async def _game_pks_for_calendar_dates(
+    session: AsyncSession, dates: list[dt.date]
+) -> list[int]:
+    if not dates:
+        return []
+    r = await session.execute(select(Game.game_pk).where(Game.game_date.in_(dates)))
+    return [int(x[0]) for x in r.all()]
+
+
+@router.post("/pipeline/mlb-daily-snapshot", response_model=MessageResponse)
+async def admin_mlb_daily_snapshot(
+    request: Request,
+    _username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> MessageResponse:
+    """
+    Ejecuta el mismo ETL que el job diario: sync API para hoy+mañana (UTC), rebuild de
+    game_feature_snapshots, borra caché de predicción de esas fechas y vuelve a precalcular
+    si el modelo está cargado (independiente de pipeline_auto_cache_predictions).
+    """
+    snap = await run_mlb_daily_snapshot(request.app.state.http_client)
+    u_today = dt.datetime.now(dt.UTC).date()
+    u_tomorrow = u_today + dt.timedelta(days=1)
+    pks = await _game_pks_for_calendar_dates(session, [u_today, u_tomorrow])
+    n_del = await delete_prediction_cache_for_game_pks(session, pks)
+    await session.commit()
+    await refresh_prediction_cache_for_games(
+        request.app, pks, "mlb_daily_snapshot_admin", force=True
+    )
+    ok_model = getattr(request.app.state, "prediction_service", None) is not None
+    return MessageResponse(
+        message="ETL diario MLB completado; predicciones actualizadas para hoy y mañana (UTC).",
+        detail=(
+            f"Fechas: {snap.today_utc} + {snap.tomorrow_utc}. Indicadores (filas): {snap.snapshot_rows}. "
+            f"Partidos en rango: {len(pks)}. Filas de caché eliminadas: {n_del}. "
+            f"Regeneración forzada: {'sí' if ok_model else 'omitida (modelo no cargado)'}. "
+            f"Temporada: {snap.season}."
+        ),
+    )
 
 
 @router.post("/pipeline/rebuild-snapshots", response_model=MessageResponse)

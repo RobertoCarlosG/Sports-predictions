@@ -144,9 +144,11 @@
             ><mat-icon class="tab-ico" aria-hidden="true">bar_chart</mat-icon>Dashboard de rendimiento</span
           >
         </ng-template>
-        <div class="tab-panel tab-panel--scroll">
-          <app-backtest-dashboard />
-        </div>
+        <ng-template matTabContent>
+          <div class="tab-panel tab-panel--scroll">
+            <app-backtest-dashboard />
+          </div>
+        </ng-template>
       </mat-tab>
       <mat-tab>
         <ng-template mat-tab-label>
@@ -154,7 +156,8 @@
             ><mat-icon class="tab-ico" aria-hidden="true">sync</mat-icon>Sincronización y modelos</span
           >
         </ng-template>
-        <div class="tab-panel etl-wrap">
+        <ng-template matTabContent>
+          <div class="tab-panel etl-wrap">
           <mat-card class="card quick-card" appearance="outlined">
             <mat-card-header>
               <mat-card-title>API y modelo</mat-card-title>
@@ -192,6 +195,31 @@
                   <span>Sincronizar datos API (día actual)</span>
                 }
               </button>
+            </mat-card-content>
+          </mat-card>
+
+          <mat-card class="card quick-card" appearance="outlined">
+            <mat-card-header>
+              <mat-card-title>Vista «Mañana en MLB»</mat-card-title>
+              <mat-card-subtitle
+                >Importa hoy y mañana (UTC), recalcula indicadores en BD, borra caché de estimaciones de esas fechas y
+                vuelve a inferir. Úsalo cuando veas probabilidades casi idénticas (p. ej. ~51%) por falta de
+                estadísticas.</mat-card-subtitle
+              >
+            </mat-card-header>
+            <mat-card-content class="stack">
+              <button
+                mat-flat-button
+                color="primary"
+                type="button"
+                (click)="runMlbFullSnapshotForTomorrowView()"
+                [disabled]="operationsLocked"
+              >
+                Preparar datos y predicciones para «Mañana»
+              </button>
+              <p class="muted tom-link">
+                <a mat-button color="primary" routerLink="/mlb/tomorrow">Abrir «Mañana en MLB»</a>
+              </p>
             </mat-card-content>
           </mat-card>
 
@@ -313,6 +341,7 @@
             </mat-card>
           </section>
         </div>
+        </ng-template>
       </mat-tab>
     </mat-tab-group>
   }

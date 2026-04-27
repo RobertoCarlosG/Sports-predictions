@@ -21,9 +21,11 @@ async def refresh_prediction_cache_for_games(
     app: FastAPI,
     game_pks: list[int],
     trigger_reason: str,
+    *,
+    force: bool = False,
 ) -> None:
-    """Precalcula y guarda estimaciones (solo si el modelo está cargado y el flag auto está activo)."""
-    if not settings.pipeline_auto_cache_predictions:
+    """Precalcula y guarda estimaciones. Con ``force`` ignora ``pipeline_auto_cache_predictions`` (p. ej. ETL admin)."""
+    if not force and not settings.pipeline_auto_cache_predictions:
         return
     await asyncio.sleep(0.08)
     svc: MlbPredictionService | None = getattr(app.state, "prediction_service", None)

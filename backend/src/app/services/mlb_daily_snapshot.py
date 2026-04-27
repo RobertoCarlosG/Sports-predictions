@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import logging
+from dataclasses import dataclass
 import httpx
 
 from app.core.config import settings
@@ -19,6 +20,14 @@ from app.services.mlb_sync import sync_games_for_date
 log = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class MlbDailySnapshotResult:
+    today_utc: str
+    tomorrow_utc: str
+    season: str
+    snapshot_rows: int
+
+
 def _seconds_until_next_utc_run(hour: int, minute: int) -> float:
     now = dt.datetime.now(dt.UTC)
     target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
@@ -27,11 +36,13 @@ def _seconds_until_next_utc_run(hour: int, minute: int) -> float:
     return max(1.0, (target - now).total_seconds())
 
 
-async def run_mlb_daily_snapshot_job(http_client: httpx.AsyncClient) -> None:
+async def run_mlb_daily_snapshot(http_client: httpx.AsyncClient) -> MlbDailySnapshotResult:
     """
-    Importa partidos para hoy y mañana (fecha UTC) y recalcula snapshots de la temporada actual.
+    Lógica principal: importa partidos hoy y mañana (UTC) y recalcula game_feature_snapshots
+    de la temporada actual. Reutilizable desde el crono y desde el API admin bajo demanda.
     """
     today = dt.datetime.now(dt.UTC).date()
+    tomorrow = today + dt.timedelta(days=1)
     season = str(today.year)
     async with async_session_factory() as session:
         mlb = MlbApiClient(settings.mlb_api_base_url, http_client)
@@ -47,10 +58,21 @@ async def run_mlb_daily_snapshot_job(http_client: httpx.AsyncClient) -> None:
     log.info(
         "MLB daily snapshot: synced %s + %s, rebuild wrote %s snapshot rows (season=%s)",
         today.isoformat(),
-        (today + dt.timedelta(days=1)).isoformat(),
+        tomorrow.isoformat(),
         n,
         season,
     )
+    return MlbDailySnapshotResult(
+        today_utc=today.isoformat(),
+        tomorrow_utc=tomorrow.isoformat(),
+        season=season,
+        snapshot_rows=n,
+    )
+
+
+async def run_mlb_daily_snapshot_job(http_client: httpx.AsyncClient) -> None:
+    """Misma lógica que :func:`run_mlb_daily_snapshot` para tareas en segundo plano (solo efectos, sin retorno)."""
+    await run_mlb_daily_snapshot(http_client)
 
 
 async def daily_snapshot_loop_forever(http_client: httpx.AsyncClient) -> None:

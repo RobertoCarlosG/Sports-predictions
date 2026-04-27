@@ -13,12 +13,13 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTabsModule } from '@angular/material/tabs';
 
-import { Observable, Subscription, interval } from 'rxjs';
-import { startWith, switchMap } from 'rxjs/operators';
+import { Observable, Subscription, catchError, interval, of, take } from 'rxjs';
+import { finalize, startWith, switchMap } from 'rxjs/operators';
 
 import { BacktestDashboardComponent } from '../backtest-dashboard/backtest-dashboard.component';
 import {
   AdminApiService,
+  type AdminAuthReadyResponse,
   type AdminSessionResponse,
   type BackfillJobStatusResponse,
 } from '../services/admin-api.service';
@@ -96,28 +97,40 @@ export class OperationsComponent implements OnInit, OnDestroy {
   activeModelVersion = '—';
 
   ngOnInit(): void {
-    this.admin.authReady().subscribe({
-      next: (r) => {
-        this.authReadyLoading = false;
-        this.configBanner = r.login_available ? null : (r.detail ?? 'El servidor no tiene configurado el acceso al panel.');
-        if (r.login_available) {
-          this.admin.checkSession().subscribe({
-            next: (s) => {
-              this.applySessionHint(s);
-              void this.refreshStatus();
-              this.tryResumeBackfillPoll();
-            },
-            error: () => {
-              /* sin sesión */
-            },
-          });
+    this.admin
+      .authReady()
+      .pipe(
+        take(1),
+        catchError(() => {
+          this.configBanner = 'No se pudo contactar al API o comprobar la configuración.';
+          return of<AdminAuthReadyResponse | null>(null);
+        }),
+        switchMap((r) => {
+          if (r == null) {
+            return of<AdminSessionResponse | null>(null);
+          }
+          this.configBanner = r.login_available
+            ? null
+            : (r.detail ?? 'El servidor no tiene configurado el acceso al panel.');
+          if (!r.login_available) {
+            return of<AdminSessionResponse | null>(null);
+          }
+          return this.admin.checkSession().pipe(
+            take(1),
+            catchError(() => of<AdminSessionResponse | null>(null)),
+          );
+        }),
+        finalize(() => {
+          this.authReadyLoading = false;
+        }),
+      )
+      .subscribe((session) => {
+        if (session) {
+          this.applySessionHint(session);
+          void this.refreshStatus();
+          this.tryResumeBackfillPoll();
         }
-      },
-      error: () => {
-        this.authReadyLoading = false;
-        this.configBanner = 'No se pudo contactar al API o comprobar la configuración.';
-      },
-    });
+      });
   }
 
   ngOnDestroy(): void {
@@ -267,6 +280,15 @@ export class OperationsComponent implements OnInit, OnDestroy {
           this.openResultDialogFromHttp(err, 'Sincronización API (MLB)');
         },
       });
+  }
+
+  /**
+   * Mismo ETL que el job diario en servidor: importa hoy+mañana, recalcula `game_feature_snapshots`,
+   * purga caché de predicción de esas fechas y vuelve a inferir. Usar **antes** de confiar en la vista
+   * «Mañana en MLB» para evitar P(home) planas (p. ej. ~51% residual).
+   */
+  runMlbFullSnapshotForTomorrowView(): void {
+    this._run('ETL MLB: hoy+mañana, indicadores y predicciones…', () => this.admin.runMlbDailySnapshot());
   }
 
   private parseModelVersionFromDetail(detail: string | null | undefined): string {

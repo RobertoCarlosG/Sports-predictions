@@ -172,3 +172,14 @@ async def evaluate_all_pending_predictions(
 async def clear_prediction_cache(session: AsyncSession) -> int:
     res = await session.execute(delete(GamePredictionCache))
     return res.rowcount or 0
+
+
+async def delete_prediction_cache_for_game_pks(
+    session: AsyncSession, game_pks: list[int]
+) -> int:
+    if not game_pks:
+        return 0
+    res = await session.execute(
+        delete(GamePredictionCache).where(GamePredictionCache.game_pk.in_(game_pks))
+    )
+    return res.rowcount or 0
