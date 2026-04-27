@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import logging
@@ -19,6 +20,7 @@ from app.core.exception_handlers import (
 from app.db.session import engine
 from app.ml.predictor import MlbPredictionService, ensure_model_exists, resolve_model_path
 from app.services.admin_backfill_state import initial_backfill_job_state
+from app.services.mlb_daily_snapshot import daily_snapshot_loop_forever
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +54,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.prediction_service = None
         app.state.active_model_version = ""
 
+    if settings.mlb_daily_snapshot_enabled:
+        app.state.mlb_daily_snapshot_task = asyncio.create_task(
+            daily_snapshot_loop_forever(app.state.http_client),
+        )
+        log.info(
+            "Tarea MLB daily snapshot activa (UTC %02d:%02d).",
+            settings.mlb_daily_snapshot_utc_hour,
+            settings.mlb_daily_snapshot_utc_minute,
+        )
+
     yield
+
+    t = getattr(app.state, "mlb_daily_snapshot_task", None)
+    if t is not None:
+        t.cancel()
+        try:
+            await t
+        except asyncio.CancelledError:
+            pass
     await app.state.http_client.aclose()
     await engine.dispose()
 

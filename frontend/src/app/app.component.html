@@ -1,15 +1,1 @@
-<mat-toolbar color="primary" class="app-toolbar">
-  <a mat-button class="brand" routerLink="/mlb" aria-label="Inicio">
-    <span class="brand-title">{{ title }}</span>
-  </a>
-  @if (sport === 'mlb') {
-    <a mat-button routerLink="/mlb/history">Historial</a>
-    <a mat-button routerLink="/mlb/operaciones">Operaciones</a>
-  }
-  <span class="toolbar-spacer"></span>
-  <app-sport-tab-nav class="sport-tabs" [active]="sport" />
-</mat-toolbar>
-
-<main class="main-shell">
-  <router-outlet />
-</main>
+<router-outlet />

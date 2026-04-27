@@ -124,7 +124,7 @@ export class AdminApiService {
   }
 
   /**
-   * Comprueba si la cookie de sesión sigue siendo válida (p. ej. al cargar /mlb/operaciones).
+   * Comprueba si la cookie de sesión sigue siendo válida (p. ej. al cargar /operations).
    */
   checkSession(): Observable<AdminSessionResponse> {
     return this.http.get<AdminSessionResponse>(`${this.base}/auth/me`, this.opts()).pipe(

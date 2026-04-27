@@ -57,7 +57,11 @@ from app.services.admin_backfill_state import (
 )
 from app.services.feature_snapshots import rebuild_game_feature_snapshots
 from app.services.mlb_client import MlbApiClient
-from app.services.prediction_cache import clear_prediction_cache, evaluate_all_pending_predictions
+from app.services.prediction_cache import (
+    clear_prediction_cache,
+    evaluate_all_pending_predictions,
+    recompute_all_moneyline_evaluations,
+)
 
 log = logging.getLogger(__name__)
 
@@ -296,6 +300,29 @@ async def evaluate_pending_predictions(
     return MessageResponse(
         message=f"Se evaluaron {evaluated} predicciones.",
         detail=f"Correctas: {correct}, Incorrectas: {evaluated - correct}, Precisión: {accuracy}%",
+    )
+
+
+@router.post("/predictions/recompute-ml-evaluations", response_model=MessageResponse)
+async def recompute_ml_evaluations(
+    _username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> MessageResponse:
+    """
+    Vuelve a calcular is_correct/actual_winner de Moneyline desde home_win_probability y el marcador.
+    Útil tras corregir la lógica de evaluación; no borra filas, solo actualiza.
+    """
+    n, correct = await recompute_all_moneyline_evaluations(session)
+    await session.commit()
+    if n == 0:
+        return MessageResponse(
+            message="No se reevaluó ninguna fila.",
+            detail="Necesitas juegos con marcador y filas en prediction_results.",
+        )
+    accuracy = round((correct / n) * 100, 2) if n else 0.0
+    return MessageResponse(
+        message=f"Reevaluados {n} partidos (Moneyline).",
+        detail=f"Aciertos: {correct}, fallos: {n - correct}, tasa: {accuracy}%",
     )
 
 

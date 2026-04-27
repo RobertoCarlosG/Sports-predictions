@@ -1,0 +1,15 @@
+<mat-toolbar color="primary" class="app-toolbar">
+  <a mat-button class="brand" routerLink="/mlb/today" aria-label="Inicio">
+    <span class="brand-title">{{ title }}</span>
+  </a>
+  <span class="toolbar-spacer"></span>
+  <app-sport-tab-nav class="sport-tabs" [active]="activeSport" />
+  <a
+    mat-icon-button
+    routerLink="/operations"
+    aria-label="Operaciones y configuración"
+    title="Operaciones (ETL, modelo)"
+  >
+    <mat-icon>settings</mat-icon>
+  </a>
+</mat-toolbar>

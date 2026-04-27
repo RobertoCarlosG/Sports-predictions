@@ -186,6 +186,40 @@
   color: var(--mat-sys-error, #b3261e);
 }
 
+.dash-hint {
+  margin-bottom: 1.25rem;
+}
+
+.sport-ops {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.sport-ops-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.sport-ops-lede {
+  margin: 0 0 0.75rem;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+  max-width: 44rem;
+}
+
+.sport-ops-placeholder .placeholder-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.7));
+}
+
+.placeholder-card {
+  margin-top: 0.25rem;
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1fr;

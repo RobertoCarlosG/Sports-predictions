@@ -1,0 +1,50 @@
+<div class="mlb-layout">
+  <nav class="mlb-subnav" aria-label="Vistas MLB">
+    <a
+      mat-stroked-button
+      color="primary"
+      routerLink="/mlb/today"
+      routerLinkActive="mlb-subnav-on"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Hoy
+    </a>
+    <a
+      mat-stroked-button
+      color="primary"
+      routerLink="/mlb/tomorrow"
+      routerLinkActive="mlb-subnav-on"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Mañana
+    </a>
+    <a
+      mat-stroked-button
+      color="primary"
+      routerLink="/mlb/week"
+      routerLinkActive="mlb-subnav-on"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Esta semana
+    </a>
+    <a
+      mat-stroked-button
+      color="primary"
+      routerLink="/mlb/dashboard"
+      routerLinkActive="mlb-subnav-on"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Dashboard
+    </a>
+    <a
+      mat-stroked-button
+      color="primary"
+      routerLink="/mlb/history"
+      routerLinkActive="mlb-subnav-on"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Historial
+    </a>
+  </nav>
+  <router-outlet />
+</div>

@@ -41,3 +41,12 @@ export function sportIdFromUrl(path: string): SportId {
   }
   return 'mlb';
 }
+
+/** Deporte resaltado en la barra superior; en `/operations` ninguno. */
+export function activeSportIdFromUrl(path: string): SportId | null {
+  const p = path.split('?')[0] ?? '';
+  if (p.startsWith('/operations')) {
+    return null;
+  }
+  return sportIdFromUrl(path);
+}

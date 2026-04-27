@@ -4,11 +4,13 @@
       <h1 class="title">{{ pageTitle() }}</h1>
       <p class="lede">{{ pageLede() }}</p>
     </div>
-    <app-date-chip-selector
-      [minIso]="seasonBounds.min"
-      [maxIso]="seasonBounds.max"
-      (selectionChange)="onDateSelection($event)"
-    />
+    @if (!hideDateChips) {
+      <app-date-chip-selector
+        [minIso]="seasonBounds.min"
+        [maxIso]="seasonBounds.max"
+        (selectionChange)="onDateSelection($event)"
+      />
+    }
   </header>
 
   <mat-card class="pipeline-hint" appearance="outlined">
@@ -18,12 +20,12 @@
         <span>
           Hace falta histórico en base de datos, indicadores (snapshots) y un modelo entrenado con
           <code>train_from_db</code>. Usa el panel
-          <a routerLink="/mlb/operaciones">Operaciones</a>
+          <a routerLink="/operations">Operaciones</a>
           (importar fechas → recalcular indicadores → entrenar → recargar modelo) o el CLI del backend; guía en
           <code>docs/MODELO_ENTRENAMIENTO.md</code> del repositorio.
         </span>
       </div>
-      <a mat-stroked-button color="primary" routerLink="/mlb/operaciones">Abrir Operaciones</a>
+      <a mat-stroked-button color="primary" routerLink="/operations">Abrir Operaciones</a>
     </mat-card-content>
   </mat-card>
 

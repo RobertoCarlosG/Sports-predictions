@@ -8,11 +8,12 @@ from sqlalchemy.orm import selectinload
 from app.ml.predictor import MlbPredictionService, PredictionResult
 from app.models.mlb import Game, GameFeatureSnapshot
 from app.schemas.games import PredictionResponse
+from app.services.prediction_cache import ml_pick_from_home_win_probability
 
 
 def prediction_response_from_result(pr: PredictionResult) -> PredictionResponse:
     """Alineado con ``upsert_prediction_cache``: pick explícito para API y front."""
-    predicted_winner = "home" if pr.home_win_probability > 0.5 else "away"
+    predicted_winner = ml_pick_from_home_win_probability(pr.home_win_probability)
     return PredictionResponse(
         game_pk=pr.game_pk,
         home_win_probability=pr.home_win_probability,

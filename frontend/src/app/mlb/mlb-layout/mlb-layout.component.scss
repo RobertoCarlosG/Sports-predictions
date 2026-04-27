@@ -1,0 +1,22 @@
+.mlb-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.mlb-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 0;
+}
+
+.mlb-subnav a {
+  border-radius: 999px;
+}
+
+:host ::ng-deep a.mlb-subnav-on {
+  background: color-mix(in srgb, var(--mat-sys-primary, #8f343c) 18%, transparent);
+  border-color: var(--mat-sys-primary, #8f343c);
+}

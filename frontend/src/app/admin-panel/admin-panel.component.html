@@ -1,6 +1,6 @@
 <div class="page">
   <nav class="back-row">
-    <a mat-button color="primary" routerLink="/mlb">
+    <a mat-button color="primary" routerLink="/mlb/today">
       <mat-icon>arrow_back</mat-icon>
       Volver
     </a>
@@ -138,9 +138,20 @@
       </mat-card>
     }
 
-    <app-backtest-dashboard />
+    <mat-card class="card dash-hint" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>Backtesting y analítica</mat-card-title>
+        <mat-card-subtitle>Gráfica de hit rate, KPIs y tabla comparativa (requiere sesión)</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <a mat-stroked-button color="primary" routerLink="/mlb/dashboard">Abrir dashboard MLB</a>
+      </mat-card-content>
+    </mat-card>
 
-    <div class="grid">
+    <section class="sport-ops" aria-labelledby="mlb-ops-title">
+      <h2 class="sport-ops-title" id="mlb-ops-title">MLB</h2>
+      <p class="sport-ops-lede">Pipelines e indicadores conectados a la API oficial de MLB y tu base de datos.</p>
+      <div class="grid">
       <mat-card appearance="outlined">
         <mat-card-header>
           <mat-card-title>Importar partidos por fechas</mat-card-title>
@@ -243,5 +254,16 @@
         </mat-card-content>
       </mat-card>
     </div>
+    </section>
+
+    <section class="sport-ops sport-ops-placeholder" aria-labelledby="soccer-ops-title">
+      <h2 class="sport-ops-title" id="soccer-ops-title">Fútbol</h2>
+      <p class="sport-ops-lede">Sincronización ETL y paneles de operaciones para otras ligas (próximamente).</p>
+      <mat-card appearance="outlined" class="placeholder-card">
+        <mat-card-content>
+          <p class="placeholder-text">Aún no hay conectores configurados. Esta sección alojará importación y tareas ETL.</p>
+        </mat-card-content>
+      </mat-card>
+    </section>
   }
 </div>

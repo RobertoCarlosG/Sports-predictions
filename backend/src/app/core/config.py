@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     ml_auto_synthetic_on_missing: bool = False
     # Si True, tras sync/listado MLB se precalcula caché de predicciones (por defecto manual vía admin).
     pipeline_auto_cache_predictions: bool = False
+    # Tarea en segundo plano: sincronizar schedule (hoy + mañana) y rebuild de snapshots a la hora UTC indicada.
+    mlb_daily_snapshot_enabled: bool = False
+    mlb_daily_snapshot_utc_hour: int = 3
+    mlb_daily_snapshot_utc_minute: int = 0
     # Secreto HS256 para JWT del panel admin (mín. 16 caracteres en prod). Vacío = login deshabilitado.
     admin_jwt_secret: str = ""
     # Panel Operaciones: importaciones largas; sube a 360–720 en prod si hace falta (o usa POST /auth/refresh).

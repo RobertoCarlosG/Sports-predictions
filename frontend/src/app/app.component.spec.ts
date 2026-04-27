@@ -25,16 +25,10 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should have the Sports Predictions title', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app.title).toEqual('Sports Predictions');
-  });
-
-  it('should render brand', () => {
+  it('should render the outlet', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.brand-title')?.textContent).toContain('Sports Predictions');
+    expect(compiled.querySelector('router-outlet')).toBeTruthy();
   });
 });

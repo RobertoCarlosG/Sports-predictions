@@ -9,6 +9,16 @@ from app.models.mlb import Game, GamePredictionCache
 from app.schemas.games import PredictionResponse
 
 
+def ml_pick_from_home_win_probability(p_home: float) -> str:
+    """Lado del Moneyline: conviene derivar siempre de la probabilidad (fuente de verdad en BD)."""
+    return "home" if p_home > 0.5 else "away"
+
+
+def _is_final_status_for_eval(status: str) -> bool:
+    s = status.lower()
+    return any(x in s for x in ("final", "completed", "game over"))
+
+
 async def get_cached_prediction(
     session: AsyncSession,
     game_pk: int,
@@ -37,8 +47,8 @@ async def upsert_prediction_cache(
 ) -> None:
     now = dt.datetime.now(dt.UTC)
     row = await session.get(GamePredictionCache, response.game_pk)
-    
-    predicted_winner = "home" if response.home_win_probability > 0.5 else "away"
+
+    predicted_winner = ml_pick_from_home_win_probability(response.home_win_probability)
     
     if row is None:
         row = GamePredictionCache(
@@ -81,31 +91,56 @@ async def evaluate_prediction(
     if game.home_score is None or game.away_score is None:
         return False
     
-    game_status_lower = game.status.lower()
-    is_final = any(status in game_status_lower for status in ["final", "completed", "game over"])
-    
-    if not is_final:
+    if not _is_final_status_for_eval(game.status):
         return False
-    
+
     pred_row = await session.get(GamePredictionCache, game_pk)
-    
+
     if pred_row is None:
         return False
-    
+
     if game.home_score > game.away_score:
         actual_winner = "home"
     elif game.away_score > game.home_score:
         actual_winner = "away"
     else:
         actual_winner = "tie"
-    
-    is_correct = pred_row.predicted_winner == actual_winner
-    
+
+    # Siempre alinear con home_win_probability (evita cadenas raras, mayúsculas o desincronización).
+    pred_side = ml_pick_from_home_win_probability(float(pred_row.home_win_probability))
+    pred_row.predicted_winner = pred_side
+    is_correct = pred_side == actual_winner
+
     pred_row.actual_winner = actual_winner
     pred_row.is_correct = is_correct
     pred_row.evaluated_at = dt.datetime.now(dt.UTC)
-    
+
     return True
+
+
+async def recompute_all_moneyline_evaluations(session: AsyncSession) -> tuple[int, int]:
+    """
+    Vuelve a evaluar Moneyline para todas las filas con marcador (p. ej. tras corregir la lógica).
+    Devuelve (partidos_reevaluados, aciertos).
+    """
+    result = await session.execute(
+        select(GamePredictionCache.game_pk)
+        .join(Game, Game.game_pk == GamePredictionCache.game_pk)
+        .where(
+            Game.home_score.is_not(None),
+            Game.away_score.is_not(None),
+        )
+    )
+    pks = list(result.scalars().all())
+    updated = 0
+    correct = 0
+    for pk in pks:
+        if await evaluate_prediction(session, int(pk)):
+            updated += 1
+            refreshed = await session.get(GamePredictionCache, int(pk))
+            if refreshed and refreshed.is_correct:
+                correct += 1
+    return updated, correct
 
 
 async def evaluate_all_pending_predictions(

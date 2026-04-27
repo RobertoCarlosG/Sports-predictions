@@ -5,7 +5,7 @@
         mat-button
         class="tab"
         [routerLink]="pathFor(s.id)"
-        [class.tab-active]="active === s.id"
+        [class.tab-active]="active != null && active === s.id"
       >
         {{ s.label }}
         @if (!s.implemented) {

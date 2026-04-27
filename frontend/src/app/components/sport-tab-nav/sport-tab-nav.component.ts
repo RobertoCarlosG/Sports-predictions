@@ -13,20 +13,20 @@ import { SPORT_OPTIONS, type SportId } from '../../models/sport';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SportTabNavComponent {
-  @Input() active: SportId = 'mlb';
+  @Input() active: SportId | null = 'mlb';
 
   readonly sports = SPORT_OPTIONS;
 
   pathFor(id: SportId): string {
     switch (id) {
       case 'mlb':
-        return '/mlb';
+        return '/mlb/today';
       case 'soccer':
         return '/soccer';
       case 'nba':
         return '/nba';
       default:
-        return '/mlb';
+        return '/mlb/today';
     }
   }
 }

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -17,6 +17,7 @@ function isoDateOnly(raw: string | undefined | null): string {
 }
 
 import {
+  buildDateSelectionForPreset,
   DateChipSelectorComponent,
   type DateChipPreset,
   type DateChipSelection,
@@ -46,8 +47,12 @@ import { currentSeasonDateBounds } from '../utils/date-bounds';
 })
 export class GameListComponent implements OnInit {
   private readonly api = inject(GamesApiService);
+  private readonly route = inject(ActivatedRoute);
 
   readonly seasonBounds = currentSeasonDateBounds();
+
+  /** Ruta fija (today|tomorrow|week): no mostrar chips duplicados. */
+  hideDateChips = false;
 
   // Signals para reactividad optimizada (como useMemo + useState)
   games = signal<GameDetail[]>([]);
@@ -92,7 +97,12 @@ export class GameListComponent implements OnInit {
   private loadGeneration = 0;
 
   ngOnInit(): void {
-    /* La carga inicial la dispara DateChipSelector al emitir en ngOnInit. */
+    const raw = this.route.snapshot.data['datePreset'] as DateChipPreset | undefined;
+    if (raw != null) {
+      this.hideDateChips = true;
+      const b = this.seasonBounds;
+      this.onDateSelection(buildDateSelectionForPreset(raw, b.min, b.max));
+    }
   }
 
   onDateSelection(sel: DateChipSelection): void {

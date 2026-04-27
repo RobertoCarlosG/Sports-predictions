@@ -10,6 +10,35 @@ export interface DateChipSelection {
   dates: string[];
 }
 
+/** Misma lógica que el selector de chips, para precargar desde la ruta (URL). */
+export function buildDateSelectionForPreset(
+  preset: DateChipPreset,
+  minIso: string,
+  maxIso: string,
+): DateChipSelection {
+  if (preset === 'today') {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    return { preset, dates: [`${y}-${m}-${d}`] };
+  }
+  if (preset === 'tomorrow') {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const todayIso = `${y}-${m}-${d}`;
+    return { preset, dates: [addDaysIso(todayIso, 1)] };
+  }
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, '0');
+  const d = String(today.getDate()).padStart(2, '0');
+  const todayIso = `${y}-${m}-${d}`;
+  return { preset, dates: calendarWeekRangeClamped(todayIso, minIso, maxIso) };
+}
+
 @Component({
   selector: 'app-date-chip-selector',
   standalone: true,
@@ -45,34 +74,6 @@ export class DateChipSelectorComponent implements OnInit {
   }
 
   private emitPreset(p: DateChipPreset): void {
-    const dates = this.datesForPreset(p);
-    this.selectionChange.emit({ preset: p, dates });
-  }
-
-  private datesForPreset(p: DateChipPreset): string[] {
-    const max = this.maxIso;
-    const min = this.minIso;
-    if (p === 'today') {
-      const today = new Date();
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, '0');
-      const d = String(today.getDate()).padStart(2, '0');
-      return [`${y}-${m}-${d}`];
-    }
-    if (p === 'tomorrow') {
-      const today = new Date();
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, '0');
-      const d = String(today.getDate()).padStart(2, '0');
-      const todayIso = `${y}-${m}-${d}`;
-      const iso = addDaysIso(todayIso, 1);
-      return [iso];
-    }
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, '0');
-    const d = String(today.getDate()).padStart(2, '0');
-    const todayIso = `${y}-${m}-${d}`;
-    return calendarWeekRangeClamped(todayIso, min, max);
+    this.selectionChange.emit(buildDateSelectionForPreset(p, this.minIso, this.maxIso));
   }
 }

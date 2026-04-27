@@ -42,6 +42,11 @@ Desde este directorio (`backend/`), con `DATABASE_URL` cargada:
 
    Luego arranca el API con `ML_MODEL_PATH` apuntando a ese archivo (o copia el joblib sobre el `model.joblib` por defecto).
 
+### Sincronización diaria (snapshots) y evaluación ML
+
+- En producción, activa `MLB_DAILY_SNAPSHOT_ENABLED=true` para que, cada noche a la hora UTC configurada (por defecto 03:00), el API importe el calendario MLB de **hoy y mañana** (según reloj UTC) y ejecute `rebuild_game_feature_snapshots` de la temporada en curso.
+- Tras desplegar una corrección de evaluación, llama `POST /api/v1/admin/predictions/recompute-ml-evaluations` (panel Operaciones, autenticado) para recalcular `is_correct` del Moneyline en `prediction_results`.
+
 ## Indicadores y entrenamiento en local (BD del servidor)
 
 Puedes ejecutar en tu máquina los mismos pasos que el panel **Operaciones**, pero contra la **misma** PostgreSQL que usa producción (solo cambia dónde corre el proceso).
