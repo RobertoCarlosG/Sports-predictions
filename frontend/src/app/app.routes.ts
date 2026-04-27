@@ -14,6 +14,11 @@ export const routes: Routes = [
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'today' },
           {
+            path: 'dashboard',
+            pathMatch: 'full',
+            redirectTo: '/operations',
+          },
+          {
             path: 'today',
             loadComponent: () =>
               import('./game-list/game-list.component').then((m) => m.GameListComponent),
@@ -30,13 +35,6 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./game-list/game-list.component').then((m) => m.GameListComponent),
             data: { datePreset: 'week' as const },
-          },
-          {
-            path: 'dashboard',
-            loadComponent: () =>
-              import('./backtest-dashboard/backtest-dashboard.component').then(
-                (m) => m.BacktestDashboardComponent,
-              ),
           },
           {
             path: 'history',
@@ -71,7 +69,7 @@ export const routes: Routes = [
       {
         path: 'operations',
         loadComponent: () =>
-          import('./admin-panel/admin-panel.component').then((m) => m.AdminPanelComponent),
+          import('./operations/operations.component').then((m) => m.OperationsComponent),
       },
     ],
   },

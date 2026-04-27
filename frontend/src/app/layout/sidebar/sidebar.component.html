@@ -1,0 +1,36 @@
+<aside class="sidebar" aria-label="Navegación principal">
+  <div class="sidebar-brand">
+    <a routerLink="/mlb" class="brand-link" aria-label="Inicio, MLB">{{ title }}</a>
+  </div>
+
+  <div class="nav-block">
+    <p class="nav-label">Deportes</p>
+    <nav class="nav-list" aria-label="Deportes">
+      @for (s of sports; track s.id) {
+        <a class="nav-item" [routerLink]="pathFor(s.id)" [class.nav-item--active]="sportRowActive(s)">
+          <span class="nav-text">{{ s.label }}</span>
+          @if (!s.implemented) {
+            <span class="soon">pronto</span>
+          }
+        </a>
+      }
+    </nav>
+  </div>
+
+  <div class="sidebar-spacer"></div>
+
+  <div class="nav-block nav-block--system">
+    <p class="nav-label">Sistema</p>
+    <nav class="nav-list" aria-label="Sistema">
+      <a
+        class="nav-item nav-item--icon"
+        routerLink="/operations"
+        [class.nav-item--active]="linkActiveOperations()"
+        aria-label="Operaciones (backtesting y ETL)"
+      >
+        <mat-icon class="nav-ico" aria-hidden="true">settings</mat-icon>
+        <span class="nav-text">Operaciones</span>
+      </a>
+    </nav>
+  </div>
+</aside>

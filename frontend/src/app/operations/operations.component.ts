@@ -11,19 +11,23 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTabsModule } from '@angular/material/tabs';
 
 import { Observable, Subscription, interval } from 'rxjs';
 import { startWith, switchMap } from 'rxjs/operators';
 
+import { BacktestDashboardComponent } from '../backtest-dashboard/backtest-dashboard.component';
 import {
   AdminApiService,
   type AdminSessionResponse,
   type BackfillJobStatusResponse,
 } from '../services/admin-api.service';
-import { AdminOpResultData, AdminOpResultDialogComponent } from './admin-op-result-dialog.component';
+import { GamesApiService } from '../services/games-api.service';
+import { toIsoDate } from '../utils/date-bounds';
+import { AdminOpResultData, AdminOpResultDialogComponent } from '../admin-panel/admin-op-result-dialog.component';
 
 @Component({
-  selector: 'app-admin-panel',
+  selector: 'app-operations',
   standalone: true,
   imports: [
     CommonModule,
@@ -36,12 +40,15 @@ import { AdminOpResultData, AdminOpResultDialogComponent } from './admin-op-resu
     MatInputModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
+    MatTabsModule,
+    BacktestDashboardComponent,
   ],
-  templateUrl: './admin-panel.component.html',
-  styleUrl: './admin-panel.component.scss',
+  templateUrl: './operations.component.html',
+  styleUrl: './operations.component.scss',
 })
-export class AdminPanelComponent implements OnInit, OnDestroy {
+export class OperationsComponent implements OnInit, OnDestroy {
   private readonly admin = inject(AdminApiService);
+  private readonly games = inject(GamesApiService);
   private readonly dialog = inject(MatDialog);
 
   private backfillPollSub: Subscription | null = null;
@@ -74,14 +81,19 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
   trainMaxDepth = 16;
   trainMinSamplesLeaf = 2;
 
-  /** Texto derivado de GET /auth/me o refresh (caducidad JWT). */
   sessionHint: string | null = null;
 
-  /** Seguimiento de importación en segundo plano. */
   backfillTracking = false;
   backfillStatus: BackfillJobStatusResponse | null = null;
   private pendingBackfillJobId: string | null = null;
   backfillTaskLabel = '';
+
+  /** Sincronización rápida `POST /mlb/sync-range` (hoy y mañana). */
+  quickSyncLoading = false;
+  lastQuickSyncAt: string | null = null;
+
+  /** Texto amigable extraído de GET /admin/status. */
+  activeModelVersion = '—';
 
   ngOnInit(): void {
     this.admin.authReady().subscribe({
@@ -194,6 +206,7 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
         this.statusDetail = null;
         this.lastActionMessage = null;
         this.lastActionError = null;
+        this.activeModelVersion = '—';
       },
       error: () => {
         this.admin.clearSessionLocal();
@@ -201,6 +214,7 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
         this.statusDetail = null;
         this.lastActionMessage = null;
         this.lastActionError = null;
+        this.activeModelVersion = '—';
       },
     });
   }
@@ -211,11 +225,59 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
       next: (r) => {
         this.statusText = r.message;
         this.statusDetail = r.detail;
+        this.activeModelVersion = this.parseModelVersionFromDetail(r.detail);
       },
       error: () => {
         this.lastActionError = 'No se pudo leer el estado. Tu sesión puede haber expirado.';
       },
     });
+  }
+
+  /**
+   * Importa el calendario MLB del día actual vía `POST /api/v1/mlb/sync-range`.
+   * El API no admite fechas futuras en el rango; «mañana» se cubrirá cuando esa fecha sea «hoy».
+   * Deshabilita el botón mientras dura la petición y muestra diálogo al terminar.
+   */
+  syncTodayAndTomorrow(): void {
+    if (this.quickSyncLoading) {
+      return;
+    }
+    this.quickSyncLoading = true;
+    const start = toIsoDate(new Date());
+    const end = start;
+    this.games
+      .syncMlbRange({
+        start_date: start,
+        end_date: end,
+        fetch_details: true,
+      })
+      .subscribe({
+        next: (r) => {
+          this.quickSyncLoading = false;
+          this.lastQuickSyncAt = new Date().toLocaleString();
+          this.openResultDialog({
+            title: 'Sincronización completada',
+            message: `Rango ${r.start_date} — ${r.end_date}. Días sincronizados: ${r.days_synced}.`,
+            technicalDetail: null,
+            success: true,
+          });
+        },
+        error: (err: unknown) => {
+          this.quickSyncLoading = false;
+          this.openResultDialogFromHttp(err, 'Sincronización API (MLB)');
+        },
+      });
+  }
+
+  private parseModelVersionFromDetail(detail: string | null | undefined): string {
+    if (detail == null || detail === '') {
+      return '—';
+    }
+    const m = /Versión activa:\s*([^\n]+)/.exec(detail);
+    if (m && m[1]) {
+      return m[1].replace(/\s*\.\s*$/, '').trim();
+    }
+    return '—';
   }
 
   rebuildSnapshots(): void {

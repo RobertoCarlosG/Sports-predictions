@@ -1,0 +1,319 @@
+<div class="page">
+  <nav class="back-row">
+    <a mat-button color="primary" routerLink="/mlb/today">
+      <mat-icon>arrow_back</mat-icon>
+      Volver
+    </a>
+  </nav>
+
+  <h1 class="title">Operaciones</h1>
+  <p class="lede">
+    Centro de evaluación y mantenimiento: backtesting (rendimiento del modelo) y ETL. Acceso restringido.
+  </p>
+
+  @if (authReadyLoading) {
+    <div class="ready-loading">
+      <mat-spinner diameter="36" />
+      <span>Comprobando servidor…</span>
+    </div>
+  }
+
+  @if (!authReadyLoading && configBanner) {
+    <mat-card class="card config-banner-card" appearance="outlined">
+      <mat-card-content>
+        <p class="config-banner-text">{{ configBanner }}</p>
+        <p class="config-banner-hint">
+          Revisa en los logs del API al arrancar si aparece «ADMIN_JWT_SECRET está definido». Si el JWT está bien pero
+          falla la tabla, ejecuta <code>002_prediction_cache_and_admin.sql</code> en la misma base que
+          <code>DATABASE_URL</code>. Tras cambiar variables en Render, usa <strong>Restart</strong> o un deploy nuevo.
+        </p>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (!loggedIn()) {
+    <div class="login-shell">
+      <mat-card class="card login-card" appearance="outlined">
+        <mat-card-header>
+          <mat-card-title>Iniciar sesión</mat-card-title>
+        </mat-card-header>
+        <mat-card-content class="login-fields">
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Usuario</mat-label>
+            <input matInput name="user" [(ngModel)]="username" autocomplete="username" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Contraseña</mat-label>
+            <input
+              matInput
+              [type]="hidePassword ? 'password' : 'text'"
+              name="pass"
+              [(ngModel)]="password"
+              autocomplete="current-password"
+              (keyup.enter)="login()"
+            />
+            <button
+              mat-icon-button
+              matSuffix
+              type="button"
+              (click)="hidePassword = !hidePassword"
+              [attr.aria-label]="hidePassword ? 'Mostrar contraseña' : 'Ocultar contraseña'"
+            >
+              <mat-icon>{{ hidePassword ? 'visibility' : 'visibility_off' }}</mat-icon>
+            </button>
+          </mat-form-field>
+          @if (loginError) {
+            <p class="err">{{ loginError }}</p>
+          }
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="login()"
+            [disabled]="loginLoading || !!configBanner"
+          >
+            @if (loginLoading) {
+              <mat-spinner diameter="22" />
+            }
+            Entrar
+          </button>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  } @else {
+    <div class="toolbar-actions">
+      <button mat-stroked-button type="button" (click)="refreshStatus()" [disabled]="operationsLocked">
+        <mat-icon>info</mat-icon>
+        Ver estado
+      </button>
+      <button mat-button type="button" color="warn" (click)="logout()">Cerrar sesión</button>
+    </div>
+
+    @if (sessionHint) {
+      <p class="session-hint">{{ sessionHint }}</p>
+    }
+
+    @if (statusText) {
+      <mat-card class="card status-card" appearance="outlined">
+        <mat-card-content>
+          <p class="status-msg">{{ statusText }}</p>
+          @if (statusDetail) {
+            <p class="status-detail">{{ statusDetail }}</p>
+          }
+        </mat-card-content>
+      </mat-card>
+    }
+
+    @if (busy && lastActionMessage && !backfillTracking) {
+      <div class="inline-loading">
+        <mat-spinner diameter="22" />
+        <span>{{ lastActionMessage }}</span>
+      </div>
+    }
+    @if (lastActionError) {
+      <p class="feedback err">{{ lastActionError }}</p>
+    }
+
+    @if (backfillTracking) {
+      <mat-card class="card progress-card" appearance="outlined">
+        <mat-card-content class="progress-inner">
+          <div class="progress-head">
+            <mat-spinner diameter="28" />
+            <div class="progress-titles">
+              <span class="progress-title">{{ backfillTaskLabel }}</span>
+              <span class="progress-phase">{{ backfillPhaseLabel }}</span>
+            </div>
+          </div>
+          <p class="progress-detail">
+            @if (backfillStatus?.current_date) {
+              Día actual: <strong>{{ backfillStatus?.current_date }}</strong>
+            } @else {
+              Preparando…
+            }
+            — {{ backfillStatus?.days_done ?? 0 }} / {{ backfillStatus?.days_total ?? '?' }} días
+          </p>
+          <mat-progress-bar mode="determinate" [value]="backfillProgressPercent" />
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <mat-tab-group class="ops-tabs" animationDuration="200ms" dynamicHeight>
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <span class="tab-lab"
+            ><mat-icon class="tab-ico" aria-hidden="true">bar_chart</mat-icon>Dashboard de rendimiento</span
+          >
+        </ng-template>
+        <div class="tab-panel tab-panel--scroll">
+          <app-backtest-dashboard />
+        </div>
+      </mat-tab>
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <span class="tab-lab"
+            ><mat-icon class="tab-ico" aria-hidden="true">sync</mat-icon>Sincronización y modelos</span
+          >
+        </ng-template>
+        <div class="tab-panel etl-wrap">
+          <mat-card class="card quick-card" appearance="outlined">
+            <mat-card-header>
+              <mat-card-title>API y modelo</mat-card-title>
+              <mat-card-subtitle
+                >Calendario MLB del día actual (el API no permite fechas futuras en el rango; el partido de «mañana» se
+                importa cuando sea día corrido)</mat-card-subtitle
+              >
+            </mat-card-header>
+            <mat-card-content class="stack">
+              <div class="model-meta" role="status">
+                <p class="model-line">
+                  <strong>Modelo activo</strong> &nbsp;
+                  <code class="ver-tag">{{ activeModelVersion }}</code>
+                </p>
+                <p class="model-line last-sync" [class.muted]="!lastQuickSyncAt">
+                  <strong>Última sync. rápida (API, día actual):</strong>
+                  @if (lastQuickSyncAt) {
+                    <span> {{ lastQuickSyncAt }} </span>
+                  } @else {
+                    <span class="muted"> Aún no en esta sesión (tras usar el botón, se guarda la hora local).</span>
+                  }
+                </p>
+              </div>
+              <button
+                mat-flat-button
+                color="primary"
+                type="button"
+                (click)="syncTodayAndTomorrow()"
+                [disabled]="quickSyncLoading || operationsLocked"
+              >
+                @if (quickSyncLoading) {
+                  <mat-spinner class="inline-spin" diameter="20" />
+                  <span>Calculando…</span>
+                } @else {
+                  <span>Sincronizar datos API (día actual)</span>
+                }
+              </button>
+            </mat-card-content>
+          </mat-card>
+
+          <section class="sport-ops" aria-labelledby="mlb-ops-title">
+            <h2 class="sport-ops-title" id="mlb-ops-title">MLB</h2>
+            <p class="sport-ops-lede">Pipelines e indicadores conectados a la API oficial de MLB y tu base de datos.</p>
+            <div class="grid">
+              <mat-card appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>Importar partidos por fechas</mat-card-title>
+                  <mat-card-subtitle>Descarga desde la fuente oficial día a día (cola de segundo plano)</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="stack">
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>Desde</mat-label>
+                    <input matInput type="date" [(ngModel)]="backfillStart" name="bf1" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>Hasta</mat-label>
+                    <input matInput type="date" [(ngModel)]="backfillEnd" name="bf2" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>Pausa entre días (segundos)</mat-label>
+                    <input matInput type="number" step="0.1" min="0" [(ngModel)]="backfillSleep" name="bfs" />
+                  </mat-form-field>
+                  <button mat-stroked-button type="button" (click)="backfill()" [disabled]="operationsLocked">
+                    <mat-icon>download</mat-icon>
+                    Iniciar importación
+                  </button>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>Indicadores para estimación</mat-card-title>
+                  <mat-card-subtitle>Recalcula a partir de partidos ya guardados</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="stack">
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>Temporada (opcional)</mat-label>
+                    <input matInput [(ngModel)]="seasonFilter" name="seas" placeholder="ej. 2025" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>Ventana de partidos previos</mat-label>
+                    <input matInput type="number" min="1" max="50" [(ngModel)]="snapshotWindow" name="win" />
+                  </mat-form-field>
+                  <button mat-stroked-button type="button" (click)="rebuildSnapshots()" [disabled]="operationsLocked">
+                    <mat-icon>analytics</mat-icon>
+                    Recalcular indicadores
+                  </button>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>Modelo</mat-card-title>
+                  <mat-card-subtitle>Entrenar y activar sin reiniciar el servidor (tras entrenar, recarga)</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="stack">
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>Validación desde (opcional)</mat-label>
+                    <input matInput type="date" [(ngModel)]="trainValFrom" name="tv" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>Temporada entrenamiento (opcional)</mat-label>
+                    <input matInput [(ngModel)]="trainSeason" name="ts" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>Nombre de versión</mat-label>
+                    <input matInput [(ngModel)]="trainModelVersion" name="mv" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>Árboles (n_estimators)</mat-label>
+                    <input matInput type="number" min="10" max="500" [(ngModel)]="trainTrees" name="trt" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>Profundidad máxima (max_depth)</mat-label>
+                    <input matInput type="number" min="2" max="48" [(ngModel)]="trainMaxDepth" name="trd" />
+                    <mat-hint>Más alta suele dar P(home) más dispersa si hay features variadas</mat-hint>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="full">
+                    <mat-label>Mín. muestras por hoja</mat-label>
+                    <input matInput type="number" min="1" max="50" [(ngModel)]="trainMinSamplesLeaf" name="trl" />
+                    <mat-hint>Menor valor → hojas más finas (más dispersión; riesgo si hay poco dato)</mat-hint>
+                  </mat-form-field>
+                  <button mat-flat-button color="primary" type="button" (click)="train()" [disabled]="operationsLocked">
+                    <mat-icon>model_training</mat-icon>
+                    Entrenar con datos guardados
+                  </button>
+                  <button mat-stroked-button type="button" (click)="reloadModel()" [disabled]="operationsLocked">
+                    <mat-icon>refresh</mat-icon>
+                    Recargar modelo en memoria
+                  </button>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>Caché de estimaciones</mat-card-title>
+                  <mat-card-subtitle>Obliga a recalcular la próxima vez que se consulte</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                  <button mat-stroked-button type="button" color="warn" (click)="clearCache()" [disabled]="operationsLocked">
+                    <mat-icon>delete_sweep</mat-icon>
+                    Vaciar caché
+                  </button>
+                </mat-card-content>
+              </mat-card>
+            </div>
+          </section>
+
+          <section class="sport-ops sport-ops-placeholder" aria-labelledby="soccer-ops-title">
+            <h2 class="sport-ops-title" id="soccer-ops-title">Fútbol</h2>
+            <p class="sport-ops-lede">Sincronización ETL y paneles de operaciones para otras ligas (próximamente).</p>
+            <mat-card appearance="outlined" class="placeholder-card">
+              <mat-card-content>
+                <p class="placeholder-text">Aún no hay conectores configurados. Esta sección alojará importación y tareas ETL.</p>
+              </mat-card-content>
+            </mat-card>
+          </section>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  }
+</div>

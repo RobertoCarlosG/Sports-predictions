@@ -2,6 +2,7 @@
   max-width: 1120px;
   margin: 0 auto;
   padding: 1rem 1rem 2.5rem;
+  box-sizing: border-box;
 }
 
 .back-row {
@@ -186,8 +187,66 @@
   color: var(--mat-sys-error, #b3261e);
 }
 
-.dash-hint {
-  margin-bottom: 1.25rem;
+.ops-tabs {
+  margin-top: 0.5rem;
+}
+
+:host ::ng-deep .ops-tabs .mat-mdc-tab-labels {
+  flex-wrap: wrap;
+}
+
+.tab-lab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-ico {
+  width: 20px;
+  height: 20px;
+  font-size: 20px;
+  line-height: 20px;
+}
+
+.tab-panel--scroll {
+  padding-top: 0.5rem;
+}
+
+.etl-wrap {
+  padding-top: 0.5rem;
+}
+
+.quick-card {
+  margin-bottom: 1rem;
+}
+
+.model-meta {
+  margin-bottom: 0.5rem;
+}
+
+.model-line {
+  margin: 0 0 0.5rem;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.model-line.muted,
+.muted {
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
+}
+
+.ver-tag {
+  font-size: 0.9em;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--mat-sys-surface-container-highest, rgba(0, 0, 0, 0.08));
+  font-weight: 500;
+}
+
+.inline-spin {
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
 }
 
 .sport-ops {
