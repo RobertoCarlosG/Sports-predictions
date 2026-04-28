@@ -1,16 +1,26 @@
-<aside class="sidebar" aria-label="Navegación principal">
-  <div class="sidebar-brand">
-    <a routerLink="/mlb" class="brand-link" aria-label="Inicio, MLB">{{ title }}</a>
+<aside class="sidebar" [class.collapsed]="collapsed" aria-label="Navegación principal">
+  <div class="sidebar-header">
+    @if (!collapsed) {
+      <div class="sidebar-brand">
+        <a routerLink="/mlb" class="brand-link" aria-label="Inicio, MLB">{{ title }}</a>
+      </div>
+    }
+    <button mat-icon-button class="collapse-btn" (click)="toggleCollapse()" [attr.aria-label]="collapsed ? 'Expandir menú' : 'Contraer menú'">
+      <mat-icon>{{ collapsed ? 'menu' : 'menu_open' }}</mat-icon>
+    </button>
   </div>
 
   <div class="nav-block">
-    <p class="nav-label">Deportes</p>
+    <p class="nav-label" [class.hidden]="collapsed">Deportes</p>
     <nav class="nav-list" aria-label="Deportes">
       @for (s of sports; track s.id) {
-        <a class="nav-item" [routerLink]="pathFor(s.id)" [class.nav-item--active]="sportRowActive(s)">
-          <span class="nav-text">{{ s.label }}</span>
-          @if (!s.implemented) {
-            <span class="soon">pronto</span>
+        <a class="nav-item nav-item--icon" [routerLink]="pathFor(s.id)" [class.nav-item--active]="sportRowActive(s)" [attr.title]="collapsed ? s.label : null">
+          <mat-icon class="nav-ico" aria-hidden="true">{{ s.icon }}</mat-icon>
+          @if (!collapsed) {
+            <span class="nav-text">{{ s.label }}</span>
+            @if (!s.implemented) {
+              <span class="soon">pronto</span>
+            }
           }
         </a>
       }
@@ -20,16 +30,18 @@
   <div class="sidebar-spacer"></div>
 
   <div class="nav-block nav-block--system">
-    <p class="nav-label">Sistema</p>
+    <p class="nav-label" [class.hidden]="collapsed">Sistema</p>
     <nav class="nav-list" aria-label="Sistema">
       <a
         class="nav-item nav-item--icon"
         routerLink="/operations"
         [class.nav-item--active]="linkActiveOperations()"
-        aria-label="Operaciones (backtesting y ETL)"
+        [attr.title]="collapsed ? 'Operaciones' : null"
       >
         <mat-icon class="nav-ico" aria-hidden="true">settings</mat-icon>
-        <span class="nav-text">Operaciones</span>
+        @if (!collapsed) {
+          <span class="nav-text">Operaciones</span>
+        }
       </a>
     </nav>
   </div>

@@ -8,6 +8,8 @@ export interface SportOption {
   description: string;
   /** Si el dashboard de datos ya está implementado */
   implemented: boolean;
+  /** Icono de Material Icons */
+  icon: string;
 }
 
 export const SPORT_OPTIONS: readonly SportOption[] = [
@@ -16,18 +18,21 @@ export const SPORT_OPTIONS: readonly SportOption[] = [
     label: 'MLB',
     description: 'Major League Baseball — statsapi.mlb.com',
     implemented: true,
+    icon: 'sports_baseball',
   },
   {
     id: 'soccer',
     label: 'Fútbol',
     description: 'Soccer — API-Sports (planificado)',
     implemented: false,
+    icon: 'sports_soccer',
   },
   {
     id: 'nba',
     label: 'NBA',
     description: 'NBA — API-Sports (planificado)',
     implemented: false,
+    icon: 'sports_basketball',
   },
 ] as const;
 

@@ -9,13 +9,14 @@ import {
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { filter, Subscription } from 'rxjs';
+import { MatIconButton } from '@angular/material/button';
 
 import { SPORT_OPTIONS, type SportId, type SportOption } from '../../models/sport';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [RouterLink, MatIconModule],
+  imports: [RouterLink, MatIconModule, MatIconButton],
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -28,6 +29,11 @@ export class SidebarComponent implements OnInit, OnDestroy {
   readonly title = 'Sports Predictions';
   readonly sports = SPORT_OPTIONS;
   private url = '';
+  collapsed = false;
+
+  toggleCollapse() {
+    this.collapsed = !this.collapsed;
+  }
 
   ngOnInit(): void {
     this.url = this.stripQuery(this.router.url);

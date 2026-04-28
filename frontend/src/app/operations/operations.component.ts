@@ -17,6 +17,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { Observable, Subscription, TimeoutError, catchError, interval, of, take } from 'rxjs';
 import { finalize, startWith, switchMap, timeout } from 'rxjs/operators';
 
+import { CollapsibleSectionComponent } from '../components/collapsible-section/collapsible-section.component';
 import { BacktestDashboardComponent } from '../backtest-dashboard/backtest-dashboard.component';
 import {
   AdminApiService,
@@ -45,6 +46,7 @@ import { AdminOpResultData, AdminOpResultDialogComponent } from '../admin-panel/
     MatSnackBarModule,
     MatTabsModule,
     BacktestDashboardComponent,
+    CollapsibleSectionComponent,
   ],
   templateUrl: './operations.component.html',
   styleUrl: './operations.component.scss',
@@ -99,6 +101,33 @@ export class OperationsComponent implements OnInit, OnDestroy {
   /** Texto amigable extraído de GET /admin/status. */
   activeModelVersion = '—';
 
+  tomorrowSyncLoading = false;
+  currentSyncMessage = 'Iniciando...';
+  private syncMessageSub: Subscription | null = null;
+  readonly quickSyncMessages = [
+    'Conectando con la API...',
+    'Descargando calendario...',
+    'Procesando partidos...',
+    'Actualizando base de datos...',
+    'Calculando predicciones...'
+  ];
+
+  private startSyncMessages(): void {
+    this.currentSyncMessage = this.quickSyncMessages[0];
+    let i = 1;
+    this.syncMessageSub = interval(2500).subscribe(() => {
+      this.currentSyncMessage = this.quickSyncMessages[i % this.quickSyncMessages.length];
+      i++;
+    });
+  }
+
+  private stopSyncMessages(): void {
+    if (this.syncMessageSub) {
+      this.syncMessageSub.unsubscribe();
+      this.syncMessageSub = null;
+    }
+  }
+
   ngOnInit(): void {
     this.admin
       .authReady()
@@ -151,6 +180,7 @@ export class OperationsComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.stopBackfillPoll();
     this.stopRefreshTicker();
+    this.stopSyncMessages();
   }
 
   get operationsLocked(): boolean {
@@ -266,6 +296,7 @@ export class OperationsComponent implements OnInit, OnDestroy {
       return;
     }
     this.quickSyncLoading = true;
+    this.startSyncMessages();
     const start = toIsoDate(new Date());
     const end = start;
     this.games
@@ -277,6 +308,7 @@ export class OperationsComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (r) => {
           this.quickSyncLoading = false;
+          this.stopSyncMessages();
           this.lastQuickSyncAt = new Date().toLocaleString();
           this.openResultDialog({
             title: 'Sincronización completada',
@@ -287,6 +319,7 @@ export class OperationsComponent implements OnInit, OnDestroy {
         },
         error: (err: unknown) => {
           this.quickSyncLoading = false;
+          this.stopSyncMessages();
           this.openResultDialogFromHttp(err, 'Sincronización API (MLB)');
         },
       });
@@ -298,6 +331,8 @@ export class OperationsComponent implements OnInit, OnDestroy {
    * «Mañana en MLB» para evitar P(home) planas (p. ej. ~51% residual).
    */
   runMlbFullSnapshotForTomorrowView(): void {
+    this.tomorrowSyncLoading = true;
+    this.startSyncMessages();
     this._run('ETL MLB: hoy+mañana, indicadores y predicciones…', () => this.admin.runMlbDailySnapshot());
   }
 
@@ -496,6 +531,8 @@ export class OperationsComponent implements OnInit, OnDestroy {
     op().subscribe({
       next: (r) => {
         this.busy = false;
+        this.tomorrowSyncLoading = false;
+        this.stopSyncMessages();
         const line = r.message + (r.detail ? ` — ${r.detail}` : '');
         this.lastActionMessage = line;
         const parts: string[] = [];
@@ -517,6 +554,8 @@ export class OperationsComponent implements OnInit, OnDestroy {
       },
       error: (err: unknown) => {
         this.busy = false;
+        this.tomorrowSyncLoading = false;
+        this.stopSyncMessages();
         this.openResultDialogFromHttp(err, 'Operación');
       },
     });

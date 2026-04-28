@@ -137,6 +137,17 @@
   width: 100%;
 }
 
+.dense-field {
+  width: 100%;
+}
+
+.dense-field ::ng-deep .mdc-text-field--outlined {
+  --mdc-outlined-text-field-container-shape: 8px;
+  --mdc-outlined-text-field-top-space: 8px;
+  --mdc-outlined-text-field-bottom-space: 8px;
+  height: 48px;
+}
+
 .err {
   margin: 0;
   font-size: 13px;

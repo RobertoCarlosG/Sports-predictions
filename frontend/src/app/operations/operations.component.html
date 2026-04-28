@@ -158,7 +158,8 @@
         </ng-template>
         <ng-template matTabContent>
           <div class="tab-panel etl-wrap">
-          <mat-card class="card quick-card" appearance="outlined">
+          <div class="sync-cards-grid">
+            <mat-card class="card quick-card" appearance="outlined">
             <mat-card-header>
               <mat-card-title>API y modelo</mat-card-title>
               <mat-card-subtitle
@@ -190,7 +191,7 @@
               >
                 @if (quickSyncLoading) {
                   <mat-spinner class="inline-spin" diameter="20" />
-                  <span>Calculando…</span>
+                  <span>{{ currentSyncMessage }}</span>
                 } @else {
                   <span>Sincronizar datos API (día actual)</span>
                 }
@@ -213,19 +214,24 @@
                 color="primary"
                 type="button"
                 (click)="runMlbFullSnapshotForTomorrowView()"
-                [disabled]="operationsLocked"
+                [disabled]="tomorrowSyncLoading || operationsLocked"
               >
-                Preparar datos y predicciones para «Mañana»
+                @if (tomorrowSyncLoading) {
+                  <mat-spinner class="inline-spin" diameter="20" />
+                  <span>{{ currentSyncMessage }}</span>
+                } @else {
+                  <span>Preparar datos y predicciones para «Mañana»</span>
+                }
               </button>
               <p class="muted tom-link">
                 <a mat-button color="primary" routerLink="/mlb/tomorrow">Abrir «Mañana en MLB»</a>
               </p>
             </mat-card-content>
           </mat-card>
+          </div>
 
           <section class="sport-ops" aria-labelledby="mlb-ops-title">
-            <h2 class="sport-ops-title" id="mlb-ops-title">MLB</h2>
-            <p class="sport-ops-lede">Pipelines e indicadores conectados a la API oficial de MLB y tu base de datos.</p>
+            <app-collapsible-section title="MLB" subtitle="Pipelines e indicadores conectados a la API oficial de MLB y tu base de datos." [expanded]="true">
             <div class="grid">
               <mat-card appearance="outlined">
                 <mat-card-header>
@@ -291,16 +297,16 @@
                     <mat-label>Nombre de versión</mat-label>
                     <input matInput [(ngModel)]="trainModelVersion" name="mv" />
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="full">
+                  <mat-form-field appearance="outline" class="dense-field">
                     <mat-label>Árboles (n_estimators)</mat-label>
                     <input matInput type="number" min="10" max="500" [(ngModel)]="trainTrees" name="trt" />
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="full">
+                  <mat-form-field appearance="outline" class="dense-field">
                     <mat-label>Profundidad máxima (max_depth)</mat-label>
                     <input matInput type="number" min="2" max="48" [(ngModel)]="trainMaxDepth" name="trd" />
                     <mat-hint>Más alta suele dar P(home) más dispersa si hay features variadas</mat-hint>
                   </mat-form-field>
-                  <mat-form-field appearance="outline" class="full">
+                  <mat-form-field appearance="outline" class="dense-field">
                     <mat-label>Mín. muestras por hoja</mat-label>
                     <input matInput type="number" min="1" max="50" [(ngModel)]="trainMinSamplesLeaf" name="trl" />
                     <mat-hint>Menor valor → hojas más finas (más dispersión; riesgo si hay poco dato)</mat-hint>
@@ -329,16 +335,17 @@
                 </mat-card-content>
               </mat-card>
             </div>
+            </app-collapsible-section>
           </section>
 
           <section class="sport-ops sport-ops-placeholder" aria-labelledby="soccer-ops-title">
-            <h2 class="sport-ops-title" id="soccer-ops-title">Fútbol</h2>
-            <p class="sport-ops-lede">Sincronización ETL y paneles de operaciones para otras ligas (próximamente).</p>
+            <app-collapsible-section title="Fútbol" subtitle="Sincronización ETL y paneles de operaciones para otras ligas (próximamente)." [expanded]="false">
             <mat-card appearance="outlined" class="placeholder-card">
               <mat-card-content>
                 <p class="placeholder-text">Aún no hay conectores configurados. Esta sección alojará importación y tareas ETL.</p>
               </mat-card-content>
             </mat-card>
+            </app-collapsible-section>
           </section>
         </div>
         </ng-template>
