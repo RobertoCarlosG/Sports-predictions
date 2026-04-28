@@ -1,0 +1,7 @@
+INFO:     Started server process [63707]
+INFO:     Waiting for application startup.
+Panel Operaciones: ADMIN_JWT_SECRET vacío — /api/v1/admin/auth/login responderá 503 hasta configurarlo.
+INFO:     Application startup complete.
+ERROR:    [Errno 48] error while attempting to bind on address ('127.0.0.1', 8000): address already in use
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.

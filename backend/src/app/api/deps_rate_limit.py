@@ -3,10 +3,10 @@ import time
 from fastapi import Request, HTTPException
 
 _api_rate_limits: dict[str, list[float]] = collections.defaultdict(list)
-API_MAX_REQUESTS = 30
+API_MAX_REQUESTS = 15
 API_WINDOW_SECONDS = 60
 
-def rate_limit_public_api(request: Request) -> None:
+async def rate_limit_public_api(request: Request) -> None:
     """
     Limitador de tasa básico por IP en memoria para endpoints públicos costosos.
     Máximo 30 peticiones por minuto por IP.

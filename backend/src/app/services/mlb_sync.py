@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 from typing import Any
 
@@ -226,6 +227,9 @@ async def _upsert_game_from_schedule_item(
     *,
     fetch_details: bool,
     skip_team_upsert: bool = False,
+    prefetched_boxscore: dict[str, Any] | None = None,
+    prefetched_live_feed: dict[str, Any] | None = None,
+    prefetched_linescore: dict[str, Any] | None = None,
 ) -> Game:
     hid = item.get("home_team_id")
     aid = item.get("away_team_id")
@@ -253,16 +257,23 @@ async def _upsert_game_from_schedule_item(
     boxscore_json: dict[str, Any] | None = None
 
     if fetch_details:
-        try:
-            boxscore_json = await client.boxscore(item["game_pk"])
-        except Exception:
-            boxscore_json = None
+        if prefetched_boxscore is not None:
+            boxscore_json = prefetched_boxscore
+        else:
+            try:
+                boxscore_json = await client.boxscore(item["game_pk"])
+            except Exception:
+                boxscore_json = None
+                
         lineups_json = None
-        try:
-            live = await client.live_feed(item["game_pk"])
-            lineups_json = {"liveFeed": live}
-        except Exception:
-            pass
+        if prefetched_live_feed is not None:
+            lineups_json = {"liveFeed": prefetched_live_feed}
+        else:
+            try:
+                live = await client.live_feed(item["game_pk"])
+                lineups_json = {"liveFeed": live}
+            except Exception:
+                pass
         if lineups_json is None and boxscore_json is not None:
             extracted = lineups_from_boxscore(boxscore_json)
             if extracted is not None:
@@ -280,7 +291,7 @@ async def _upsert_game_from_schedule_item(
             away_score = ba
     if home_score is None or away_score is None:
         try:
-            ls = await client.linescore(item["game_pk"])
+            ls = prefetched_linescore if prefetched_linescore is not None else await client.linescore(item["game_pk"])
             lh, la = scores_from_linescore_payload(ls)
             if home_score is None:
                 home_score = lh
@@ -351,26 +362,53 @@ async def sync_games_for_date(
     *,
     fetch_details: bool = True,
 ) -> list[Game]:
-    """Fetch MLB schedule for a date, upsert teams/games, optionally boxscore + live lineups."""
-    # Llamar a la API MLB *antes* de tocar la BD. Con NullPool + PgBouncer, un checkout ocioso
-    # durante el HTTP hace que cierren la conexión (ConnectionDoesNotExistError) o ERRNO 49 bajo carga.
     raw = await client.schedule(date_str)
     parsed = parse_schedule_games(raw)
     await _set_local_statement_timeout_for_mlb_write(session)
     await _upsert_teams_for_full_schedule(session, parsed)
     await session.commit()
+    
+    valid_items = [item for item in parsed if item.get("home_team_id") is not None and item.get("away_team_id") is not None]
+    
+    prefetched_data: dict[int, tuple[Any, Any, Any]] = {}
+    if fetch_details:
+        async def _fetch_all(item: dict[str, Any]) -> tuple[int, Any, Any, Any]:
+            pk = item["game_pk"]
+            box = live = ls = None
+            try: box = await client.boxscore(pk)
+            except Exception: pass
+            try: live = await client.live_feed(pk)
+            except Exception: pass
+            
+            hs, aws = item.get("home_score"), item.get("away_score")
+            if hs is None or aws is None:
+                needs_ls = True
+                if box:
+                    bh, ba = _scores_from_boxscore(box)
+                    if (hs is not None or bh is not None) and (aws is not None or ba is not None):
+                        needs_ls = False
+                if needs_ls:
+                    try: ls = await client.linescore(pk)
+                    except Exception: pass
+            return pk, box, live, ls
+            
+        results = await asyncio.gather(*(_fetch_all(it) for it in valid_items))
+        for pk, box, live, ls in results:
+            prefetched_data[pk] = (box, live, ls)
+            
     games: list[Game] = []
-    for item in parsed:
-        hid = item.get("home_team_id")
-        aid = item.get("away_team_id")
-        if hid is None or aid is None:
-            continue
+    for item in valid_items:
+        pk = item["game_pk"]
+        box, live, ls = prefetched_data.get(pk, (None, None, None))
         g = await _upsert_game_from_schedule_item(
             session,
             client,
             item,
             fetch_details=fetch_details,
             skip_team_upsert=True,
+            prefetched_boxscore=box,
+            prefetched_live_feed=live,
+            prefetched_linescore=ls,
         )
         games.append(g)
     return games
