@@ -3,7 +3,7 @@ import time
 from fastapi import Request, HTTPException
 
 _api_rate_limits: dict[str, list[float]] = collections.defaultdict(list)
-API_MAX_REQUESTS = 15
+API_MAX_REQUESTS = 30
 API_WINDOW_SECONDS = 60
 
 async def rate_limit_public_api(request: Request) -> None:
