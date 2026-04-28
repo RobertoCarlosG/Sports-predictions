@@ -232,9 +232,11 @@ async def _upsert_game_from_schedule_item(
     if hid is None or aid is None:
         raise ValueError("schedule item missing team ids")
     if not skip_team_upsert:
+        await _set_local_statement_timeout_for_mlb_write(session)
         for tid, name, abbr, vid, vname in _home_away_team_specs(item):
             await upsert_team(session, tid, name, abbr, vid, vname)
         await session.flush()
+        await session.commit()
 
     gd = dt.date.fromisoformat(str(item["game_date"]))
     gdt: dt.datetime | None = None
@@ -245,8 +247,8 @@ async def _upsert_game_from_schedule_item(
         except ValueError:
             gdt = None
 
-    result = await session.execute(select(Game).where(Game.game_pk == item["game_pk"]))
-    game = result.scalar_one_or_none()
+    # 1) Solo HTTP: sin conexión a Postgres en uso (no SELECT antes). Evita "commit+SET LOCAL"
+    #    en una sesión con NullPool, que en asyncpg dejaba conexión inválida.
     lineups_json: dict[str, Any] | None = None
     boxscore_json: dict[str, Any] | None = None
 
@@ -296,6 +298,10 @@ async def _upsert_game_from_schedule_item(
         if sp_a is not None:
             away_starter = sp_a
 
+    await _set_local_statement_timeout_for_mlb_write(session)
+    result = await session.execute(select(Game).where(Game.game_pk == item["game_pk"]))
+    game = result.scalar_one_or_none()
+
     if game is None:
         game = Game(
             game_pk=item["game_pk"],
@@ -334,6 +340,7 @@ async def _upsert_game_from_schedule_item(
             game.away_starter_id = away_starter
 
     await session.flush()
+    await session.commit()
     return game
 
 
@@ -345,10 +352,13 @@ async def sync_games_for_date(
     fetch_details: bool = True,
 ) -> list[Game]:
     """Fetch MLB schedule for a date, upsert teams/games, optionally boxscore + live lineups."""
-    await _set_local_statement_timeout_for_mlb_write(session)
+    # Llamar a la API MLB *antes* de tocar la BD. Con NullPool + PgBouncer, un checkout ocioso
+    # durante el HTTP hace que cierren la conexión (ConnectionDoesNotExistError) o ERRNO 49 bajo carga.
     raw = await client.schedule(date_str)
     parsed = parse_schedule_games(raw)
+    await _set_local_statement_timeout_for_mlb_write(session)
     await _upsert_teams_for_full_schedule(session, parsed)
+    await session.commit()
     games: list[Game] = []
     for item in parsed:
         hid = item.get("home_team_id")
@@ -374,7 +384,6 @@ async def sync_single_game(
     fetch_details: bool = True,
 ) -> Game | None:
     """Upsert un partido por `game_pk` usando el schedule de MLB (sin recorrer todo el día)."""
-    await _set_local_statement_timeout_for_mlb_write(session)
     raw = await client.schedule_for_game(game_pk)
     parsed = parse_schedule_games(raw)
     item = next((x for x in parsed if x["game_pk"] == game_pk), None)

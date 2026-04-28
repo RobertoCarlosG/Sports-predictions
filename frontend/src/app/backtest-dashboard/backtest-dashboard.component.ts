@@ -22,7 +22,8 @@ import {
   type BacktestResponse,
 } from '../services/admin-api.service';
 
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 @Component({
   selector: 'app-backtest-dashboard',
@@ -216,7 +217,7 @@ export class BacktestDashboardComponent implements OnInit, OnDestroy {
     this.triggerDownload(blob, `backtest-${this.dateFrom}-${this.dateTo}.csv`);
   }
 
-  exportXlsx(): void {
+  async exportXlsx(): Promise<void> {
     const g = this.report?.games;
     if (!g?.length) {
       return;
@@ -238,10 +239,20 @@ export class BacktestDashboardComponent implements OnInit, OnDestroy {
       ou_correct: row.ou_correct,
       success_label: row.success_label,
     }));
-    const ws = XLSX.utils.json_to_sheet(flat);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Backtest');
-    XLSX.writeFile(wb, `backtest-${this.dateFrom}-${this.dateTo}.xlsx`);
+    
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Backtest');
+    
+    const headers = Object.keys(flat[0]);
+    worksheet.addRow(headers);
+    
+    flat.forEach(row => {
+      worksheet.addRow(Object.values(row));
+    });
+    
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, `backtest-${this.dateFrom}-${this.dateTo}.xlsx`);
   }
 
   private csvEscape(v: unknown): string {

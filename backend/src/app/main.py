@@ -27,7 +27,11 @@ log = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    app.state.http_client = httpx.AsyncClient(timeout=30.0)
+    # Límites explícitos evitan abrir demasiados sockets simultáneos (en macOS puede aparecer Errno 49).
+    app.state.http_client = httpx.AsyncClient(
+        timeout=30.0,
+        limits=httpx.Limits(max_connections=40, max_keepalive_connections=20),
+    )
     app.state.backfill_job = initial_backfill_job_state()
     model_path = resolve_model_path(settings.ml_model_path)
     if not model_path.is_file() and settings.ml_auto_synthetic_on_missing:

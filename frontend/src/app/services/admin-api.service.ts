@@ -105,8 +105,13 @@ export class AdminApiService {
   /** Indica si la última comprobación local considera sesión válida (cookie HttpOnly). */
   private sessionOk = false;
 
-  private opts(): { withCredentials: boolean } {
-    return { withCredentials: true };
+  private opts(): { withCredentials: true, headers?: { [key: string]: string } } {
+    return { 
+      withCredentials: true,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    };
   }
 
   /** Sin cookie: indica si el API tiene ADMIN_JWT_SECRET (si no, login devuelve 503). */

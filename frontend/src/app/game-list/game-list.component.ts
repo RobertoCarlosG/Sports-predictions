@@ -1,12 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Component, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, NavigationEnd, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { forkJoin, of } from 'rxjs';
+import { debounceTime, defer, filter, forkJoin, map, merge, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+
+import { environment } from '../../environments/environment';
 
 /** Asegura `YYYY-MM-DD` para comparar con las fechas pedidas (API puede mandar sufijo de tiempo). */
 function isoDateOnly(raw: string | undefined | null): string {
@@ -28,6 +31,17 @@ import type { GameDetail, GamesListMeta } from '../models/game';
 import { GamesApiService } from '../services/games-api.service';
 import { currentSeasonDateBounds } from '../utils/date-bounds';
 
+/** Entrada de caché por rango de fechas (evita GET repetidos al volver a Hoy/Mañana/Semana). */
+interface GamesListCacheEntry {
+  games: GameDetail[];
+  listMeta: GamesListMeta | null;
+  homeWinByPk: Record<number, number | null>;
+}
+
+function cacheKeyForDates(dates: string[]): string {
+  return dates.slice().sort().join('|');
+}
+
 @Component({
   selector: 'app-game-list',
   standalone: true,
@@ -45,8 +59,9 @@ import { currentSeasonDateBounds } from '../utils/date-bounds';
   templateUrl: './game-list.component.html',
   styleUrl: './game-list.component.scss',
 })
-export class GameListComponent implements OnInit {
+export class GameListComponent {
   private readonly api = inject(GamesApiService);
+  private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
   readonly seasonBounds = currentSeasonDateBounds();
@@ -90,19 +105,78 @@ export class GameListComponent implements OnInit {
 
   private lastSelection: string[] = [];
 
+  /** useMemo a nivel de petición: mismas fechas = restaurar sin HTTP. `retry` usa `force`. */
+  private readonly listCache = new Map<string, GamesListCacheEntry>();
+
   /**
    * Evita condición de carrera entre peticiones HTTP (p. ej. cambiar chip rápido).
    * Los `computed`/signals solo memorizan derivados en memoria; no sustituyen este control.
    */
   private loadGeneration = 0;
 
-  ngOnInit(): void {
-    const raw = this.route.snapshot.data['datePreset'] as DateChipPreset | undefined;
-    if (raw != null) {
-      this.hideDateChips = true;
-      const b = this.seasonBounds;
-      this.onDateSelection(buildDateSelectionForPreset(raw, b.min, b.max));
+  constructor() {
+    // `defer` = URL tras bootstrap; luego cada `NavigationEnd` (cambio real de ruta hija /mlb/...).
+    // `debounceTime(0)` agrupa defer + primer NavigationEnd en el mismo turno; no uses `distinctUntilChanged`
+    // solo por URL, o si el primer tick lee `datePreset` null aún, el segundo tick no se pierde.
+    merge(
+      defer(() => of(this.router.url)),
+      this.router.events.pipe(
+        filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+        map((e) => e.urlAfterRedirects),
+      ),
+    )
+      .pipe(debounceTime(0), takeUntilDestroyed())
+      .subscribe(() => this.applyDatePresetFromRouter());
+  }
+
+  /**
+   * En rutas hermanas (`/mlb/today` → `/mlb/tomorrow`) Angular puede reutilizar el mismo
+   * `GameListComponent` y el `snapshot.data` del `ActivatedRoute` inyectado a veces **no** se actualiza
+   * a tiempo → `datePreset` se queda en `today` y «Mañana» pedía el mismo `date=` que Hoy.
+   * La **URL** del `Router` es la fuente de verdad; `data` queda de respaldo.
+   */
+  private readDatePresetFromTree(): DateChipPreset | null {
+    const fromUrl = this.presetFromRouterUrl();
+    if (fromUrl != null) {
+      return fromUrl;
     }
+    const own = this.route.snapshot.data['datePreset'];
+    if (typeof own === 'string' && own !== '') {
+      return own as DateChipPreset;
+    }
+    let r: ActivatedRoute | null = this.router.routerState.root;
+    let last: DateChipPreset | null = null;
+    while (r) {
+      const p = r.snapshot.data['datePreset'];
+      if (typeof p === 'string' && p !== '') {
+        last = p as DateChipPreset;
+      }
+      r = r.firstChild;
+    }
+    return last;
+  }
+
+  /** Deriva `today|tomorrow|week` del path activo, p. ej. `/mlb/tomorrow` */
+  private presetFromRouterUrl(): DateChipPreset | null {
+    const path = (this.router.url || '').split('?')[0].split('#')[0];
+    const m = /\/mlb\/(today|tomorrow|week)(?:\/|$)/i.exec(path);
+    if (m?.[1]) {
+      return m[1].toLowerCase() as DateChipPreset;
+    }
+    return null;
+  }
+
+  private applyDatePresetFromRouter(): void {
+    const preset = this.readDatePresetFromTree();
+    if (preset == null) {
+      return;
+    }
+    this.hideDateChips = true;
+    const b = this.seasonBounds;
+    const sel = buildDateSelectionForPreset(preset, b.min, b.max);
+    // Navegación intencional (Hoy/Mañana/Semana): la URL ya cambió; no bloquear con clave de fechas.
+    // Si el usuario vuelve al mismo preset más tarde, `loadForDates` puede usar caché por `cacheKey` si aplica.
+    this.onDateSelection(sel);
   }
 
   onDateSelection(sel: DateChipSelection): void {
@@ -136,7 +210,7 @@ export class GameListComponent implements OnInit {
     this.loadError.set(false);
     const sel = this.lastSelection;
     if (sel.length > 0) {
-      this.loadForDates(sel);
+      this.loadForDates(sel, { force: true });
     }
   }
 
@@ -150,7 +224,8 @@ export class GameListComponent implements OnInit {
     return sel.dates[0];
   }
 
-  private loadForDates(dates: string[]): void {
+  private loadForDates(dates: string[], options?: { force?: boolean }): void {
+    const force = options?.force === true;
     this.lastSelection = dates;
     if (dates.length === 0) {
       this.games.set([]);
@@ -158,6 +233,29 @@ export class GameListComponent implements OnInit {
       this.listMeta.set(null);
       return;
     }
+    const cacheKey = cacheKeyForDates(dates);
+    if (!force) {
+      const hit = this.listCache.get(cacheKey);
+      if (hit != null) {
+        if (!environment.production) {
+          console.log(
+            '[GameList] cache hit — sin HTTP; clave:',
+            cacheKey,
+            '(usa force/reintento o cambia rango para volver a pedir al API)',
+          );
+        }
+        this.listMeta.set(hit.listMeta);
+        this.games.set(hit.games);
+        this.homeWinByPk.set(hit.homeWinByPk);
+        this.loading.set(false);
+        this.loadError.set(false);
+        this.predictionsLoading.set(false);
+        return;
+      }
+    } else {
+      this.listCache.delete(cacheKey);
+    }
+
     const gen = ++this.loadGeneration;
     this.loading.set(true);
     this.loadError.set(false);
@@ -192,10 +290,16 @@ export class GameListComponent implements OnInit {
         this.games.set(merged);
         this.loading.set(false);
         if (merged.length > 0 && !('prediction' in merged[0])) {
-          this.loadPredictions(merged, gen);
+          this.loadPredictions(merged, gen, cacheKey);
         } else {
           this.applyPredictionsFromPayload(merged);
           this.predictionsLoading.set(false);
+          this.putListCache(
+            cacheKey,
+            merged,
+            { warnings, info, missing_snapshot_count: missingTotal },
+            this.homeWinByPk(),
+          );
         }
       },
       error: () => {
@@ -206,6 +310,19 @@ export class GameListComponent implements OnInit {
         this.loadError.set(true);
         this.games.set([]);
       },
+    });
+  }
+
+  private putListCache(
+    key: string,
+    games: GameDetail[],
+    meta: GamesListMeta,
+    homeWin: Record<number, number | null>,
+  ): void {
+    this.listCache.set(key, {
+      games,
+      listMeta: meta,
+      homeWinByPk: { ...homeWin },
     });
   }
 
@@ -238,7 +355,7 @@ export class GameListComponent implements OnInit {
   }
 
   /** API antiguo sin ``prediction`` en el JSON: una petición /predict por partido. */
-  private loadPredictions(games: GameDetail[], gen: number): void {
+  private loadPredictions(games: GameDetail[], gen: number, cacheKey: string): void {
     if (games.length === 0) {
       return;
     }
@@ -254,11 +371,18 @@ export class GameListComponent implements OnInit {
         }
         const map: Record<number, number | null> = {};
         preds.forEach((p, i) => {
-          const pk = games[i].game_pk;
+          const pk = games[i]!.game_pk;
           map[pk] = p ? p.home_win_probability : null;
         });
         this.homeWinByPk.set(map);
         this.predictionsLoading.set(false);
+        const m = this.listMeta();
+        this.putListCache(
+          cacheKey,
+          this.games(),
+          m ?? { warnings: [], info: [], missing_snapshot_count: 0 },
+          map,
+        );
       },
       error: () => {
         if (gen !== this.loadGeneration) {

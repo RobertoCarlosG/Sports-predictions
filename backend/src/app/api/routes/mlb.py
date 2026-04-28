@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.deps_rate_limit import rate_limit_public_api
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.mlb import Game, Team
@@ -87,7 +88,7 @@ async def list_mlb_history(
     return out
 
 
-@router.post("/sync-range", response_model=MlbSyncRangeResponse)
+@router.post("/sync-range", response_model=MlbSyncRangeResponse, dependencies=[Depends(rate_limit_public_api)])
 async def sync_mlb_date_range(
     body: MlbSyncRangeBody,
     request: Request,
@@ -142,7 +143,7 @@ async def sync_mlb_date_range(
     )
 
 
-@router.post("/games/{game_pk}/sync", response_model=GameDetailResponse)
+@router.post("/games/{game_pk}/sync", response_model=GameDetailResponse, dependencies=[Depends(rate_limit_public_api)])
 async def sync_mlb_single_game(
     game_pk: int,
     body: MlbSyncGameBody,

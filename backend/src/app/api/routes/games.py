@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.deps_rate_limit import rate_limit_public_api
 from app.core.config import settings
 from app.db.session import get_db
 from app.ml.predictor import MlbPredictionService
@@ -119,7 +120,7 @@ async def _compute_or_cache_prediction(
         return None
 
 
-@router.get("/games", response_model=GamesListResponse)
+@router.get("/games", response_model=GamesListResponse, dependencies=[Depends(rate_limit_public_api)])
 async def list_games(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -263,7 +264,7 @@ async def get_game(
     return game_detail_response(game, game.weather, pred)
 
 
-@router.post("/games/{game_pk}/weather", response_model=GameDetailResponse)
+@router.post("/games/{game_pk}/weather", response_model=GameDetailResponse, dependencies=[Depends(rate_limit_public_api)])
 async def refresh_weather(
     game_pk: int,
     request: Request,

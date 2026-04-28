@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import collections
 import datetime as dt
 import json
 import logging
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Annotated
 
@@ -71,6 +73,18 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 BACKEND_ROOT = Path(__file__).resolve().parents[4]
+
+_login_attempts: dict[str, list[float]] = collections.defaultdict(list)
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_WINDOW_SECONDS = 60
+
+def _check_login_rate_limit(ip: str) -> None:
+    now = time.time()
+    attempts = _login_attempts[ip]
+    attempts[:] = [t for t in attempts if now - t < LOGIN_WINDOW_SECONDS]
+    if len(attempts) >= LOGIN_MAX_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Demasiados intentos. Por favor espera.")
+    attempts.append(now)
 
 
 def _session_after_fresh_login(username: str) -> AdminSessionResponse:
@@ -217,10 +231,13 @@ async def admin_bootstrap_first_user(
 
 @router.post("/auth/login", response_model=AdminSessionResponse)
 async def admin_login(
+    request: Request,
     response: Response,
     body: AdminLoginBody,
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> AdminSessionResponse:
+    ip = request.client.host if request.client else "unknown"
+    _check_login_rate_limit(ip)
     try:
         username, token = await login_with_password(body.username, body.password, session)
     except AdminAuthError as e:
@@ -394,7 +411,17 @@ async def admin_train_model(
     body: TrainModelBody,
     _username: AdminUserDep,
 ) -> TrainResultResponse:
-    out = body.output or str(BACKEND_ROOT / "src/app/ml/artifacts/model.joblib")
+    out_path_str = body.output or str(BACKEND_ROOT / "src/app/ml/artifacts/model.joblib")
+    out_path = Path(out_path_str).resolve()
+    artifacts_dir = (BACKEND_ROOT / "src/app/ml/artifacts").resolve()
+    
+    if not out_path.is_relative_to(artifacts_dir):
+        raise HTTPException(
+            status_code=400, 
+            detail="El path de output debe estar dentro de app/ml/artifacts/"
+        )
+        
+    out = str(out_path)
     cmd = [
         sys.executable,
         "-m",

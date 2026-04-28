@@ -11,10 +11,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 
-import { Observable, Subscription, catchError, interval, of, take } from 'rxjs';
-import { finalize, startWith, switchMap } from 'rxjs/operators';
+import { Observable, Subscription, TimeoutError, catchError, interval, of, take } from 'rxjs';
+import { finalize, startWith, switchMap, timeout } from 'rxjs/operators';
 
 import { BacktestDashboardComponent } from '../backtest-dashboard/backtest-dashboard.component';
 import {
@@ -41,6 +42,7 @@ import { AdminOpResultData, AdminOpResultDialogComponent } from '../admin-panel/
     MatInputModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
+    MatSnackBarModule,
     MatTabsModule,
     BacktestDashboardComponent,
   ],
@@ -51,6 +53,7 @@ export class OperationsComponent implements OnInit, OnDestroy {
   private readonly admin = inject(AdminApiService);
   private readonly games = inject(GamesApiService);
   private readonly dialog = inject(MatDialog);
+  private readonly snack = inject(MatSnackBar);
 
   private backfillPollSub: Subscription | null = null;
 
@@ -100,9 +103,21 @@ export class OperationsComponent implements OnInit, OnDestroy {
     this.admin
       .authReady()
       .pipe(
+        timeout(30_000),
         take(1),
-        catchError(() => {
+        catchError((err) => {
+          if (err instanceof TimeoutError) {
+            this.configBanner =
+              'El servidor no respondió a tiempo. Comprueba la red, la URL del API o que el servicio esté en marcha.';
+            this.snack.open(
+              'Timeout al comprobar el servidor. Revisa la conexión o el despliegue del API.',
+              'Cerrar',
+              { duration: 8_000 },
+            );
+            return of<AdminAuthReadyResponse | null>(null);
+          }
           this.configBanner = 'No se pudo contactar al API o comprobar la configuración.';
+          this.snack.open(this.configBanner, 'Cerrar', { duration: 6_000 });
           return of<AdminAuthReadyResponse | null>(null);
         }),
         switchMap((r) => {
@@ -179,30 +194,25 @@ export class OperationsComponent implements OnInit, OnDestroy {
       },
       error: (err: unknown) => {
         this.loginLoading = false;
+        let message = 'No se pudo iniciar sesión. Revisa usuario y contraseña.';
         if (err instanceof HttpErrorResponse) {
           const raw = err.error;
-          if (raw && typeof raw === 'object') {
+          if (raw && typeof raw === 'object' && err.status === 503) {
             const o = raw as { message?: unknown; detail?: unknown };
             const msg = o.message != null ? String(o.message).trim() : '';
             const det = o.detail != null ? String(o.detail).trim() : '';
-            if (err.status === 503) {
-              if (msg) {
-                this.loginError = msg;
-                return;
-              }
-              if (det === 'database_schema_missing') {
-                this.loginError =
-                  'La base de datos no tiene las tablas necesarias (p. ej. admin_users). Ejecuta en Supabase/Postgres el script backend/sql/002_prediction_cache_and_admin.sql.';
-                return;
-              }
-              if (det) {
-                this.loginError = det;
-                return;
-              }
+            if (msg) {
+              message = msg;
+            } else if (det === 'database_schema_missing') {
+              message =
+                'La base de datos no tiene las tablas necesarias (p. ej. admin_users). Ejecuta en Supabase/Postgres el script backend/sql/002_prediction_cache_and_admin.sql.';
+            } else if (det) {
+              message = det;
             }
           }
         }
-        this.loginError = 'No se pudo iniciar sesión. Revisa usuario y contraseña.';
+        this.loginError = message;
+        this.snack.open(message, 'Cerrar', { duration: 9_000 });
       },
     });
   }
