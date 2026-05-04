@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, tap, throwError } from 'rxjs';
 
 import { environment } from '../../environments/environment';
+import { RequestCache } from './request-cache';
 
 /** Respuesta de GET /admin/auth/ready (público). */
 export interface AdminAuthReadyResponse {
@@ -114,6 +115,13 @@ export class AdminApiService {
     };
   }
 
+  /**
+   * Reportes de backtest (consulta agregada y pesada en BD).
+   * `shareReplay(1)` + TTL ~5min para que cambiar el slider de confianza sin tocar
+   * fechas no relance la query.
+   */
+  private readonly backtestCache = new RequestCache<BacktestResponse>({ ttlMs: 300_000 });
+
   /** Sin cookie: indica si el API tiene ADMIN_JWT_SECRET (si no, login devuelve 503). */
   authReady(): Observable<AdminAuthReadyResponse> {
     return this.http.get<AdminAuthReadyResponse>(`${this.base}/auth/ready`);
@@ -147,6 +155,7 @@ export class AdminApiService {
     return this.http.post<MessageResponse>(`${this.base}/auth/logout`, {}, this.opts()).pipe(
       tap(() => {
         this.sessionOk = false;
+        this.backtestCache.clear();
       }),
     );
   }
@@ -171,19 +180,25 @@ export class AdminApiService {
   }
 
   rebuildSnapshots(season: string | null, window: number): Observable<MessageResponse> {
-    return this.http.post<MessageResponse>(
-      `${this.base}/pipeline/rebuild-snapshots`,
-      { season: season || null, window },
-      this.opts(),
-    );
+    return this.http
+      .post<MessageResponse>(
+        `${this.base}/pipeline/rebuild-snapshots`,
+        { season: season || null, window },
+        this.opts(),
+      )
+      .pipe(tap(() => this.backtestCache.clear()));
   }
 
   clearPredictionCache(): Observable<MessageResponse> {
-    return this.http.post<MessageResponse>(`${this.base}/pipeline/clear-prediction-cache`, {}, this.opts());
+    return this.http
+      .post<MessageResponse>(`${this.base}/pipeline/clear-prediction-cache`, {}, this.opts())
+      .pipe(tap(() => this.backtestCache.clear()));
   }
 
   reloadModel(): Observable<MessageResponse> {
-    return this.http.post<MessageResponse>(`${this.base}/model/reload`, {}, this.opts());
+    return this.http
+      .post<MessageResponse>(`${this.base}/model/reload`, {}, this.opts())
+      .pipe(tap(() => this.backtestCache.clear()));
   }
 
   trainModel(body: {
@@ -195,7 +210,9 @@ export class AdminApiService {
     max_depth?: number;
     min_samples_leaf?: number;
   }): Observable<TrainResultResponse> {
-    return this.http.post<TrainResultResponse>(`${this.base}/pipeline/train`, body, this.opts());
+    return this.http
+      .post<TrainResultResponse>(`${this.base}/pipeline/train`, body, this.opts())
+      .pipe(tap(() => this.backtestCache.clear()));
   }
 
   backfill(start: string, end: string, fetchDetails: boolean, sleepS: number): Observable<MessageResponse> {
@@ -221,20 +238,30 @@ export class AdminApiService {
     );
   }
 
-  getBacktestReport(params: {
-    dateFrom: string;
-    dateTo: string;
-    minConfidence: number;
-    skipEmptyDays: boolean;
-  }): Observable<BacktestResponse> {
-    let httpParams = new HttpParams()
-      .set('date_from', params.dateFrom)
-      .set('date_to', params.dateTo)
-      .set('min_confidence', String(params.minConfidence))
-      .set('skip_empty_days', String(params.skipEmptyDays));
-    return this.http.get<BacktestResponse>(`${this.base}/predictions/backtest`, {
-      ...this.opts(),
-      params: httpParams,
-    });
+  getBacktestReport(
+    params: {
+      dateFrom: string;
+      dateTo: string;
+      minConfidence: number;
+      skipEmptyDays: boolean;
+    },
+    options?: { force?: boolean },
+  ): Observable<BacktestResponse> {
+    const key = `${params.dateFrom}|${params.dateTo}|${params.minConfidence}|${params.skipEmptyDays}`;
+    return this.backtestCache.get(
+      key,
+      () => {
+        const httpParams = new HttpParams()
+          .set('date_from', params.dateFrom)
+          .set('date_to', params.dateTo)
+          .set('min_confidence', String(params.minConfidence))
+          .set('skip_empty_days', String(params.skipEmptyDays));
+        return this.http.get<BacktestResponse>(`${this.base}/predictions/backtest`, {
+          ...this.opts(),
+          params: httpParams,
+        });
+      },
+      options?.force === true,
+    );
   }
 }

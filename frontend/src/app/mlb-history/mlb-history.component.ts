@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { FilterDrawerComponent } from '../components/filter-drawer/filter-drawer.component';
 import { FriendlyErrorBannerComponent } from '../components/friendly-error-banner/friendly-error-banner.component';
@@ -37,6 +38,7 @@ type QuickRange = 'last7' | 'month' | 'season';
     MatInputModule,
     MatProgressSpinnerModule,
     MatSelectModule,
+    MatTooltipModule,
     FilterDrawerComponent,
     MatchCardComponent,
     FriendlyErrorBannerComponent,
@@ -111,20 +113,23 @@ export class MlbHistoryComponent implements OnInit {
     }
   }
 
-  load(): void {
+  load(options?: { force?: boolean }): void {
     this.loading = true;
     this.loadError = false;
     this.api
-      .listMlbHistory({
-        season: this.season.trim() || undefined,
-        team_id: this.teamId === '' ? undefined : Number(this.teamId),
-        from: this.dateFrom || undefined,
-        to: this.dateTo || undefined,
-        only_final: this.onlyFinal,
-        only_with_scores: this.onlyWithScores,
-        limit: this.limit,
-        offset: 0,
-      })
+      .listMlbHistory(
+        {
+          season: this.season.trim() || undefined,
+          team_id: this.teamId === '' ? undefined : Number(this.teamId),
+          from: this.dateFrom || undefined,
+          to: this.dateTo || undefined,
+          only_final: this.onlyFinal,
+          only_with_scores: this.onlyWithScores,
+          limit: this.limit,
+          offset: 0,
+        },
+        { force: options?.force === true },
+      )
       .subscribe({
         next: (g) => {
           this.games = g;
@@ -138,7 +143,12 @@ export class MlbHistoryComponent implements OnInit {
   }
 
   retryLoad(): void {
-    this.load();
+    this.load({ force: true });
+  }
+
+  /** Botón «Actualizar»: ignora caché del servicio y vuelve a pedir el rango actual al backend. */
+  forceReload(): void {
+    this.load({ force: true });
   }
 
   runSyncRange(): void {

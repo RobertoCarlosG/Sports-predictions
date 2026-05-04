@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps_rate_limit import rate_limit_public_api
+from app.api.deps_rate_limit import rate_limit_public_read, rate_limit_public_write
 from app.db.session import get_db
 from app.ml.predictor import MlbPredictionService
 from app.services.prediction_cache import get_cached_prediction, upsert_prediction_cache
@@ -30,7 +30,11 @@ def _get_prediction_service(request: Request) -> MlbPredictionService:
     return svc
 
 
-@router.get("/predict/{game_pk}", response_model=PredictionResponse)
+@router.get(
+    "/predict/{game_pk}",
+    response_model=PredictionResponse,
+    dependencies=[Depends(rate_limit_public_read)],
+)
 async def predict_game(
     game_pk: int,
     request: Request,
@@ -60,7 +64,11 @@ async def predict_game(
     return out
 
 
-@router.post("/predict/{game_pk}/refresh", response_model=PredictionResponse, dependencies=[Depends(rate_limit_public_api)])
+@router.post(
+    "/predict/{game_pk}/refresh",
+    response_model=PredictionResponse,
+    dependencies=[Depends(rate_limit_public_write)],
+)
 async def refresh_prediction_game(
     game_pk: int,
     request: Request,

@@ -15,6 +15,21 @@
   min-width: 0;
 }
 
+.head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.reload-btn {
+  align-self: flex-start;
+}
+
+.btn-spinner {
+  margin-right: 6px;
+}
+
 .title {
   margin: 0 0 6px;
   font-size: 1.5rem;

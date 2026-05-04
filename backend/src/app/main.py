@@ -32,6 +32,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         timeout=30.0,
         limits=httpx.Limits(max_connections=40, max_keepalive_connections=20),
     )
+    # Evita GET /games duplicados (misma fecha/flags) ejecutando dos syncs MLB en paralelo.
+    app.state.games_list_inflight = {}
     app.state.backfill_job = initial_backfill_job_state()
     model_path = resolve_model_path(settings.ml_model_path)
     if not model_path.is_file() and settings.ml_auto_synthetic_on_missing:

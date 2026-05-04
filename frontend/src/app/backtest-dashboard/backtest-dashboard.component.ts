@@ -120,16 +120,19 @@ export class BacktestDashboardComponent implements OnInit, OnDestroy {
     this.confidence$.next(this.minConfidence);
   }
 
-  load(): void {
+  load(options?: { force?: boolean }): void {
     this.loading = true;
     this.error = null;
     this.admin
-      .getBacktestReport({
-        dateFrom: this.dateFrom,
-        dateTo: this.dateTo,
-        minConfidence: this.minConfidence,
-        skipEmptyDays: this.skipEmptyDays,
-      })
+      .getBacktestReport(
+        {
+          dateFrom: this.dateFrom,
+          dateTo: this.dateTo,
+          minConfidence: this.minConfidence,
+          skipEmptyDays: this.skipEmptyDays,
+        },
+        { force: options?.force === true },
+      )
       .subscribe({
         next: (r) => {
           this.report = r;
@@ -141,6 +144,11 @@ export class BacktestDashboardComponent implements OnInit, OnDestroy {
           this.error = this.formatLoadError(err);
         },
       });
+  }
+
+  /** Acción explícita del botón «Actualizar»: fuerza ignorar la caché del servicio. */
+  refresh(): void {
+    this.load({ force: true });
   }
 
   private applyChartData(r: BacktestResponse): void {

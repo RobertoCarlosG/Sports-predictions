@@ -7,8 +7,12 @@ import time
 
 class MlbRateLimiter:
     """
-    Tras `burst_size` peticiones, espera `cooldown_seconds` antes de abrir otra ráfaga.
-    Por defecto: 5 llamadas y luego ~25 s de pausa (~10–12 peticiones/min en ráfagas).
+    Tras `burst_size` peticiones, espera `cooldown_seconds` antes de otra ráfaga.
+
+    El `asyncio.sleep` ocurre **fuera** del lock: varias coroutines pueden avanzar
+    en paralelo (p. ej. `asyncio.gather` sobre partidos) sin serializar cada HTTP.
+
+    Defaults vía `Settings` (p. ej. ~20 ráfaga / 1 s pausa); 0 burst = desactivado.
     """
 
     def __init__(self, burst_size: int, cooldown_seconds: float) -> None:
@@ -19,17 +23,24 @@ class MlbRateLimiter:
         self._burst_start = 0.0
 
     async def acquire(self) -> None:
-        async with self._lock:
-            now = time.monotonic()
-            if self._count >= self._burst_size:
-                elapsed = now - self._burst_start
-                wait = max(0.0, self._cooldown - elapsed)
-                if wait > 0:
-                    await asyncio.sleep(wait)
+        while True:
+            wait_time = 0.0
+            async with self._lock:
+                now = time.monotonic()
+                if self._count >= self._burst_size:
+                    elapsed = now - self._burst_start
+                    wait_time = max(0.0, self._cooldown - elapsed)
+                    if wait_time <= 0:
+                        self._count = 0
+                        continue
+                else:
+                    self._count += 1
+                    if self._count == 1:
+                        self._burst_start = time.monotonic()
+                    return
+            await asyncio.sleep(wait_time)
+            async with self._lock:
                 self._count = 0
-            if self._count == 0:
-                self._burst_start = time.monotonic()
-            self._count += 1
 
 
 _limiter: MlbRateLimiter | None = None

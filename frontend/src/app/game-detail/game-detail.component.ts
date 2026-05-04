@@ -75,10 +75,11 @@ export class GameDetailComponent implements OnInit {
     if (this.gamePk == null) {
       return;
     }
-    void this.loadGame(this.gamePk);
+    void this.loadGame(this.gamePk, { force: true });
   }
 
-  private loadGame(gamePk: number): void {
+  private loadGame(gamePk: number, options?: { force?: boolean }): void {
+    const force = options?.force === true;
     this.loading = true;
     this.loadError = false;
     this.refreshError = false;
@@ -86,7 +87,7 @@ export class GameDetailComponent implements OnInit {
     this.predictionRefreshIsError = false;
     this.prediction = null;
     this.headToHead = [];
-    this.api.getGame(gamePk).subscribe({
+    this.api.getGame(gamePk, { force }).subscribe({
       next: (g) => {
         this.game = g;
         this.loading = false;
@@ -94,7 +95,7 @@ export class GameDetailComponent implements OnInit {
           this.prediction = g.prediction ?? null;
           this.predLoading = false;
         } else {
-          this.loadPrediction(gamePk);
+          this.loadPrediction(gamePk, { force });
         }
         this.loadHeadToHead(g);
       },
@@ -106,9 +107,9 @@ export class GameDetailComponent implements OnInit {
     });
   }
 
-  private loadPrediction(gamePk: number): void {
+  private loadPrediction(gamePk: number, options?: { force?: boolean }): void {
     this.predLoading = true;
-    this.api.predict(gamePk).subscribe({
+    this.api.predict(gamePk, { force: options?.force === true }).subscribe({
       next: (p) => {
         this.prediction = p;
         this.predLoading = false;
@@ -171,8 +172,8 @@ export class GameDetailComponent implements OnInit {
         switchMap((g) => {
           this.game = g;
           return forkJoin({
-            detail: this.api.getGame(pk).pipe(catchError(() => of(g))),
-            pred: this.api.predict(pk).pipe(catchError(() => of(null))),
+            detail: this.api.getGame(pk, { force: true }).pipe(catchError(() => of(g))),
+            pred: this.api.predict(pk, { force: true }).pipe(catchError(() => of(null))),
           });
         }),
       )

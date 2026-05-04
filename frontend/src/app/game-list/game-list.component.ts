@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { debounceTime, defer, filter, forkJoin, map, merge, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
@@ -52,6 +53,7 @@ function cacheKeyForDates(dates: string[]): string {
     MatCardModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
     DateChipSelectorComponent,
     MatchCardComponent,
     FriendlyErrorBannerComponent,
@@ -214,6 +216,15 @@ export class GameListComponent {
     }
   }
 
+  /**
+   * Acción explícita del botón «Actualizar»: ignora cachés (componente y servicio)
+   * y vuelve a pedir al backend. Útil si el usuario sabe que hubo una nueva sincronización
+   * o predicción y la respuesta cacheada en cliente quedó desfasada antes del TTL.
+   */
+  forceReload(): void {
+    this.retry();
+  }
+
   private formatDateSummary(sel: DateChipSelection): string {
     if (sel.dates.length === 0) {
       return '';
@@ -270,7 +281,7 @@ export class GameListComponent {
       missing_snapshot_count: 0,
     });
     const reqs = dates.map((d) =>
-      this.api.listGames(d, true).pipe(
+      this.api.listGames(d, true, { force }).pipe(
         catchError(() => of({ games: [], meta: emptyMeta() })),
       ),
     );
@@ -290,7 +301,7 @@ export class GameListComponent {
         this.games.set(merged);
         this.loading.set(false);
         if (merged.length > 0 && !('prediction' in merged[0])) {
-          this.loadPredictions(merged, gen, cacheKey);
+          this.loadPredictions(merged, gen, cacheKey, force);
         } else {
           this.applyPredictionsFromPayload(merged);
           this.predictionsLoading.set(false);
@@ -355,14 +366,19 @@ export class GameListComponent {
   }
 
   /** API antiguo sin ``prediction`` en el JSON: una petición /predict por partido. */
-  private loadPredictions(games: GameDetail[], gen: number, cacheKey: string): void {
+  private loadPredictions(
+    games: GameDetail[],
+    gen: number,
+    cacheKey: string,
+    force = false,
+  ): void {
     if (games.length === 0) {
       return;
     }
     this.predictionsLoading.set(true);
     forkJoin(
       games.map((g) =>
-        this.api.predict(g.game_pk).pipe(catchError(() => of(null))),
+        this.api.predict(g.game_pk, { force }).pipe(catchError(() => of(null))),
       ),
     ).subscribe({
       next: (preds) => {

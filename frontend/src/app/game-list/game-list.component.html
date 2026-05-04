@@ -4,13 +4,31 @@
       <h1 class="title">{{ pageTitle() }}</h1>
       <p class="lede">{{ pageLede() }}</p>
     </div>
-    @if (!hideDateChips) {
-      <app-date-chip-selector
-        [minIso]="seasonBounds.min"
-        [maxIso]="seasonBounds.max"
-        (selectionChange)="onDateSelection($event)"
-      />
-    }
+    <div class="head-actions">
+      <button
+        mat-stroked-button
+        type="button"
+        class="reload-btn"
+        (click)="forceReload()"
+        [disabled]="loading()"
+        matTooltip="Vuelve a pedir los datos al servidor ignorando la caché del navegador"
+        aria-label="Actualizar partidos"
+      >
+        @if (loading()) {
+          <mat-spinner class="btn-spinner" diameter="18" />
+        } @else {
+          <mat-icon aria-hidden="true">refresh</mat-icon>
+        }
+        Actualizar
+      </button>
+      @if (!hideDateChips) {
+        <app-date-chip-selector
+          [minIso]="seasonBounds.min"
+          [maxIso]="seasonBounds.max"
+          (selectionChange)="onDateSelection($event)"
+        />
+      }
+    </div>
   </header>
 
   <mat-card class="pipeline-hint" appearance="outlined">

@@ -39,6 +39,22 @@
           Temporada
         </button>
       </div>
+      <button
+        mat-stroked-button
+        type="button"
+        class="reload-btn"
+        (click)="forceReload()"
+        [disabled]="loading"
+        matTooltip="Vuelve a pedir el histórico al servidor ignorando la caché"
+        aria-label="Actualizar histórico"
+      >
+        @if (loading) {
+          <mat-spinner class="btn-spinner" diameter="18" />
+        } @else {
+          <mat-icon aria-hidden="true">refresh</mat-icon>
+        }
+        Actualizar
+      </button>
       <button mat-stroked-button type="button" (click)="fd.open()">
         <mat-icon aria-hidden="true">tune</mat-icon>
         Filtros

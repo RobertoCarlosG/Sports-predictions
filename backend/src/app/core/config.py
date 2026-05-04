@@ -28,8 +28,13 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:4200"
     mlb_api_base_url: str = "https://statsapi.mlb.com/api/v1"
     # Límite global MLB: tras N peticiones, pausa (0 = desactivado).
-    mlb_api_rate_limit_burst_size: int = 5
-    mlb_api_rate_limit_cooldown_seconds: float = 25.0
+    # Defaults más permisivos: statsapi no publica cupo; el lock ya no serializa el sleep.
+    mlb_api_rate_limit_burst_size: int = 20
+    mlb_api_rate_limit_cooldown_seconds: float = 1.0
+    # Rate limit HTTP propio (por IP, en memoria por proceso). Lectura vs escritura costosa.
+    api_rate_limit_read_max_requests: int = 120
+    api_rate_limit_write_max_requests: int = 30
+    api_rate_limit_window_seconds: int = 60
     open_meteo_base_url: str = "https://api.open-meteo.com/v1"
     # Path to bundled stadium coordinates (JSON) relative to cwd or absolute
     mlb_stadiums_path: str = "src/app/data/mlb_stadiums.json"

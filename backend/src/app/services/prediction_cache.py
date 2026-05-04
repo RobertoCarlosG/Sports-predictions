@@ -72,6 +72,43 @@ async def upsert_prediction_cache(
         row.predicted_winner = predicted_winner
 
 
+async def evaluate_predictions_for_final_games(session: AsyncSession, games: list[Game]) -> None:
+    """
+    Evalúa predicciones contra el marcador para varios partidos en una sola pasada
+    (un SELECT de `prediction_results` por `IN` en lugar de N consultas).
+    """
+    candidates: list[Game] = []
+    for g in games:
+        if g.home_score is None or g.away_score is None:
+            continue
+        if not _is_final_status_for_eval(g.status):
+            continue
+        candidates.append(g)
+    if not candidates:
+        return
+    pks = [g.game_pk for g in candidates]
+    result = await session.execute(
+        select(GamePredictionCache).where(GamePredictionCache.game_pk.in_(pks))
+    )
+    caches = {row.game_pk: row for row in result.scalars().all()}
+    now = dt.datetime.now(dt.UTC)
+    for g in candidates:
+        pred_row = caches.get(g.game_pk)
+        if pred_row is None:
+            continue
+        if g.home_score > g.away_score:
+            actual_winner = "home"
+        elif g.away_score > g.home_score:
+            actual_winner = "away"
+        else:
+            actual_winner = "tie"
+        pred_side = ml_pick_from_home_win_probability(float(pred_row.home_win_probability))
+        pred_row.predicted_winner = pred_side
+        pred_row.actual_winner = actual_winner
+        pred_row.is_correct = pred_side == actual_winner
+        pred_row.evaluated_at = now
+
+
 async def evaluate_prediction(
     session: AsyncSession,
     game_pk: int,

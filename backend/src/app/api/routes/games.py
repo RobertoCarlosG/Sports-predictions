@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import logging
 from typing import Annotated
@@ -9,17 +10,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps_rate_limit import rate_limit_public_api
+from app.api.deps_rate_limit import rate_limit_public_read, rate_limit_public_write
 from app.core.config import settings
 from app.db.session import get_db
 from app.ml.predictor import MlbPredictionService
-from app.models.mlb import Game, GameFeatureSnapshot, GameWeather
+from app.models.mlb import Game, GameFeatureSnapshot, GamePredictionCache, GameWeather
 from app.schemas.games import GameDetailResponse, GamesListMeta, GamesListResponse, PredictionResponse
 from app.schemas.team_display import team_out_from_model
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_sync import sync_games_for_date
 from app.services.pipeline_hooks import refresh_prediction_cache_for_games
-from app.services.prediction_cache import get_cached_prediction, upsert_prediction_cache, evaluate_prediction
+from app.services.prediction_cache import (
+    evaluate_predictions_for_final_games,
+    get_cached_prediction,
+    upsert_prediction_cache,
+)
 from app.services.prediction_infer import prediction_response_from_result
 from app.services.weather_open_meteo import upsert_weather_for_game
 
@@ -66,6 +71,8 @@ async def _compute_or_cache_prediction(
     game: Game,
     snapshot: GameFeatureSnapshot | None,
     cache_reason: str,
+    *,
+    pred_cache_row: GamePredictionCache | None = None,
 ) -> PredictionResponse | None:
     svc: MlbPredictionService | None = getattr(request.app.state, "prediction_service", None)
     if svc is None:
@@ -73,6 +80,20 @@ async def _compute_or_cache_prediction(
     model_version = svc.model_version
     request.app.state.active_model_version = model_version
     if model_version:
+        if pred_cache_row is not None and pred_cache_row.model_version == model_version:
+            return PredictionResponse(
+                game_pk=pred_cache_row.game_pk,
+                home_win_probability=pred_cache_row.home_win_probability,
+                total_runs_estimate=pred_cache_row.total_runs_estimate,
+                over_under_line=pred_cache_row.over_under_line,
+                model_version=pred_cache_row.model_version,
+                predicted_winner=pred_cache_row.predicted_winner,
+                actual_winner=pred_cache_row.actual_winner,
+                is_correct=pred_cache_row.is_correct,
+                evaluated_at=pred_cache_row.evaluated_at.isoformat()
+                if pred_cache_row.evaluated_at
+                else None,
+            )
         cached = await get_cached_prediction(session, game.game_pk, model_version)
         if cached is not None:
             return cached
@@ -120,20 +141,14 @@ async def _compute_or_cache_prediction(
         return None
 
 
-@router.get("/games", response_model=GamesListResponse, dependencies=[Depends(rate_limit_public_api)])
-async def list_games(
+async def _list_games_impl(
     request: Request,
     background_tasks: BackgroundTasks,
-    session: Annotated[AsyncSession, Depends(get_db)],
-    game_date: Annotated[dt.date, Query(alias="date")],
-    sync: Annotated[bool, Query(description="Fetch from MLB API and upsert")] = True,
-    fetch_details: Annotated[bool, Query(description="Fetch boxscore and live feed")] = True,
-    include_predictions: Annotated[
-        bool,
-        Query(
-            description="Incluir estimación ML por partido (misma lógica que GET /predict/{game_pk})."
-        ),
-    ] = True,
+    session: AsyncSession,
+    game_date: dt.date,
+    sync: bool,
+    fetch_details: bool,
+    include_predictions: bool,
 ) -> GamesListResponse:
     client = MlbApiClient(settings.mlb_api_base_url, request.app.state.http_client)
     if sync:
@@ -154,24 +169,26 @@ async def list_games(
         )
     )
     rows = result.scalars().unique().all()
-    
+
     if sync and rows:
-        for g in rows:
-            game_status_lower = g.status.lower()
-            is_final = any(status in game_status_lower for status in ["final", "completed", "game over"])
-            if is_final and g.home_score is not None and g.away_score is not None:
-                try:
-                    await evaluate_prediction(session, g.game_pk)
-                except Exception:
-                    log.warning("Failed to evaluate prediction for game_pk=%s", g.game_pk, exc_info=True)
+        try:
+            await evaluate_predictions_for_final_games(session, rows)
+        except Exception:
+            log.warning("evaluate_predictions_for_final_games failed", exc_info=True)
         await session.commit()
-    
+
     snap_by_pk: dict[int, GameFeatureSnapshot] = {}
+    pred_by_pk: dict[int, GamePredictionCache] = {}
     meta_warnings: list[str] = []
     meta_info: list[str] = []
     missing_snapshots: list[int] = []
     if include_predictions and rows:
         pks = [g.game_pk for g in rows]
+        res_pc = await session.execute(
+            select(GamePredictionCache).where(GamePredictionCache.game_pk.in_(pks))
+        )
+        for row_pc in res_pc.scalars().all():
+            pred_by_pk[row_pc.game_pk] = row_pc
         res_sn = await session.execute(
             select(GameFeatureSnapshot).where(GameFeatureSnapshot.game_pk.in_(pks))
         )
@@ -206,7 +223,12 @@ async def list_games(
         pred: PredictionResponse | None = None
         if include_predictions:
             pred = await _compute_or_cache_prediction(
-                request, session, g, snap_by_pk.get(g.game_pk), "list_games"
+                request,
+                session,
+                g,
+                snap_by_pk.get(g.game_pk),
+                "list_games",
+                pred_cache_row=pred_by_pk.get(g.game_pk),
             )
         out.append(game_detail_response(g, g.weather, pred))
     if sync and rows and settings.pipeline_auto_cache_predictions:
@@ -224,7 +246,54 @@ async def list_games(
     return GamesListResponse(games=out, meta=meta)
 
 
-@router.get("/games/{game_pk}", response_model=GameDetailResponse)
+@router.get("/games", response_model=GamesListResponse, dependencies=[Depends(rate_limit_public_read)])
+async def list_games(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    session: Annotated[AsyncSession, Depends(get_db)],
+    game_date: Annotated[dt.date, Query(alias="date")],
+    sync: Annotated[bool, Query(description="Fetch from MLB API and upsert")] = True,
+    fetch_details: Annotated[bool, Query(description="Fetch boxscore and live feed")] = True,
+    include_predictions: Annotated[
+        bool,
+        Query(
+            description="Incluir estimación ML por partido (misma lógica que GET /predict/{game_pk})."
+        ),
+    ] = True,
+) -> GamesListResponse:
+    key = (game_date.isoformat(), sync, fetch_details, include_predictions)
+    if not hasattr(request.app.state, "games_list_inflight"):
+        request.app.state.games_list_inflight = {}
+    inflight: dict[tuple[object, ...], asyncio.Task[GamesListResponse]] = (
+        request.app.state.games_list_inflight
+    )
+    if key in inflight:
+        return await inflight[key]
+
+    async def _run() -> GamesListResponse:
+        return await _list_games_impl(
+            request,
+            background_tasks,
+            session,
+            game_date,
+            sync,
+            fetch_details,
+            include_predictions,
+        )
+
+    task = asyncio.create_task(_run())
+    inflight[key] = task
+    try:
+        return await task
+    finally:
+        inflight.pop(key, None)
+
+
+@router.get(
+    "/games/{game_pk}",
+    response_model=GameDetailResponse,
+    dependencies=[Depends(rate_limit_public_read)],
+)
 async def get_game(
     request: Request,
     game_pk: int,
@@ -264,7 +333,11 @@ async def get_game(
     return game_detail_response(game, game.weather, pred)
 
 
-@router.post("/games/{game_pk}/weather", response_model=GameDetailResponse, dependencies=[Depends(rate_limit_public_api)])
+@router.post(
+    "/games/{game_pk}/weather",
+    response_model=GameDetailResponse,
+    dependencies=[Depends(rate_limit_public_write)],
+)
 async def refresh_weather(
     game_pk: int,
     request: Request,

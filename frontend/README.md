@@ -27,6 +27,10 @@ ng test
 
 Este README no sustituye la documentación del monorepo: [../docs/README.md](../docs/README.md).
 
+## Documentación específica del frontend
+
+- [docs/CACHE-HTTP-FRONTEND.md](docs/CACHE-HTTP-FRONTEND.md) — caché HTTP con `shareReplay(1)`, botón «Actualizar» y diagramas Mermaid del flujo Hoy → Mañana → Hoy, decisión interna de `RequestCache.get`, force refresh y mutaciones.
+
 ## Origen del proyecto
 
 Generado con [Angular CLI](https://github.com/angular/angular-cli); versiones concretas en `package.json` y `angular.json`.
