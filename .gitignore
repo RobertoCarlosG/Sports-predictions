@@ -21,8 +21,8 @@ build/
 htmlcov/
 *.cover
 
-# Solo la carpeta docs en la raíz del repo (no backend/docs/*)
-/docs/
+# La carpeta `docs/` del monorepo (vision, estatus, migraciones) sí se versiona.
+# Si necesitas ignorar documentación generada local, usa un path más específico.
 
 # Caché local de pip-audit (no versionar)
 .pip-audit-cache/
