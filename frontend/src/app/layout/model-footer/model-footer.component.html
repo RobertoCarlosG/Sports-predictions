@@ -1,0 +1,22 @@
+@if (info(); as data) {
+  <footer
+    class="model-footer"
+    [matTooltip]="tooltip()"
+    matTooltipPosition="above"
+    [ngClass]="{
+      'model-footer--synthetic': data.is_synthetic,
+      'model-footer--missing': !data.model_loaded
+    }"
+  >
+    <mat-icon class="model-footer__icon" aria-hidden="true">
+      {{ data.is_synthetic ? 'science' : data.model_loaded ? 'verified' : 'warning' }}
+    </mat-icon>
+    <span class="model-footer__label">{{ statusLabel() }}</span>
+    @if (data.loaded_at; as loadedAt) {
+      <span class="model-footer__sep" aria-hidden="true">·</span>
+      <span class="model-footer__loaded">
+        cargado {{ loadedAt | date: 'shortDate' }}
+      </span>
+    }
+  </footer>
+}

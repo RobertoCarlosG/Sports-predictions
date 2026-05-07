@@ -129,3 +129,48 @@ class PredictionEvaluationsResponse(BaseModel):
     
     items: list[PredictionEvaluationItem]
     total: int
+
+
+class PublicModelInfoResponse(BaseModel):
+    """Información mínima del modelo activo (endpoint público).
+
+    Lo que ve un usuario anónimo: qué versión está sirviendo y desde cuándo, sin
+    métricas detalladas. Las métricas se exponen solo a operadores autenticados.
+    """
+
+    model_loaded: bool
+    model_version: str | None = None
+    base_version: str | None = None
+    is_synthetic: bool = False
+    loaded_at: str | None = Field(
+        default=None, description="ISO-8601 UTC: cuándo se cargó este modelo en memoria."
+    )
+
+
+class AdminModelVersionItem(BaseModel):
+    """Fila completa de model_versions para operadores."""
+
+    id: int
+    model_version: str
+    base_version: str
+    loaded_at: str
+    file_mtime: str | None = None
+    file_size_bytes: int | None = None
+    is_synthetic: bool
+    trained_on_games: int | None = None
+    val_accuracy_home: float | None = None
+    val_mae_total_runs: float | None = None
+    val_proba_home_std: float | None = None
+    split_mode: str | None = None
+    val_from_requested: str | None = None
+    feature_names: list[str] | None = None
+    loaded_by: str | None = None
+    notes: str | None = None
+    is_active: bool
+
+
+class AdminModelVersionsResponse(BaseModel):
+    """Histórico paginado de modelos cargados."""
+
+    items: list[AdminModelVersionItem]
+    total: int

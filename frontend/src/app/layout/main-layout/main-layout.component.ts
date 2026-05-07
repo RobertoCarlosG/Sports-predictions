@@ -1,6 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
+import { ModelInfoService } from '../../services/model-info.service';
+import { ModelFooterComponent } from '../model-footer/model-footer.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 
 /**
@@ -11,8 +13,14 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [SidebarComponent, RouterOutlet],
+  imports: [SidebarComponent, RouterOutlet, ModelFooterComponent],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.scss',
 })
-export class MainLayoutComponent {}
+export class MainLayoutComponent implements OnInit {
+  private readonly modelInfo = inject(ModelInfoService);
+
+  ngOnInit(): void {
+    this.modelInfo.start();
+  }
+}

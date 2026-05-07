@@ -173,6 +173,27 @@
                   <strong>Modelo activo</strong> &nbsp;
                   <code class="ver-tag">{{ activeModelVersion }}</code>
                 </p>
+                @if (publicModelInfo(); as mi) {
+                  @if (mi.model_loaded && !isSyntheticModel()) {
+                    <p class="model-line model-meta__detail">
+                      Tipo: <strong>real</strong> ({{ mi.base_version }})
+                      @if (mi.loaded_at) {
+                        · cargado {{ mi.loaded_at | date: 'medium' }}
+                      }
+                    </p>
+                  }
+                  @if (isSyntheticModel()) {
+                    <div class="synthetic-banner" role="alert">
+                      <mat-icon aria-hidden="true">science</mat-icon>
+                      <div>
+                        <strong>Atención:</strong> el modelo activo es el sintético de fallback
+                        (<code>{{ mi.base_version }}</code>). Las predicciones no usan datos reales.
+                        Entrena un modelo real con el botón <em>Entrenar (rf-db-v1)</em> y luego
+                        recarga.
+                      </div>
+                    </div>
+                  }
+                }
                 <p class="model-line last-sync" [class.muted]="!lastQuickSyncAt">
                   <strong>Última sync. rápida (API, día actual):</strong>
                   @if (lastQuickSyncAt) {

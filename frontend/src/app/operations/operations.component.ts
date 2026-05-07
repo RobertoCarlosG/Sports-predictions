@@ -26,6 +26,7 @@ import {
   type BackfillJobStatusResponse,
 } from '../services/admin-api.service';
 import { GamesApiService } from '../services/games-api.service';
+import { ModelInfoService } from '../services/model-info.service';
 import { toIsoDate } from '../utils/date-bounds';
 import { AdminOpResultData, AdminOpResultDialogComponent } from '../admin-panel/admin-op-result-dialog.component';
 
@@ -54,8 +55,13 @@ import { AdminOpResultData, AdminOpResultDialogComponent } from '../admin-panel/
 export class OperationsComponent implements OnInit, OnDestroy {
   private readonly admin = inject(AdminApiService);
   private readonly games = inject(GamesApiService);
+  private readonly modelInfo = inject(ModelInfoService);
   private readonly dialog = inject(MatDialog);
   private readonly snack = inject(MatSnackBar);
+
+  /** Señal compartida con el footer; útil para mostrar banner sintético en /operations. */
+  protected readonly publicModelInfo = this.modelInfo.info;
+  protected readonly isSyntheticModel = this.modelInfo.isSynthetic;
 
   private backfillPollSub: Subscription | null = null;
 
@@ -358,19 +364,24 @@ export class OperationsComponent implements OnInit, OnDestroy {
   }
 
   reloadModel(): void {
-    this._run('Recargando modelo…', () => this.admin.reloadModel());
+    this._run('Recargando modelo…', () => this.admin.reloadModel(), {
+      onSuccess: () => this.modelInfo.refreshOnce(),
+    });
   }
 
   train(): void {
-    this._run('Entrenando (puede tardar varios minutos)…', () =>
-      this.admin.trainModel({
-        season: this.trainSeason.trim() || null,
-        val_from: this.trainValFrom.trim() || null,
-        model_version: this.trainModelVersion.trim() || 'rf-db-v1',
-        trees: this.trainTrees,
-        max_depth: this.trainMaxDepth,
-        min_samples_leaf: this.trainMinSamplesLeaf,
-      }),
+    this._run(
+      'Entrenando (puede tardar varios minutos)…',
+      () =>
+        this.admin.trainModel({
+          season: this.trainSeason.trim() || null,
+          val_from: this.trainValFrom.trim() || null,
+          model_version: this.trainModelVersion.trim() || 'rf-db-v1',
+          trees: this.trainTrees,
+          max_depth: this.trainMaxDepth,
+          min_samples_leaf: this.trainMinSamplesLeaf,
+        }),
+      { onSuccess: () => this.modelInfo.refreshOnce() },
     );
   }
 
@@ -524,6 +535,7 @@ export class OperationsComponent implements OnInit, OnDestroy {
       stdout_tail?: string | null;
       training_meta?: Record<string, unknown> | null;
     }>,
+    options?: { onSuccess?: () => void },
   ): void {
     this.busy = true;
     this.lastActionMessage = label;
@@ -551,6 +563,7 @@ export class OperationsComponent implements OnInit, OnDestroy {
           success: true,
         });
         void this.refreshStatus();
+        options?.onSuccess?.();
       },
       error: (err: unknown) => {
         this.busy = false;

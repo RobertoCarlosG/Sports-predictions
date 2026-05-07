@@ -141,3 +141,38 @@ class AdminUser(Base):
         nullable=False,
         server_default=func.now(),
     )
+
+
+class ModelVersion(Base):
+    """Historial y estado del modelo de predicción activo.
+
+    Una fila por carga (lifespan al arrancar o ``POST /admin/model/reload``).
+    ``is_active = True`` apunta al modelo cargado en memoria. La unicidad la
+    asegura un índice parcial en SQL (`ux_model_versions_active`).
+    """
+
+    __tablename__ = "model_versions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    model_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    base_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    loaded_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    file_mtime: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    file_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    trained_on_games: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    val_accuracy_home: Mapped[float | None] = mapped_column(Float, nullable=True)
+    val_mae_total_runs: Mapped[float | None] = mapped_column(Float, nullable=True)
+    val_proba_home_std: Mapped[float | None] = mapped_column(Float, nullable=True)
+    split_mode: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    val_from_requested: Mapped[dt.date | None] = mapped_column(nullable=True)
+    feature_names_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    loaded_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

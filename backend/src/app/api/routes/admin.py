@@ -26,10 +26,18 @@ from app.core.admin_security import (
 from app.core.config import settings
 from app.db.session import get_db
 from app.ml.predictor import MlbPredictionService, resolve_model_path
-from app.models.mlb import AdminUser, Game, GamePredictionCache, Team
+from app.models.mlb import (
+    AdminUser,
+    Game,
+    GamePredictionCache,
+    ModelVersion as ModelVersionModel,
+    Team,
+)
 from app.schemas.admin_api import (
     AdminAuthReadyResponse,
     AdminLoginBody,
+    AdminModelVersionItem,
+    AdminModelVersionsResponse,
     AdminSessionResponse,
     BackfillBody,
     BackfillJobStatusResponse,
@@ -60,6 +68,11 @@ from app.services.admin_backfill_state import (
 from app.services.feature_snapshots import rebuild_game_feature_snapshots
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_daily_snapshot import run_mlb_daily_snapshot
+from app.services.model_registry import (
+    backup_model_file,
+    list_model_versions,
+    record_model_load,
+)
 from app.services.pipeline_hooks import refresh_prediction_cache_for_games
 from app.services.prediction_cache import (
     clear_prediction_cache,
@@ -388,7 +401,11 @@ async def recompute_ml_evaluations(
 
 
 @router.post("/model/reload", response_model=MessageResponse)
-async def admin_reload_model(request: Request, _username: AdminUserDep) -> MessageResponse:
+async def admin_reload_model(
+    request: Request,
+    username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> MessageResponse:
     path = resolve_model_path(settings.ml_model_path)
     if not path.is_file():
         raise HTTPException(
@@ -400,10 +417,64 @@ async def admin_reload_model(request: Request, _username: AdminUserDep) -> Messa
     ver = svc.model_version
     request.app.state.active_model_version = ver
     request.app.state.prediction_service = svc
+    try:
+        await record_model_load(session, svc, loaded_by=username, notes="manual reload")
+        await session.commit()
+    except Exception:
+        log.warning(
+            "model_versions: no se pudo registrar la recarga (¿migración 006 aplicada?).",
+            exc_info=True,
+        )
     return MessageResponse(
         message="Modelo recargado en memoria.",
         detail=f"Versión: {ver}",
     )
+
+
+@router.get("/model/versions", response_model=AdminModelVersionsResponse)
+async def admin_model_versions(
+    _username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = Query(20, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+) -> AdminModelVersionsResponse:
+    """Histórico paginado de modelos cargados (orden: más reciente primero)."""
+    rows = await list_model_versions(session, limit=limit, offset=offset)
+    total = await session.scalar(select(func.count()).select_from(ModelVersionModel))
+    items: list[AdminModelVersionItem] = []
+    for r in rows:
+        feature_names: list[str] | None = None
+        if r.feature_names_json:
+            try:
+                parsed = json.loads(r.feature_names_json)
+                if isinstance(parsed, list):
+                    feature_names = [str(x) for x in parsed]
+            except json.JSONDecodeError:
+                feature_names = None
+        items.append(
+            AdminModelVersionItem(
+                id=r.id,
+                model_version=r.model_version,
+                base_version=r.base_version,
+                loaded_at=r.loaded_at.isoformat(),
+                file_mtime=r.file_mtime.isoformat() if r.file_mtime else None,
+                file_size_bytes=r.file_size_bytes,
+                is_synthetic=r.is_synthetic,
+                trained_on_games=r.trained_on_games,
+                val_accuracy_home=r.val_accuracy_home,
+                val_mae_total_runs=r.val_mae_total_runs,
+                val_proba_home_std=r.val_proba_home_std,
+                split_mode=r.split_mode,
+                val_from_requested=(
+                    r.val_from_requested.isoformat() if r.val_from_requested else None
+                ),
+                feature_names=feature_names,
+                loaded_by=r.loaded_by,
+                notes=r.notes,
+                is_active=r.is_active,
+            )
+        )
+    return AdminModelVersionsResponse(items=items, total=int(total or 0))
 
 
 @router.post("/pipeline/train", response_model=TrainResultResponse)
@@ -441,6 +512,11 @@ async def admin_train_model(
         cmd.extend(["--season", body.season])
     if body.val_from:
         cmd.extend(["--val-from", body.val_from])
+    # Backup antes de lanzar el entrenamiento: si el subprocess sobrescribe el joblib
+    # activo, tendremos una copia para rollback manual ante un mal entrenamiento.
+    backup_path = backup_model_file(out_path)
+    if backup_path is not None:
+        log.info("admin_train: backup previo en %s", backup_path)
     try:
         proc = subprocess.run(
             cmd,

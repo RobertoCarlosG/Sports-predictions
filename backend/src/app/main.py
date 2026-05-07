@@ -10,17 +10,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from starlette.responses import Response
 
-from app.api.routes import admin, games, health, mlb, predict
+from app.api.routes import admin, games, health, mlb, model, predict
 from app.core.config import settings
 from app.core.cors_utils import cors_headers_for_request
 from app.core.exception_handlers import (
     programming_error_handler,
     sqlalchemy_error_handler,
 )
-from app.db.session import engine
+from app.db.session import async_session_factory, engine
 from app.ml.predictor import MlbPredictionService, ensure_model_exists, resolve_model_path
 from app.services.admin_backfill_state import initial_backfill_job_state
 from app.services.mlb_daily_snapshot import daily_snapshot_loop_forever
+from app.services.model_registry import record_model_load
 
 log = logging.getLogger(__name__)
 
@@ -52,6 +53,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.prediction_service = svc
         app.state.active_model_version = svc.model_version
         log.info("ML model loaded from %s version=%s", model_path, app.state.active_model_version)
+        # Registrar en model_versions para auditoría / endpoint público.
+        # No fallar el arranque si la BD aún no tiene la tabla (migración 006 pendiente).
+        try:
+            async with async_session_factory() as session:
+                await record_model_load(session, svc, loaded_by=None, notes="lifespan startup")
+                await session.commit()
+        except Exception:
+            log.warning(
+                "model_versions: no se pudo registrar la carga inicial (¿migración 006 aplicada?).",
+                exc_info=True,
+            )
     else:
         log.warning(
             "No ML model at %s — predict endpoints return 503 until you train and reload or restart.",
@@ -101,6 +113,7 @@ def create_app() -> FastAPI:
     application.include_router(games.router, prefix="/api/v1", tags=["games"])
     application.include_router(mlb.router, prefix="/api/v1", tags=["mlb"])
     application.include_router(predict.router, prefix="/api/v1", tags=["predict"])
+    application.include_router(model.router, prefix="/api/v1", tags=["model"])
     application.include_router(admin.router, prefix="/api/v1", tags=["admin"])
 
     application.add_exception_handler(ProgrammingError, programming_error_handler)  # type: ignore[arg-type]
