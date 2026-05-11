@@ -9,9 +9,11 @@ Monorepo del **dashboard y API** del MVP **Sports-Predictions**: **MLB primero**
 | **API (FastAPI)** | Partidos por fecha y detalle, sync con MLB (rango acotado y por `game_pk`), historial, equipos, clima, predicción `/predict/{game_pk}` |
 | **Datos** | PostgreSQL: partidos, equipos, marcadores, JSON de box score, alineaciones (live o derivadas del box score en partidos finalizados) |
 | **Web (Angular)** | Listado por fecha, historial MLB (sync por rango día a día), detalle con box score legible, botones de actualizar clima y sincronizar un partido |
-| **Ops** | DDL en `backend/sql/`, despliegue documentado (Supabase + Render + Vercel) |
+| **Ops** | DDL en `backend/sql/`; Supabase / Render / Vercel cuando los configures por entorno |
 
-**Documentación del proyecto (visión, alcance, estado, despliegue):** carpeta **[docs/](docs/README.md)** — empezar por [docs/vision-y-alcance.md](docs/vision-y-alcance.md) y [docs/estatus-actual.md](docs/estatus-actual.md). Las reglas de estilo del workspace padre siguen en `../docs/` (p. ej. [estilo-programacion.md](../docs/estilo-programacion.md)); no se duplican aquí.
+La entrada **`/docs/`** del [`.gitignore`](.gitignore) hace que cualquier carpeta `docs/` en la **raíz del repositorio no forme parte del historial de Git** (equivalente a no publicar esa ruta con el código).
+
+Las reglas de estilo del **workspace padre** (fuera de este monorepo) pueden seguir tu convención en `Predictions/`; no las duplicamos aquí.
 
 ## Layout del repositorio
 
@@ -19,7 +21,8 @@ Monorepo del **dashboard y API** del MVP **Sports-Predictions**: **MLB primero**
 |------|-------------|
 | `backend/` | FastAPI, SQLAlchemy 2 async, PostgreSQL, pytest |
 | `frontend/` | Angular, build estática en `dist/browser` |
-| `docs/` | Visión, estado, despliegue, pendientes, errores de conexión |
+
+(Repositorio: la raíz `docs/` está excluida por `.gitignore`; no se muestra en esta tabla.)
 
 ## Quick start (local)
 
@@ -65,8 +68,8 @@ Si abres solo `Sports-Predictions/` como raíz del workspace, las rutas de `../.
 
 ## Despliegue
 
-Ver [docs/deploy.md](docs/deploy.md) (Supabase, Render, Vercel, CORS, salida de build **`dist/browser`** en Vercel).
+Patrón habitual: Postgres (p. ej. Supabase transaction pooler con `postgresql+asyncpg`), API en Render u otro host, frontend estático en Vercel con *Output Directory* `dist/browser`, y `CORS_ORIGINS` apuntando al origen web. Consulta variables en `backend/.env.example`.
 
 ## Conventions
 
-Conventional commits (`feat:`, `fix:`, …), ramas `feature/`, `bugfix/`, `docs/`, TDD en backend. Detalles de estilo: documentación en `../docs/`.
+Conventional commits (`feat:`, `fix:`, …), ramas `feature/` o `bugfix/`, tests en backend. Estilo de código según herramientas del repo (`ruff`, `black`, TypeScript strict en el front).

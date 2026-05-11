@@ -2,7 +2,7 @@
 
 La base se define y evoluciona con **archivos `.sql` versionados** en este directorio. No usamos Alembic: los cambios se aplican **a mano** en el **SQL Editor** de Supabase (o con `psql` contra tu `DATABASE_URL`).
 
-> **Detalle, dependencias y troubleshooting por archivo:** [`../../docs/migraciones.md`](../../docs/migraciones.md). Este README es la referencia rápida; el doc largo es la fuente de verdad.
+**Este README** resume orden, verificación y alta de operadores. La referencia humana de columnas está en [`schema.txt`](schema.txt).
 
 ## Orden de aplicación
 
@@ -99,10 +99,8 @@ Para más operadores: solo CLI (`create-admin`).
 
 ## Convenciones para nuevas migraciones
 
-Resumen (detalle en [`../../docs/migraciones.md`](../../docs/migraciones.md) §4):
-
 1. Nombre `<NN>_<descripcion-corta>.sql`. Próximo número libre: `007_`.
 2. Idempotentes (`IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, etc.).
 3. `COMMENT ON COLUMN` cuando el nombre no sea obvio.
-4. Sincronizar en el mismo PR: `schema.txt`, `docs/migraciones.md`, modelos SQLAlchemy en `src/app/models/mlb.py`.
+4. Sincronizar en el mismo cambio: este `README`, `schema.txt` y los modelos SQLAlchemy en `src/app/models/mlb.py`.
 5. Probar contra una BD vacía siguiendo la lista de aplicación de arriba.

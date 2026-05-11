@@ -1,6 +1,6 @@
 # Backend — Sports-Predictions
 
-API **FastAPI** para ingesta MLB, clima (Open-Meteo), predicción y persistencia en **PostgreSQL**. Visión y endpoints: [../docs/estatus-actual.md](../docs/estatus-actual.md).
+API **FastAPI** para ingesta MLB, clima (Open-Meteo), predicción y persistencia en **PostgreSQL**. Esquema y prefijos están en Swagger: `GET http://127.0.0.1:8000/docs` cuando el servidor está arrancado.
 
 ## Instalación y arranque
 
@@ -81,8 +81,6 @@ El panel **no programa cron**: los `game_feature_snapshots` existen tras **impor
 
 **Subir el modelo vía Git (provisional):** en este repo, `*.joblib` bajo `artifacts/` está en `.gitignore` salvo `model.joblib` (excepción explícita). Puedes copiar tu `model.joblib` entrenado a `backend/src/app/ml/artifacts/model.joblib` y `git add -f` solo ese fichero, o usar **Git LFS** si supera un tamaño cómodo. Vuelve a desplegar el servicio que copia el artefacto en la imagen/ disco.
 
-Orden detallado: ver `../../docs/PIPELINE_COMPLETO_TODO.md` (raíz del workspace Predictions).
-
 ## Rutas principales (prefijo `/api/v1` salvo `/health`)
 
 | Ruta | Descripción breve |
@@ -93,4 +91,4 @@ Orden detallado: ver `../../docs/PIPELINE_COMPLETO_TODO.md` (raíz del workspace
 | `POST /mlb/sync-range`, `POST /mlb/games/{game_pk}/sync` | Sincronización MLB |
 | `GET /predict/{game_pk}` | Predicción ML |
 
-Detalle completo: [../docs/estatus-actual.md](../docs/estatus-actual.md).
+Lista completa, parámetros y esquemas: documentación OpenAPI (`/docs` en el servidor).
