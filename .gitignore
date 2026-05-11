@@ -21,8 +21,8 @@ build/
 htmlcov/
 *.cover
 
-# La carpeta `docs/` del monorepo (vision, estatus, migraciones) sí se versiona.
-# Si necesitas ignorar documentación generada local, usa un path más específico.
+# Solo la carpeta docs en la raíz del repo (no backend/docs/*)
+/docs/
 
 # Caché local de pip-audit (no versionar)
 .pip-audit-cache/
@@ -51,4 +51,3 @@ backend/src/app/ml/artifacts/*.joblib
 !backend/src/app/ml/artifacts/model.joblib
 
 # Local docs symlink / parent (if copied)
-# Keep project docs/ tracked in Sports-Predictions/docs
