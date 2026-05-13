@@ -34,6 +34,17 @@ export interface GamesListResponse {
   meta: GamesListMeta;
 }
 
+export interface AsianHandicapSideOut {
+  team_abbr: string;
+  line: number;
+  cover_probability: number;
+}
+
+export interface AsianHandicapBlock {
+  home: AsianHandicapSideOut;
+  away: AsianHandicapSideOut;
+}
+
 export interface PredictionOut {
   game_pk: number;
   home_win_probability: number;
@@ -44,4 +55,5 @@ export interface PredictionOut {
   actual_winner?: 'home' | 'away' | 'tie' | null;
   is_correct?: boolean | null;
   evaluated_at?: string | null;
+  asian_handicap?: AsianHandicapBlock | null;
 }

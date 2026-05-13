@@ -27,6 +27,17 @@ class GameSummaryResponse(BaseModel):
     away_score: int | None = None
 
 
+class AsianHandicapSideOut(BaseModel):
+    team_abbr: str
+    line: float
+    cover_probability: float
+
+
+class AsianHandicapBlock(BaseModel):
+    home: AsianHandicapSideOut
+    away: AsianHandicapSideOut
+
+
 class PredictionResponse(BaseModel):
     game_pk: int
     home_win_probability: float
@@ -37,6 +48,7 @@ class PredictionResponse(BaseModel):
     actual_winner: str | None = None
     is_correct: bool | None = None
     evaluated_at: str | None = None
+    asian_handicap: AsianHandicapBlock | None = None
 
 
 class GameDetailResponse(GameSummaryResponse):

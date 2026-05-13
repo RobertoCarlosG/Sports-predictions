@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from starlette.responses import Response
 
-from app.api.routes import admin, games, health, mlb, model, predict
+from app.api.routes import admin, bets, games, health, mlb, model, predict, user_auth
 from app.core.config import settings
 from app.core.cors_utils import cors_headers_for_request
 from app.core.exception_handlers import (
@@ -115,6 +115,8 @@ def create_app() -> FastAPI:
     application.include_router(predict.router, prefix="/api/v1", tags=["predict"])
     application.include_router(model.router, prefix="/api/v1", tags=["model"])
     application.include_router(admin.router, prefix="/api/v1", tags=["admin"])
+    application.include_router(user_auth.router, prefix="/api/v1")
+    application.include_router(bets.router, prefix="/api/v1")
 
     application.add_exception_handler(ProgrammingError, programming_error_handler)  # type: ignore[arg-type]
     application.add_exception_handler(SQLAlchemyError, sqlalchemy_error_handler)  # type: ignore[arg-type]

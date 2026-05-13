@@ -8,7 +8,7 @@ Monorepo del **dashboard y API** del MVP **Sports-Predictions**: **MLB primero**
 |------|-----------|
 | **API (FastAPI)** | Partidos por fecha y detalle, sync con MLB (rango acotado y por `game_pk`), historial, equipos, clima, predicción `/predict/{game_pk}` |
 | **Datos** | PostgreSQL: partidos, equipos, marcadores, JSON de box score, alineaciones (live o derivadas del box score en partidos finalizados) |
-| **Web (Angular)** | Listado por fecha, historial MLB (sync por rango día a día), detalle con box score legible, botones de actualizar clima y sincronizar un partido |
+| **Web (Angular)** | Listado por fecha, historial MLB (sync por rango día a día), detalle con box score legible, **control de apuestas** (`/bets`, sesión Google + bancos y periodos) |
 | **Ops** | DDL en `backend/sql/`; Supabase / Render / Vercel cuando los configures por entorno |
 
 La entrada **`/docs/`** del [`.gitignore`](.gitignore) hace que cualquier carpeta `docs/` en la **raíz del repositorio no forme parte del historial de Git** (equivalente a no publicar esa ruta con el código).
@@ -35,8 +35,7 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 cp .env.example .env
 # Set DATABASE_URL a tu PostgreSQL local, luego:
-# Crear tablas: ejecuta `backend/sql/001_initial_schema.sql` y `002_prediction_cache_and_admin.sql`
-# (ver `backend/sql/README.md`).
+# Crear tablas: ejecuta los scripts en `backend/sql/` en orden (ver `backend/sql/README.md`), incluido `007_app_users_and_bets.sql` si usarás `/bets`.
 # Panel Operaciones: en .env pon ADMIN_JWT_SECRET y crea el primer usuario (tras pip install -e ".[dev]"):
 #   create-admin --username admin --password 'tu-seguro'
 #   # o: PYTHONPATH=src python3 -m app.cli.create_admin --username admin --password '...'

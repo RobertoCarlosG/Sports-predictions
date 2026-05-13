@@ -61,6 +61,21 @@ class Settings(BaseSettings):
     admin_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     admin_cookie_secure: bool = False
     admin_cookie_domain: str | None = None
+    # Secreto HS256 para JWT de usuarios finales (control de apuestas / Google OAuth). Vacío = rutas /auth deshabilitadas.
+    user_jwt_secret: str = ""
+    user_token_expire_minutes: int = 10080  # 7 días
+    user_cookie_name: str = "sp_user_session"
+    user_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+    user_cookie_secure: bool = False
+    user_cookie_domain: str | None = None
+    # Google OAuth (control de apuestas)
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = ""  # ej. https://api.example.com/api/v1/auth/google/callback
+    # Tras login OAuth, redirige el navegador aquí (SPA). Default local Angular /bets.
+    oauth_post_login_redirect: str = "http://localhost:4200/bets"
+    # Cookie de corta duración para validar `state` en callback OAuth.
+    oauth_state_cookie_name: str = "sp_oauth_state"
     # Exponer trazas/mensajes técnicos en JSON de error (solo desarrollo)
     debug: bool = False
     # Solo si DATABASE_URL apunta a un host con IPv4 (p. ej. add-on IPv4 Supabase). Free tier + direct 5432
@@ -71,7 +86,7 @@ class Settings(BaseSettings):
     # 0 = no fijar al conectar (sigue el default del servidor); el sync aún usa mín. 300s en esa transacción.
     database_statement_timeout_seconds: int = 300
 
-    @field_validator("admin_jwt_secret", "admin_bootstrap_secret", mode="before")
+    @field_validator("admin_jwt_secret", "admin_bootstrap_secret", "user_jwt_secret", mode="before")
     @classmethod
     def _strip_secret_fields(cls, v: object) -> object:
         if isinstance(v, str):
@@ -83,6 +98,8 @@ class Settings(BaseSettings):
         self.database_url = normalize_async_database_url(self.database_url)
         if self.admin_cookie_domain == "":
             self.admin_cookie_domain = None
+        if self.user_cookie_domain == "":
+            self.user_cookie_domain = None
         return self
 
 

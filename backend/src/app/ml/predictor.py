@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 import os
 from pathlib import Path
 from typing import Any
@@ -38,6 +38,46 @@ def _model_version_with_signature(base_version: str, signature: _ModelSignature)
 def _half_run_total_line(total_runs: float) -> float:
     """Sportsbook-style total: always show a .5 line derived from the model estimate."""
     return max(0.5, math.floor(total_runs) + 0.5)
+
+
+def _poisson_pmf(k: int, lam: float) -> float:
+    if lam <= 0:
+        return 1.0 if k == 0 else 0.0
+    return math.exp(k * math.log(lam) - lam - math.lgamma(k + 1))
+
+
+def spread_cover_probability_home(lam_h: float, lam_a: float, line_home: float) -> float:
+    """P(home - away > -line_home) con runs independientes Poisson."""
+    threshold = -float(line_home)
+    max_r = int(min(80, lam_h + lam_a + 10 * math.sqrt(max(lam_h, lam_a) + 1.0)))
+    prob = 0.0
+    for h in range(max_r + 1):
+        ph = _poisson_pmf(h, lam_h)
+        if ph < 1e-12:
+            continue
+        for a in range(max_r + 1):
+            if h - a > threshold:
+                prob += ph * _poisson_pmf(a, lam_a)
+    return max(0.0, min(1.0, prob))
+
+
+def compute_asian_handicap(
+    p_home: float,
+    total_runs: float,
+    home_abbr: str,
+    away_abbr: str,
+) -> dict[str, dict[str, float | str]]:
+    lam_h = max(0.05, float(total_runs) * float(p_home))
+    lam_a = max(0.05, float(total_runs) * (1.0 - float(p_home)))
+    run_diff = lam_h - lam_a
+    home_line = round(run_diff * 2.0) / 2.0
+    if home_line == 0.0:
+        home_line = 0.5 if run_diff >= 0 else -0.5
+    ph = spread_cover_probability_home(lam_h, lam_a, home_line)
+    return {
+        "home": {"team_abbr": home_abbr, "line": home_line, "cover_probability": round(ph, 4)},
+        "away": {"team_abbr": away_abbr, "line": -home_line, "cover_probability": round(1.0 - ph, 4)},
+    }
 
 
 def _align_x_to_forest(

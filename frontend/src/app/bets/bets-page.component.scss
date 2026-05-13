@@ -1,0 +1,133 @@
+.bets-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 2rem;
+}
+
+.loading {
+  padding: 2rem;
+  text-align: center;
+}
+
+.notice-card,
+.hero-card,
+.block {
+  margin-bottom: 1rem;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.who .email {
+  font-weight: 600;
+}
+
+.muted {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.tiny {
+  font-size: 0.85rem;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.full {
+  width: 100%;
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.main-two {
+  mat-form-field {
+    flex: 1 1 200px;
+  }
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.chip-closed {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.period-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.stats-dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.stats-dl dt {
+  font-size: 0.8rem;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.stats-dl dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.roi-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 0.5rem 0;
+}
+
+.roi-val {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.roi-val.positive {
+  color: #1b5e20;
+}
+
+.roi-val.negative {
+  color: #b71c1c;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.bet-table {
+  width: 100%;
+  min-width: 520px;
+}
+
+.badge[data-status='won'] {
+  color: #1b5e20;
+  font-weight: 600;
+}
+
+.badge[data-status='lost'] {
+  color: #b71c1c;
+  font-weight: 600;
+}
+
+.badge[data-status='pending'] {
+  color: rgba(0, 0, 0, 0.55);
+}

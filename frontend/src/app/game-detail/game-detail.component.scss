@@ -326,3 +326,19 @@ mat-card-actions button mat-spinner {
   margin-right: 0.35rem;
   vertical-align: middle;
 }
+
+.ah-block {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant, #ccc) 55%, transparent);
+}
+
+.ah-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.ah-row {
+  margin-bottom: 0.35rem;
+}

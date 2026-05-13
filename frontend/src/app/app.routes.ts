@@ -71,6 +71,10 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./operations/operations.component').then((m) => m.OperationsComponent),
       },
+      {
+        path: 'bets',
+        loadComponent: () => import('./bets/bets-page.component').then((m) => m.BetsPageComponent),
+      },
     ],
   },
   { path: '**', redirectTo: 'mlb/today' },

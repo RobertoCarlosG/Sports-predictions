@@ -15,8 +15,9 @@ Aplicar **en este orden** (todas las migraciones son idempotentes):
 5. `004_prediction_evaluation.sql` — campos para tracking de aciertos/fallos en `prediction_results`.
 6. `005_teams_optimization.sql` — índice y comentarios para reducir lock contention en `teams`.
 7. `006_model_versions.sql` — tabla `model_versions` (histórico + flag `is_active` único).
+8. `007_app_users_and_bets.sql` — `app_users`, `bet_banks`, `bet_periods`, `bets` (control de apuestas).
 
-> Sí, hay dos archivos con prefijo `002_` (uno toca `games`, el otro crea tablas nuevas). Mantenidos por historia. Para nuevas migraciones, usar el siguiente número libre: **`007_`**.
+> Sí, hay dos archivos con prefijo `002_` (uno toca `games`, el otro crea tablas nuevas). Mantenidos por historia. Para nuevas migraciones, usar el siguiente número libre: **`008_`**.
 
 ## Cómo aplicarlas
 
@@ -37,7 +38,8 @@ for f in sql/001_initial_schema.sql \
          sql/003_pitching_and_starters.sql \
          sql/004_prediction_evaluation.sql \
          sql/005_teams_optimization.sql \
-         sql/006_model_versions.sql; do
+         sql/006_model_versions.sql \
+         sql/007_app_users_and_bets.sql; do
   echo ">>> $f"
   psql "$DATABASE_URL" -f "$f"
 done
@@ -50,7 +52,8 @@ SELECT table_name FROM information_schema.tables
 WHERE table_schema='public'
   AND table_name IN (
     'teams', 'games', 'game_weather', 'game_feature_snapshots',
-    'pitching_era_cache', 'prediction_results', 'admin_users', 'model_versions'
+    'pitching_era_cache', 'prediction_results', 'admin_users', 'model_versions',
+    'app_users', 'bet_banks', 'bet_periods', 'bets'
   );
 ```
 

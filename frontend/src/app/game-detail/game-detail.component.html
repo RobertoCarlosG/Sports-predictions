@@ -118,6 +118,23 @@
                 <p class="runs-ou-hint">La línea se redondea a medios para lectura; el modelo entrega un valor continuo.</p>
               </div>
             }
+            @if (prediction?.asian_handicap) {
+              <div class="ah-block" role="region" aria-label="Handicap estimado">
+                <h3 class="ah-title">Handicap (estimación)</h3>
+                <div class="ah-row">
+                  <app-probability-bar
+                    [label]="ahHomeLabel()"
+                    [probability]="prediction!.asian_handicap!.home.cover_probability"
+                  />
+                </div>
+                <div class="ah-row">
+                  <app-probability-bar
+                    [label]="ahAwayLabel()"
+                    [probability]="prediction!.asian_handicap!.away.cover_probability"
+                  />
+                </div>
+              </div>
+            }
           }
         </mat-card-content>
       </mat-card>

@@ -284,6 +284,29 @@ export class GameDetailComponent implements OnInit {
     return n.toFixed(1).replace('.', ',');
   }
 
+  ahHomeLabel(): string {
+    const ah = this.prediction?.asian_handicap;
+    if (!ah) {
+      return '';
+    }
+    return `${ah.home.team_abbr} ${this.formatSignedLine(ah.home.line)} — cubrir`;
+  }
+
+  ahAwayLabel(): string {
+    const ah = this.prediction?.asian_handicap;
+    if (!ah) {
+      return '';
+    }
+    return `${ah.away.team_abbr} ${this.formatSignedLine(ah.away.line)} — cubrir`;
+  }
+
+  private formatSignedLine(v: number): string {
+    if (v > 0) {
+      return `+${v}`;
+    }
+    return String(v);
+  }
+
   /** Solo estimación: no descarga calendario ni condiciones. */
   refreshPredictionOnly(): void {
     if (this.gamePk == null) {

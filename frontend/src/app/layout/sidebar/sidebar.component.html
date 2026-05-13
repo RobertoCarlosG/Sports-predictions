@@ -34,6 +34,17 @@
     <nav class="nav-list" aria-label="Sistema">
       <a
         class="nav-item nav-item--icon"
+        routerLink="/bets"
+        [class.nav-item--active]="linkActiveBets()"
+        [attr.title]="collapsed ? 'Apuestas' : null"
+      >
+        <mat-icon class="nav-ico" aria-hidden="true">account_balance_wallet</mat-icon>
+        @if (!collapsed) {
+          <span class="nav-text">Apuestas</span>
+        }
+      </a>
+      <a
+        class="nav-item nav-item--icon"
         routerLink="/operations"
         [class.nav-item--active]="linkActiveOperations()"
         [attr.title]="collapsed ? 'Operaciones' : null"

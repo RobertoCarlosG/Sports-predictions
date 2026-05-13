@@ -10,7 +10,7 @@ from app.api.deps_rate_limit import rate_limit_public_read, rate_limit_public_wr
 from app.db.session import get_db
 from app.ml.predictor import MlbPredictionService
 from app.services.prediction_cache import get_cached_prediction, upsert_prediction_cache
-from app.services.prediction_infer import compute_prediction_response
+from app.services.prediction_infer import attach_asian_handicap_if_missing, compute_prediction_response
 from app.schemas.games import PredictionResponse
 
 router = APIRouter()
@@ -47,7 +47,7 @@ async def predict_game(
     if model_version:
         cached = await get_cached_prediction(session, game_pk, model_version)
         if cached is not None:
-            return cached
+            return await attach_asian_handicap_if_missing(session, cached)
 
     try:
         out = await compute_prediction_response(session, svc, game_pk)

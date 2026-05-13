@@ -89,6 +89,8 @@ El panel **no programa cron**: los `game_feature_snapshots` existen tras **impor
 | `POST /games/{game_pk}/weather` | Clima Open-Meteo |
 | `GET /mlb/teams`, `GET /mlb/history/games` | Equipos e historial |
 | `POST /mlb/sync-range`, `POST /mlb/games/{game_pk}/sync` | Sincronización MLB |
-| `GET /predict/{game_pk}` | Predicción ML |
+| `GET /predict/{game_pk}` | Predicción ML + handicap asiático estimado (`asian_handicap` en JSON) |
+| `GET /auth/*`, `POST /auth/logout` | Sesión de usuario (Google OAuth + cookie `sp_user_session`) |
+| `GET/POST /bets/*` | Control de apuestas: bancos, periodos, export Excel, CRUD apuestas (requiere cookie de usuario) |
 
 Lista completa, parámetros y esquemas: documentación OpenAPI (`/docs` en el servidor).

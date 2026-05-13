@@ -25,7 +25,7 @@ from app.services.prediction_cache import (
     get_cached_prediction,
     upsert_prediction_cache,
 )
-from app.services.prediction_infer import prediction_response_from_result
+from app.services.prediction_infer import attach_asian_handicap_if_missing, prediction_response_from_result
 from app.services.weather_open_meteo import upsert_weather_for_game
 
 log = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ async def _compute_or_cache_prediction(
     request.app.state.active_model_version = model_version
     if model_version:
         if pred_cache_row is not None and pred_cache_row.model_version == model_version:
-            return PredictionResponse(
+            base = PredictionResponse(
                 game_pk=pred_cache_row.game_pk,
                 home_win_probability=pred_cache_row.home_win_probability,
                 total_runs_estimate=pred_cache_row.total_runs_estimate,
@@ -94,9 +94,10 @@ async def _compute_or_cache_prediction(
                 if pred_cache_row.evaluated_at
                 else None,
             )
+            return await attach_asian_handicap_if_missing(session, base)
         cached = await get_cached_prediction(session, game.game_pk, model_version)
         if cached is not None:
-            return cached
+            return await attach_asian_handicap_if_missing(session, cached)
     
     now = dt.datetime.now(dt.timezone.utc)
     game_is_future = False
@@ -130,7 +131,13 @@ async def _compute_or_cache_prediction(
     
     try:
         pr = svc.predict(game, game.weather, snapshot)
-        out = prediction_response_from_result(pr)
+        if game.home_team is None or game.away_team is None:
+            return None
+        out = prediction_response_from_result(
+            pr,
+            home_abbr=game.home_team.abbreviation,
+            away_abbr=game.away_team.abbreviation,
+        )
         try:
             await upsert_prediction_cache(session, out, cache_reason)
         except Exception:

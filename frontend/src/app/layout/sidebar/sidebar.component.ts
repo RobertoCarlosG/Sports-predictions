@@ -67,9 +67,16 @@ export class SidebarComponent implements OnInit, OnDestroy {
     return this.pathActive('/operations');
   }
 
+  linkActiveBets(): boolean {
+    return this.pathActive('/bets');
+  }
+
   private pathActive(prefix: string): boolean {
     if (prefix === '/operations') {
       return this.url === '/operations' || this.url.startsWith('/operations/');
+    }
+    if (prefix === '/bets') {
+      return this.url === '/bets' || this.url.startsWith('/bets/');
     }
     return this.url === prefix || this.url.startsWith(`${prefix}/`);
   }

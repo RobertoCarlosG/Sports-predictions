@@ -164,6 +164,72 @@ TABLA: admin_users
   (una vez, con ADMIN_BOOTSTRAP_SECRET). Ver backend/sql/README.md.
 
 
+TABLA: app_users
+----------------
+  Usuarios finales (Google OAuth) para control de apuestas. Distintos de admin_users.
+
+  id             UUID PK DEFAULT gen_random_uuid()
+  google_id      VARCHAR(128) NOT NULL UNIQUE
+  email          VARCHAR(256) NOT NULL UNIQUE
+  display_name   VARCHAR(256) NULL
+  picture_url    TEXT NULL
+  is_active      BOOLEAN NOT NULL DEFAULT TRUE
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  last_login_at  TIMESTAMPTZ NULL
+
+
+TABLA: bet_banks
+----------------
+  Bancos / bankroll por usuario.
+
+  id              SERIAL PK
+  user_id         UUID NOT NULL FK → app_users.id (CASCADE)
+  name            VARCHAR(128) NOT NULL
+  initial_amount  DOUBLE PRECISION NOT NULL
+  currency        VARCHAR(8) NOT NULL DEFAULT 'USD'
+  is_active       BOOLEAN NOT NULL DEFAULT TRUE
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+
+TABLA: bet_periods
+------------------
+  Corte mensual por banco (saldo apertura / cierre).
+
+  id                 SERIAL PK
+  bank_id            INTEGER NOT NULL FK → bet_banks.id (CASCADE)
+  user_id            UUID NOT NULL FK → app_users.id (CASCADE)
+  name               VARCHAR(64) NOT NULL
+  year               INTEGER NOT NULL
+  month              INTEGER NOT NULL (1–12)
+  starting_balance   DOUBLE PRECISION NOT NULL
+  closing_balance      DOUBLE PRECISION NULL
+  status               VARCHAR(16) NOT NULL DEFAULT 'open'  -- open|closed
+  closed_at            TIMESTAMPTZ NULL
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  UNIQUE (bank_id, year, month)
+
+
+TABLA: bets
+-----------
+  Apuestas registradas (MoneyLine u Over/Under).
+
+  id                 SERIAL PK
+  user_id            UUID NOT NULL FK → app_users.id (CASCADE)
+  bank_id            INTEGER NOT NULL FK → bet_banks.id (CASCADE)
+  period_id          INTEGER NOT NULL FK → bet_periods.id (RESTRICT)
+  game_pk            INTEGER NOT NULL FK → games.game_pk (RESTRICT)
+  bet_type           VARCHAR(16) CHECK moneyline|over_under
+  bet_side           VARCHAR(16) NOT NULL
+  stake              DOUBLE PRECISION NOT NULL
+  odds               DOUBLE PRECISION NOT NULL
+  ou_line            DOUBLE PRECISION NULL
+  status             VARCHAR(16) NOT NULL DEFAULT pending
+  result_source      VARCHAR(16) NULL   -- local|mlb_api|manual
+  result_checked_at  TIMESTAMPTZ NULL
+  notes              TEXT NULL
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+
 RELACIONES (resumen)
 --------------------
   games.home_team_id            → teams.id
@@ -171,6 +237,13 @@ RELACIONES (resumen)
   game_weather.game_pk          → games.game_pk    (UNIQUE, CASCADE)
   game_feature_snapshots.game_pk → games.game_pk   (UNIQUE, CASCADE)
   prediction_results.game_pk    → games.game_pk    (PK, CASCADE)
+  bet_banks.user_id             → app_users.id
+  bet_periods.bank_id           → bet_banks.id
+  bet_periods.user_id           → app_users.id
+  bets.user_id                  → app_users.id
+  bets.bank_id                  → bet_banks.id
+  bets.period_id                → bet_periods.id
+  bets.game_pk                  → games.game_pk
 
 
 ARCHIVOS SQL (orden de aplicación)
@@ -182,8 +255,9 @@ ARCHIVOS SQL (orden de aplicación)
   004_prediction_evaluation.sql       prediction_results: predicted_winner, actual_winner, is_correct, evaluated_at.
   005_teams_optimization.sql          Índice idx_teams_venue_id, comentarios.
   006_model_versions.sql              Tabla model_versions (histórico + flag is_active).
+  007_app_users_and_bets.sql          app_users, bet_banks, bet_periods, bets (control de apuestas).
 
-  Próximo número libre: 007_.
+  Próximo número libre: 008_.
   Detalle por archivo y troubleshooting: docs/migraciones.md.
 
 ================================================================================
