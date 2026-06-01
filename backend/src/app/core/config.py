@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     mlb_stadiums_path: str = "src/app/data/mlb_stadiums.json"
     # Path to trained model (joblib); empty = package default under app/ml/artifacts/
     ml_model_path: str = ""
+    # Path to the XGBoost model; empty = app/ml/artifacts/model_xgb.joblib
+    ml_model_path_xgb: str = ""
     # Si True y no hay archivo, arranca entrenando modelo sintético (no recomendado en prod).
     ml_auto_synthetic_on_missing: bool = False
     # Si True, tras sync/listado MLB se precalcula caché de predicciones (por defecto manual vía admin).

@@ -1,9 +1,14 @@
-"""Entrena Random Forest desde `game_feature_snapshots` + `games` (Fase 3, sin sintéticos).
+"""Entrena un modelo (Random Forest o XGBoost) desde `game_feature_snapshots` + `games`.
 
 Uso (desde `backend/`):
 
-  uv run python -m app.ml.train_from_db --output src/app/ml/artifacts/model.joblib
+  # Random Forest (comportamiento por defecto)
+  uv run python -m app.ml.train_from_db
   uv run python -m app.ml.train_from_db --val-from 2025-07-01 --season 2025
+
+  # XGBoost
+  uv run python -m app.ml.train_from_db --algorithm xgb
+  uv run python -m app.ml.train_from_db --algorithm xgb --val-from 2025-07-01
 
 Partición: filas con `game_date` < `--val-from` → train; `>= val-from` → validación.
 Si no pasas `--val-from`, usa 80% temporal (primer 80% fechas train, resto val).
@@ -18,11 +23,11 @@ import json
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 import joblib
 import numpy as np
 from numpy.typing import NDArray
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.metrics import accuracy_score, mean_absolute_error
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -84,7 +89,7 @@ async def _load_xy(
 
 
 def _log_feature_health(x: NDArray[np.float64]) -> None:
-    """Si casi no hay varianza en X, el RF tenderá a ~P(victoria local) constante (p. ej. ~48 %)."""
+    """Si casi no hay varianza en X, el modelo tenderá a ~P(victoria local) constante (p. ej. ~48 %)."""
     x12 = x[:, :12] if x.shape[1] > 12 else x
     std = np.std(x12, axis=0)
     nz = np.count_nonzero(std > 1e-6)
@@ -139,6 +144,49 @@ def _split_temporal(
     )
 
 
+def _build_rf(args: argparse.Namespace) -> tuple[Any, Any]:
+    from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+
+    clf = RandomForestClassifier(
+        n_estimators=args.trees,
+        random_state=42,
+        max_depth=args.max_depth,
+        min_samples_leaf=args.min_samples_leaf,
+    )
+    reg = RandomForestRegressor(
+        n_estimators=args.trees,
+        random_state=42,
+        max_depth=args.max_depth,
+        min_samples_leaf=args.min_samples_leaf,
+    )
+    return clf, reg
+
+
+def _build_xgb(args: argparse.Namespace) -> tuple[Any, Any]:
+    from xgboost import XGBClassifier, XGBRegressor
+
+    clf = XGBClassifier(
+        n_estimators=args.trees,
+        max_depth=args.max_depth,
+        learning_rate=args.learning_rate,
+        subsample=args.subsample,
+        colsample_bytree=args.colsample_bytree,
+        min_child_weight=args.min_child_weight,
+        random_state=42,
+        eval_metric="logloss",
+    )
+    reg = XGBRegressor(
+        n_estimators=args.trees,
+        max_depth=args.max_depth,
+        learning_rate=args.learning_rate,
+        subsample=args.subsample,
+        colsample_bytree=args.colsample_bytree,
+        min_child_weight=args.min_child_weight,
+        random_state=42,
+    )
+    return clf, reg
+
+
 async def _async_main(args: argparse.Namespace) -> None:
     async with async_session_factory() as session:
         x, y_h, y_r, dates = await _load_xy(session, season=args.season)
@@ -164,18 +212,26 @@ async def _async_main(args: argparse.Namespace) -> None:
             raise
     log.info("split: %s | train=%d val=%d", split_note, len(yh_tr), len(yh_va))
 
-    clf = RandomForestClassifier(
-        n_estimators=args.trees,
-        random_state=42,
-        max_depth=args.max_depth,
-        min_samples_leaf=args.min_samples_leaf,
-    )
-    reg = RandomForestRegressor(
-        n_estimators=args.trees,
-        random_state=42,
-        max_depth=args.max_depth,
-        min_samples_leaf=args.min_samples_leaf,
-    )
+    if args.algorithm == "xgb":
+        clf, reg = _build_xgb(args)
+        log.info(
+            "XGBoost: trees=%d max_depth=%d lr=%.4f subsample=%.2f colsample=%.2f min_child_weight=%d",
+            args.trees,
+            args.max_depth,
+            args.learning_rate,
+            args.subsample,
+            args.colsample_bytree,
+            args.min_child_weight,
+        )
+    else:
+        clf, reg = _build_rf(args)
+        log.info(
+            "RandomForest: trees=%d max_depth=%d min_samples_leaf=%d",
+            args.trees,
+            args.max_depth,
+            args.min_samples_leaf,
+        )
+
     clf.fit(x_tr, yh_tr)
     reg.fit(x_tr, yr_tr)
 
@@ -198,6 +254,7 @@ async def _async_main(args: argparse.Namespace) -> None:
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     meta = {
+        "algorithm": args.algorithm,
         "feature_names": FEATURE_NAMES,
         "trained_on_games": int(len(dates)),
         "val_from_requested": val_from.isoformat() if val_from else None,
@@ -216,7 +273,7 @@ async def _async_main(args: argparse.Namespace) -> None:
         "training_meta": json.dumps(meta),
     }
     joblib.dump(bundle, out)
-    log.info("wrote %s", out.resolve())
+    log.info("wrote %s  [algorithm=%s version=%s]", out.resolve(), args.algorithm, args.model_version)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -227,11 +284,19 @@ def main(argv: list[str] | None = None) -> None:
         stream=sys.stdout,
         force=True,
     )
-    p = argparse.ArgumentParser(description="Train RF from game_feature_snapshots (real labels).")
+    p = argparse.ArgumentParser(
+        description="Train RF or XGBoost from game_feature_snapshots (real labels)."
+    )
+    p.add_argument(
+        "--algorithm",
+        choices=["rf", "xgb"],
+        default="rf",
+        help="Algorithm: 'rf' = Random Forest (default), 'xgb' = XGBoost",
+    )
     p.add_argument(
         "--output",
-        default="src/app/ml/artifacts/model_from_db.joblib",
-        help="Output joblib path",
+        default=None,
+        help="Output joblib path (default: artifacts/model.joblib for rf, artifacts/model_xgb.joblib for xgb)",
     )
     p.add_argument("--season", default=None, help="Restrict to season e.g. 2025")
     p.add_argument(
@@ -239,25 +304,49 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="YYYY-MM-DD: validation is games on or after this date",
     )
-    p.add_argument("--trees", type=int, default=128, help="n_estimators per forest")
+    p.add_argument("--trees", type=int, default=128, help="n_estimators")
     p.add_argument(
         "--max-depth",
         type=int,
-        default=16,
-        help="Profundidad máxima de cada árbol (más alta => más variación en predict_proba; riesgo de sobreajuste)",
+        default=None,
+        help="Max tree depth (default: 16 for rf, 6 for xgb)",
     )
+    p.add_argument(
+        "--model-version",
+        default=None,
+        help="Version string returned by the predict API (default: rf-db-v1 or xgb-db-v1)",
+    )
+    # RF-specific
     p.add_argument(
         "--min-samples-leaf",
         type=int,
         default=2,
-        help="Mínimo de muestras por hoja (menor => árboles más finos y probs más dispersas)",
+        help="[RF only] Minimum samples per leaf",
+    )
+    # XGB-specific
+    p.add_argument("--learning-rate", type=float, default=0.05, help="[XGB only] Learning rate")
+    p.add_argument("--subsample", type=float, default=0.8, help="[XGB only] Row subsampling ratio")
+    p.add_argument(
+        "--colsample-bytree", type=float, default=0.8, help="[XGB only] Column subsampling ratio"
     )
     p.add_argument(
-        "--model-version",
-        default="rf-db-v1",
-        help="String returned by API predict()",
+        "--min-child-weight", type=int, default=3, help="[XGB only] Minimum child weight"
     )
+
     args = p.parse_args(argv)
+
+    # Apply algorithm-specific defaults for args that weren't set explicitly.
+    if args.max_depth is None:
+        args.max_depth = 6 if args.algorithm == "xgb" else 16
+    if args.output is None:
+        args.output = (
+            "src/app/ml/artifacts/model_xgb.joblib"
+            if args.algorithm == "xgb"
+            else "src/app/ml/artifacts/model.joblib"
+        )
+    if args.model_version is None:
+        args.model_version = "xgb-db-v1" if args.algorithm == "xgb" else "rf-db-v1"
+
     asyncio.run(_async_main(args))
 
 

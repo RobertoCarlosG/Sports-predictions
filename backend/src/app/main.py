@@ -72,6 +72,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.prediction_service = None
         app.state.active_model_version = ""
 
+    xgb_path = resolve_model_path(settings.ml_model_path_xgb, default_name="model_xgb.joblib")
+    if xgb_path.is_file():
+        svc_xgb = MlbPredictionService(xgb_path)
+        app.state.prediction_service_xgb = svc_xgb
+        log.info("XGBoost model loaded from %s version=%s", xgb_path, svc_xgb.model_version)
+    else:
+        app.state.prediction_service_xgb = None
+        log.info("No XGBoost model at %s — ?model=xgb will return 503.", xgb_path)
+
     if settings.mlb_daily_snapshot_enabled:
         app.state.mlb_daily_snapshot_task = asyncio.create_task(
             daily_snapshot_loop_forever(app.state.http_client),

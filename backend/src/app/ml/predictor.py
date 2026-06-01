@@ -1,18 +1,22 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+import logging
 
 import joblib
 import numpy as np
 from numpy.typing import NDArray
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
 
 from app.ml.features import build_feature_matrix_row
 from app.models.mlb import Game, GameFeatureSnapshot, GameWeather
+
+log = logging.getLogger(__name__)
 
 MAX_MODEL_VERSION_LEN = 64
 
@@ -80,12 +84,15 @@ def compute_asian_handicap(
     }
 
 
-def _align_x_to_forest(
+def _align_feature_vector(
     x: NDArray[np.float64],
-    clf: RandomForestClassifier,
-    reg: RandomForestRegressor,
+    clf: Any,
+    reg: Any,
 ) -> NDArray[np.float64]:
-    """Recorta a ``n_features_in_`` (modelos viejos 8/12; actual 13 con ``defaults_injected``) o rellena con ceros."""
+    """Trims or zero-pads X to match the feature count the loaded model expects.
+
+    Handles legacy RF bundles trained with 8 or 12 features (current is 13).
+    """
     n_clf = getattr(clf, "n_features_in_", None)
     n_reg = getattr(reg, "n_features_in_", None)
     n = int(n_clf) if n_clf is not None else (int(n_reg) if n_reg is not None else x.shape[1])
@@ -121,6 +128,11 @@ class MlbPredictionService:
             base_version = str(bundle.get("model_version") or "rf-v0")
             bundle["model_base_version"] = base_version
             bundle["model_version"] = _model_version_with_signature(base_version, signature)
+            if isinstance(bundle.get("clf"), RandomForestClassifier):
+                log.info(
+                    "Loaded Random Forest model (%s). To use XGBoost, train with --algorithm xgb.",
+                    base_version,
+                )
             self._bundle = bundle
             self._signature = signature
         return self._bundle
@@ -141,10 +153,10 @@ class MlbPredictionService:
         snapshot: GameFeatureSnapshot | None = None,
     ) -> PredictionResult:
         bundle = self._load()
-        clf: RandomForestClassifier = bundle["clf"]
-        reg: RandomForestRegressor = bundle["reg"]
+        clf: Any = bundle["clf"]
+        reg: Any = bundle["reg"]
         x: NDArray[np.float64] = build_feature_matrix_row(game, weather, snapshot)
-        x = _align_x_to_forest(x, clf, reg)
+        x = _align_feature_vector(x, clf, reg)
         proba = clf.predict_proba(x)
         p_home = float(proba[0][1]) if proba.shape[1] > 1 else float(proba[0][0])
         total_runs = float(reg.predict(x)[0])
@@ -165,9 +177,9 @@ def ensure_model_exists(model_path: Path) -> None:
         train_default_model(model_path)
 
 
-def resolve_model_path(env_path: str) -> Path:
+def resolve_model_path(env_path: str, default_name: str = "model.joblib") -> Path:
     stripped = env_path.strip()
     if stripped:
         path = Path(stripped)
         return path if path.is_absolute() else Path.cwd() / path
-    return Path(__file__).resolve().parent / "artifacts" / "model.joblib"
+    return Path(__file__).resolve().parent / "artifacts" / default_name
