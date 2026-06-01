@@ -50,15 +50,27 @@ async def programming_error_handler(request: Request, exc: ProgrammingError) -> 
     if "does not exist" in text.lower() and (
         "relation" in text.lower() or "table" in text.lower() or "undefinedtable" in text.lower()
     ):
+        import re
+
+        match = re.search(r'relation "([^"]+)" does not exist', text, re.IGNORECASE)
+        missing_table = match.group(1) if match else None
+        if missing_table:
+            hint = (
+                f'La tabla `{missing_table}` no existe. '
+                "Aplica las migraciones pendientes en `backend/sql/` (en orden numérico) "
+                "en el SQL Editor de Supabase o tu instancia de PostgreSQL."
+            )
+        else:
+            hint = (
+                "Faltan tablas en PostgreSQL. Aplica todas las migraciones de "
+                "`backend/sql/` en orden numérico en el SQL Editor de Supabase "
+                "o tu instancia de PostgreSQL."
+            )
         return _json_error(
             request,
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="database_schema_missing",
-            message=(
-                "No existen las tablas en PostgreSQL. Ejecuta el script "
-                "`backend/sql/001_initial_schema.sql` en el SQL Editor de Supabase "
-                "(o tu instancia)."
-            ),
+            message=hint,
             technical=text,
         )
     return _json_error(

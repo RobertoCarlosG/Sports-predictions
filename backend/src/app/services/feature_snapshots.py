@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import logging
 from collections import defaultdict
 from collections.abc import Sequence
 from itertools import groupby
@@ -13,6 +14,8 @@ from app.models.mlb import Game, GameFeatureSnapshot
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_sync import starters_from_boxscore
 from app.services.pitching_stats import game_pitching_feature_values
+
+log = logging.getLogger(__name__)
 
 UPCOMING_SNAPSHOT_DAYS = 1
 
@@ -120,9 +123,16 @@ async def rebuild_game_feature_snapshots(
     else:
         await session.execute(delete(GameFeatureSnapshot))
 
+    total_games = len(games)
+    log.info("rebuild_feature_snapshots: %d games loaded, processing...", total_games)
+
     count = 0
+    processed = 0
     for _game_date, day_games_iter in groupby(games, key=lambda game: game.game_date):
         day_games = list(day_games_iter)
+        processed += len(day_games)
+        if processed % 50 == 0 or processed == total_games:
+            log.info("  %d / %d games processed, %d snapshots written so far", processed, total_games, count)
 
         # Snapshot features for every game on this date are computed from history
         # available before this date. Today's games never see today's earlier finals.
