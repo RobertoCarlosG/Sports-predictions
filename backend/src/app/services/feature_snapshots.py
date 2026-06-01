@@ -99,6 +99,8 @@ async def rebuild_game_feature_snapshots(
         .options(selectinload(Game.weather))
         .order_by(Game.game_date, Game.game_pk)
     )
+    if season is not None and season != "all":
+        stmt = stmt.where(Game.season == season)
     result = await session.execute(stmt)
     games = result.scalars().unique().all()
 
@@ -106,7 +108,7 @@ async def rebuild_game_feature_snapshots(
 
     today = dt.datetime.now(dt.UTC).date()
 
-    if season is not None:
+    if season is not None and season != "all":
         upcoming_end = today + dt.timedelta(days=upcoming_snapshot_days)
         await session.execute(
             delete(GameFeatureSnapshot).where(

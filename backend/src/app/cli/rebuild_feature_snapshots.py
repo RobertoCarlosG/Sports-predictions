@@ -41,10 +41,11 @@ async def _run(*, season: str | None, window: int) -> None:
 def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     p = argparse.ArgumentParser(description="Rebuild game_feature_snapshots from games table.")
-    p.add_argument("--season", default=None, help="Filter by season string e.g. 2025")
+    p.add_argument("--season", default=None, help="Season to rebuild e.g. 2026. Use 'all' to load and write every season (default: all).")
     p.add_argument("--window", type=int, default=10, help="Rolling games per team (default 10)")
     args = p.parse_args(argv)
-    asyncio.run(_run(season=args.season, window=args.window))
+    season = None if args.season in (None, "all") else args.season
+    asyncio.run(_run(season=season, window=args.window))
 
 
 if __name__ == "__main__":
