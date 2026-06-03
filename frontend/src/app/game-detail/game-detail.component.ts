@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -27,6 +28,7 @@ import { favoriteFromHomeWinProbability } from '../utils/prediction-favorite';
     CommonModule,
     RouterLink,
     MatButtonModule,
+    MatButtonToggleModule,
     MatCardModule,
     MatIconModule,
     MatProgressSpinnerModule,
@@ -45,11 +47,14 @@ export class GameDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
 
   game: GameDetail | null = null;
-  prediction: PredictionOut | null = null;
+  rfPrediction: PredictionOut | null = null;
+  xgbPrediction: PredictionOut | null = null;
   headToHead: HistoryGame[] = [];
 
   loading = false;
   predLoading = false;
+  xgbLoading = false;
+  xgbUnavailable = false;
   refreshLoading = false;
   predictionRefreshLoading = false;
   loadError = false;
@@ -57,7 +62,13 @@ export class GameDetailComponent implements OnInit {
   predictionRefreshMessage: string | null = null;
   predictionRefreshIsError = false;
 
+  selectedModel: 'rf' | 'xgb' = 'rf';
+
   private gamePk: number | null = null;
+
+  get activePrediction(): PredictionOut | null {
+    return this.selectedModel === 'xgb' ? this.xgbPrediction : this.rfPrediction;
+  }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((pm) => {
@@ -85,18 +96,21 @@ export class GameDetailComponent implements OnInit {
     this.refreshError = false;
     this.predictionRefreshMessage = null;
     this.predictionRefreshIsError = false;
-    this.prediction = null;
+    this.rfPrediction = null;
+    this.xgbPrediction = null;
+    this.xgbUnavailable = false;
     this.headToHead = [];
     this.api.getGame(gamePk, { force }).subscribe({
       next: (g) => {
         this.game = g;
         this.loading = false;
         if ('prediction' in g) {
-          this.prediction = g.prediction ?? null;
+          this.rfPrediction = g.prediction ?? null;
           this.predLoading = false;
         } else {
           this.loadPrediction(gamePk, { force });
         }
+        this.loadXgbPrediction(gamePk, { force });
         this.loadHeadToHead(g);
       },
       error: () => {
@@ -109,14 +123,32 @@ export class GameDetailComponent implements OnInit {
 
   private loadPrediction(gamePk: number, options?: { force?: boolean }): void {
     this.predLoading = true;
-    this.api.predict(gamePk, { force: options?.force === true }).subscribe({
+    this.api.predict(gamePk, { force: options?.force === true, model: 'rf' }).subscribe({
       next: (p) => {
-        this.prediction = p;
+        this.rfPrediction = p;
         this.predLoading = false;
       },
       error: () => {
-        this.prediction = null;
+        this.rfPrediction = null;
         this.predLoading = false;
+      },
+    });
+  }
+
+  private loadXgbPrediction(gamePk: number, options?: { force?: boolean }): void {
+    this.xgbLoading = true;
+    this.xgbUnavailable = false;
+    this.api.predict(gamePk, { force: options?.force === true, model: 'xgb' }).subscribe({
+      next: (p) => {
+        this.xgbPrediction = p;
+        this.xgbLoading = false;
+      },
+      error: (err: { status?: number }) => {
+        this.xgbPrediction = null;
+        this.xgbLoading = false;
+        if (err?.status === 503) {
+          this.xgbUnavailable = true;
+        }
       },
     });
   }
@@ -152,6 +184,10 @@ export class GameDetailComponent implements OnInit {
     return mlbDisplayAbbrev(t);
   }
 
+  selectModel(model: 'rf' | 'xgb'): void {
+    this.selectedModel = model;
+  }
+
   /** Un solo control: actualiza calendario, condiciones y estimación. */
   refreshData(): void {
     if (!this.game) {
@@ -173,14 +209,16 @@ export class GameDetailComponent implements OnInit {
           this.game = g;
           return forkJoin({
             detail: this.api.getGame(pk, { force: true }).pipe(catchError(() => of(g))),
-            pred: this.api.predict(pk, { force: true }).pipe(catchError(() => of(null))),
+            rfPred: this.api.predict(pk, { force: true, model: 'rf' }).pipe(catchError(() => of(null))),
+            xgbPred: this.api.predict(pk, { force: true, model: 'xgb' }).pipe(catchError(() => of(null))),
           });
         }),
       )
       .subscribe({
-        next: ({ detail, pred }) => {
+        next: ({ detail, rfPred, xgbPred }) => {
           this.game = detail;
-          this.prediction = pred;
+          this.rfPrediction = rfPred;
+          this.xgbPrediction = xgbPred;
           this.refreshLoading = false;
           if (this.game) {
             this.loadHeadToHead(this.game);
@@ -197,7 +235,7 @@ export class GameDetailComponent implements OnInit {
    * Probabilidad del **favorito** (lado con mayor P de victoria) para la barra única.
    */
   favoriteBarProbability(): number | null {
-    const p = this.prediction?.home_win_probability;
+    const p = this.activePrediction?.home_win_probability;
     if (p == null || Number.isNaN(p)) {
       return null;
     }
@@ -209,7 +247,7 @@ export class GameDetailComponent implements OnInit {
       return 'Victoria del favorito';
     }
     const { favorite, favoriteWinProb } = favoriteFromHomeWinProbability(
-      this.prediction?.home_win_probability,
+      this.activePrediction?.home_win_probability,
     );
     if (favorite === 'none' || favoriteWinProb == null) {
       return 'Victoria del favorito';
@@ -219,7 +257,7 @@ export class GameDetailComponent implements OnInit {
   }
 
   hasRunsProjection(): boolean {
-    const p = this.prediction;
+    const p = this.activePrediction;
     return (
       p != null &&
       typeof p.total_runs_estimate === 'number' &&
@@ -230,7 +268,7 @@ export class GameDetailComponent implements OnInit {
   }
 
   runsEstimateFormatted(): string {
-    const p = this.prediction;
+    const p = this.activePrediction;
     if (p == null || !this.hasRunsProjection()) {
       return '';
     }
@@ -238,7 +276,7 @@ export class GameDetailComponent implements OnInit {
   }
 
   ouLineFormatted(): string {
-    const p = this.prediction;
+    const p = this.activePrediction;
     if (p == null || !this.hasRunsProjection()) {
       return '';
     }
@@ -266,7 +304,7 @@ export class GameDetailComponent implements OnInit {
   }
 
   private runsLeanKind(): 'over' | 'under' | 'push' {
-    const p = this.prediction;
+    const p = this.activePrediction;
     if (p == null || !this.hasRunsProjection()) {
       return 'push';
     }
@@ -285,7 +323,7 @@ export class GameDetailComponent implements OnInit {
   }
 
   ahHomeLabel(): string {
-    const ah = this.prediction?.asian_handicap;
+    const ah = this.activePrediction?.asian_handicap;
     if (!ah) {
       return '';
     }
@@ -293,7 +331,7 @@ export class GameDetailComponent implements OnInit {
   }
 
   ahAwayLabel(): string {
-    const ah = this.prediction?.asian_handicap;
+    const ah = this.activePrediction?.asian_handicap;
     if (!ah) {
       return '';
     }
@@ -315,9 +353,13 @@ export class GameDetailComponent implements OnInit {
     this.predictionRefreshLoading = true;
     this.predictionRefreshMessage = null;
     this.predictionRefreshIsError = false;
-    this.api.refreshPrediction(this.gamePk).subscribe({
+    this.api.refreshPrediction(this.gamePk, { model: this.selectedModel }).subscribe({
       next: (p) => {
-        this.prediction = p;
+        if (this.selectedModel === 'xgb') {
+          this.xgbPrediction = p;
+        } else {
+          this.rfPrediction = p;
+        }
         this.predictionRefreshLoading = false;
         this.predictionRefreshIsError = false;
         this.predictionRefreshMessage = 'Listo: estimación actualizada.';

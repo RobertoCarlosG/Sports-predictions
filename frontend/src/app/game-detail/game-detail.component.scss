@@ -342,3 +342,37 @@ mat-card-actions button mat-spinner {
 .ah-row {
   margin-bottom: 0.35rem;
 }
+
+.model-toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 1rem;
+}
+
+.model-version-chip {
+  font-size: 0.72rem;
+  font-family: monospace;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mat-sys-secondary, #666) 12%, transparent);
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+.model-unavailable-hint {
+  font-size: 0.78rem;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.55));
+  font-style: italic;
+}
+
+.toggle-spinner {
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: middle;
+}

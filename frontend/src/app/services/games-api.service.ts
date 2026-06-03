@@ -79,19 +79,31 @@ export class GamesApiService {
     );
   }
 
-  predict(gamePk: number, options?: { force?: boolean }): Observable<PredictionOut> {
+  predict(
+    gamePk: number,
+    options?: { force?: boolean; model?: 'rf' | 'xgb' },
+  ): Observable<PredictionOut> {
+    const model = options?.model ?? 'rf';
+    const cacheKey = `${gamePk}|${model}`;
     return this.predictCache.get(
-      String(gamePk),
-      () => this.http.get<PredictionOut>(`${this.base}/predict/${gamePk}`),
+      cacheKey,
+      () => {
+        const params = model === 'rf'
+          ? new HttpParams()
+          : new HttpParams().set('model', model);
+        return this.http.get<PredictionOut>(`${this.base}/predict/${gamePk}`, { params });
+      },
       options?.force === true,
     );
   }
 
   /** Recalcula la estimación en el servidor (por si el proceso automático no actualizó a tiempo). */
-  refreshPrediction(gamePk: number): Observable<PredictionOut> {
-    return this.http.post<PredictionOut>(`${this.base}/predict/${gamePk}/refresh`, {}).pipe(
-      tap(() => this.invalidatePrediction(gamePk)),
-    );
+  refreshPrediction(gamePk: number, options?: { model?: 'rf' | 'xgb' }): Observable<PredictionOut> {
+    const model = options?.model ?? 'rf';
+    const params = model === 'rf' ? new HttpParams() : new HttpParams().set('model', model);
+    return this.http
+      .post<PredictionOut>(`${this.base}/predict/${gamePk}/refresh`, {}, { params })
+      .pipe(tap(() => this.invalidatePrediction(gamePk)));
   }
 
   listMlbTeams(options?: { force?: boolean }): Observable<TeamOut[]> {
@@ -177,7 +189,8 @@ export class GamesApiService {
   }
 
   invalidatePrediction(gamePk: number): void {
-    this.predictCache.invalidate(String(gamePk));
+    this.predictCache.invalidate(`${gamePk}|rf`);
+    this.predictCache.invalidate(`${gamePk}|xgb`);
     this.listGamesCache.clear();
   }
 

@@ -90,7 +90,29 @@
           <mat-card-subtitle>Favorito del modelo y regresión de carreras totales (O/U)</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
-          @if (predLoading) {
+          <div class="model-toggle-row">
+            <mat-button-toggle-group
+              [value]="selectedModel"
+              (change)="selectModel($event.value)"
+              aria-label="Seleccionar modelo"
+            >
+              <mat-button-toggle value="rf">Random Forest</mat-button-toggle>
+              <mat-button-toggle value="xgb" [disabled]="xgbUnavailable">
+                XGBoost
+                @if (xgbLoading) {
+                  <mat-spinner diameter="14" class="toggle-spinner" />
+                }
+              </mat-button-toggle>
+            </mat-button-toggle-group>
+            @if (activePrediction?.model_version) {
+              <span class="model-version-chip">{{ activePrediction!.model_version }}</span>
+            }
+            @if (xgbUnavailable) {
+              <span class="model-unavailable-hint">XGBoost no disponible (modelo no entrenado)</span>
+            }
+          </div>
+
+          @if (predLoading || (selectedModel === 'xgb' && xgbLoading)) {
             <div class="inline-loading">
               <mat-spinner diameter="28" />
               <span>Preparando estimación…</span>
@@ -118,19 +140,19 @@
                 <p class="runs-ou-hint">La línea se redondea a medios para lectura; el modelo entrega un valor continuo.</p>
               </div>
             }
-            @if (prediction?.asian_handicap) {
+            @if (activePrediction?.asian_handicap) {
               <div class="ah-block" role="region" aria-label="Handicap estimado">
                 <h3 class="ah-title">Handicap (estimación)</h3>
                 <div class="ah-row">
                   <app-probability-bar
                     [label]="ahHomeLabel()"
-                    [probability]="prediction!.asian_handicap!.home.cover_probability"
+                    [probability]="activePrediction!.asian_handicap!.home.cover_probability"
                   />
                 </div>
                 <div class="ah-row">
                   <app-probability-bar
                     [label]="ahAwayLabel()"
-                    [probability]="prediction!.asian_handicap!.away.cover_probability"
+                    [probability]="activePrediction!.asian_handicap!.away.cover_probability"
                   />
                 </div>
               </div>
