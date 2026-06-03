@@ -1,4 +1,4 @@
-import { HttpErrorResponse } from '@angular/common/http';
+﻿import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -364,9 +364,22 @@ export class OperationsComponent implements OnInit, OnDestroy {
   }
 
   reloadModel(): void {
-    this._run('Recargando modelo…', () => this.admin.reloadModel(), {
+    this._run('Recargando modelo RF…', () => this.admin.reloadModel(), {
       onSuccess: () => this.modelInfo.refreshOnce(),
     });
+  }
+
+  reloadModelXgb(): void {
+    this._run('Recargando modelo XGBoost…', () => this.admin.reloadModelXgb(), {
+      onSuccess: () => this.modelInfo.refreshOnce(),
+    });
+  }
+
+  calibrateModel(): void {
+    this._run(
+      'Calibrando probabilidades (leyendo partidos evaluados en BD)…',
+      () => this.admin.calibrateModel(),
+    );
   }
 
   train(): void {

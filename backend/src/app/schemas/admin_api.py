@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
@@ -174,3 +174,12 @@ class AdminModelVersionsResponse(BaseModel):
 
     items: list[AdminModelVersionItem]
     total: int
+
+
+class CalibrateModelResponse(BaseModel):
+    """Resultado de ajustar la capa de calibración de probabilidades."""
+
+    message: str
+    model_version: str
+    n_samples: int = Field(description="Predicciones evaluadas usadas para calibrar")
+    calibration_path: str = Field(description="Ruta del archivo de calibración guardado")

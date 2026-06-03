@@ -1,6 +1,6 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+﻿import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError, tap, throwError } from 'rxjs';
+import { Observable, catchError, map, tap, throwError } from 'rxjs';
 
 import { environment } from '../../environments/environment';
 import { RequestCache } from './request-cache';
@@ -44,6 +44,13 @@ export interface TrainResultResponse {
   message: string;
   stdout_tail: string | null;
   training_meta?: Record<string, unknown> | null;
+}
+
+export interface CalibrateModelResponse {
+  message: string;
+  model_version: string;
+  n_samples: number;
+  calibration_path: string;
 }
 
 export interface BacktestSummary {
@@ -199,6 +206,24 @@ export class AdminApiService {
     return this.http
       .post<MessageResponse>(`${this.base}/model/reload`, {}, this.opts())
       .pipe(tap(() => this.backtestCache.clear()));
+  }
+
+  reloadModelXgb(): Observable<MessageResponse> {
+    return this.http
+      .post<MessageResponse>(`${this.base}/model/reload-xgb`, {}, this.opts())
+      .pipe(tap(() => this.backtestCache.clear()));
+  }
+
+  calibrateModel(): Observable<MessageResponse> {
+    return this.http
+      .post<CalibrateModelResponse>(`${this.base}/model/calibrate`, {}, this.opts())
+      .pipe(
+        map((r) => ({
+          message: r.message,
+          detail: `Modelo: ${r.model_version} — ${r.n_samples} partidos evaluados`,
+        })),
+        tap(() => this.backtestCache.clear()),
+      );
   }
 
   trainModel(body: {

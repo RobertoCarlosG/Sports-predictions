@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import math
 import os
@@ -13,6 +13,7 @@ import numpy as np
 from numpy.typing import NDArray
 from sklearn.ensemble import RandomForestClassifier
 
+from app.ml.calibration import apply_calibration, load_calibration
 from app.ml.features import build_feature_matrix_row
 from app.models.mlb import Game, GameFeatureSnapshot, GameWeather
 
@@ -158,7 +159,12 @@ class MlbPredictionService:
         x: NDArray[np.float64] = build_feature_matrix_row(game, weather, snapshot)
         x = _align_feature_vector(x, clf, reg)
         proba = clf.predict_proba(x)
-        p_home = float(proba[0][1]) if proba.shape[1] > 1 else float(proba[0][0])
+        p_home_raw = float(proba[0][1]) if proba.shape[1] > 1 else float(proba[0][0])
+        base_version = str(bundle.get("model_base_version") or bundle.get("model_version") or "rf-v0")
+        calibrator = load_calibration(base_version)
+        p_home = apply_calibration(p_home_raw, calibrator)
+        if calibrator is not None:
+            log.debug("calibration applied: raw=%.4f → cal=%.4f", p_home_raw, p_home)
         total_runs = float(reg.predict(x)[0])
         model_version = str(bundle.get("model_version") or "rf-v0")
         return PredictionResult(

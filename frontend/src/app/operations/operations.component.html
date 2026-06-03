@@ -1,4 +1,4 @@
-<div class="page">
+﻿<div class="page">
   <nav class="back-row">
     <a mat-button color="primary" routerLink="/mlb/today">
       <mat-icon>arrow_back</mat-icon>
@@ -303,9 +303,12 @@
               <mat-card appearance="outlined">
                 <mat-card-header>
                   <mat-card-title>Modelo</mat-card-title>
-                  <mat-card-subtitle>Entrenar y activar sin reiniciar el servidor (tras entrenar, recarga)</mat-card-subtitle>
+                  <mat-card-subtitle>Entrenar, recargar y calibrar sin reiniciar el servidor</mat-card-subtitle>
                 </mat-card-header>
                 <mat-card-content class="stack">
+
+                  <!-- ── Random Forest ── -->
+                  <p class="ops-section-label">Random Forest</p>
                   <mat-form-field appearance="outline" class="full">
                     <mat-label>Validación desde (opcional)</mat-label>
                     <input matInput type="date" [(ngModel)]="trainValFrom" name="tv" />
@@ -334,12 +337,39 @@
                   </mat-form-field>
                   <button mat-flat-button color="primary" type="button" (click)="train()" [disabled]="operationsLocked">
                     <mat-icon>model_training</mat-icon>
-                    Entrenar con datos guardados
+                    Entrenar RF con datos guardados
                   </button>
                   <button mat-stroked-button type="button" (click)="reloadModel()" [disabled]="operationsLocked">
                     <mat-icon>refresh</mat-icon>
-                    Recargar modelo en memoria
+                    Recargar RF en memoria
                   </button>
+
+                  <div class="ops-divider"></div>
+
+                  <!-- ── XGBoost ── -->
+                  <p class="ops-section-label">XGBoost</p>
+                  <p class="ops-section-hint">
+                    El entrenamiento XGBoost se lanza desde CLI:<br>
+                    <code>uv run python -m app.ml.train_from_db --algorithm xgb --bayesian --calibrate</code>
+                  </p>
+                  <button mat-stroked-button type="button" (click)="reloadModelXgb()" [disabled]="operationsLocked">
+                    <mat-icon>refresh</mat-icon>
+                    Recargar XGBoost en memoria
+                  </button>
+
+                  <div class="ops-divider"></div>
+
+                  <!-- ── Calibración ── -->
+                  <p class="ops-section-label">Calibración de probabilidades</p>
+                  <p class="ops-section-hint">
+                    Corrige la confianza del modelo activo usando partidos ya evaluados en la base de datos.
+                    Recomendado tras acumular 30 o más partidos con resultado.
+                  </p>
+                  <button mat-stroked-button type="button" (click)="calibrateModel()" [disabled]="operationsLocked">
+                    <mat-icon>tune</mat-icon>
+                    Calibrar modelo activo
+                  </button>
+
                 </mat-card-content>
               </mat-card>
 

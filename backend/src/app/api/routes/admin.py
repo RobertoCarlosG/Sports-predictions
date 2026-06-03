@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import collections
 import datetime as dt
@@ -41,6 +41,7 @@ from app.schemas.admin_api import (
     AdminSessionResponse,
     BackfillBody,
     BackfillJobStatusResponse,
+    CalibrateModelResponse,
     MessageResponse,
     PredictionEvaluationItem,
     PredictionEvaluationsResponse,
@@ -431,6 +432,36 @@ async def admin_reload_model(
     )
 
 
+@router.post("/model/reload-xgb", response_model=MessageResponse)
+async def admin_reload_model_xgb(
+    request: Request,
+    username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> MessageResponse:
+    """Reload the XGBoost model from artifacts/model_xgb.joblib without restarting the server."""
+    from app.ml.predictor import resolve_model_path as _resolve
+
+    path = _resolve(settings.ml_model_path_xgb, default_name="model_xgb.joblib")
+    if not path.is_file():
+        raise HTTPException(
+            status_code=400,
+            detail=f"No XGBoost model file found at {path}. Train one first with --algorithm xgb.",
+        )
+    svc_xgb = MlbPredictionService(path)
+    svc_xgb.reload()
+    ver = svc_xgb.model_version
+    request.app.state.prediction_service_xgb = svc_xgb
+    try:
+        await record_model_load(session, svc_xgb, loaded_by=username, notes="manual xgb reload")
+        await session.commit()
+    except Exception:
+        log.warning("model_versions: could not record xgb reload", exc_info=True)
+    return MessageResponse(
+        message="XGBoost model reloaded.",
+        detail=f"Version: {ver}",
+    )
+
+
 @router.get("/model/versions", response_model=AdminModelVersionsResponse)
 async def admin_model_versions(
     _username: AdminUserDep,
@@ -786,3 +817,43 @@ async def get_prediction_evaluations(
     total = total_result or 0
     
     return PredictionEvaluationsResponse(items=items, total=total)
+
+
+@router.post("/model/calibrate", response_model=CalibrateModelResponse)
+async def admin_calibrate_model(
+    request: Request,
+    username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> CalibrateModelResponse:
+    """Fit (or refit) the probability calibration layer for the active model version.
+
+    Reads all evaluated predictions from the database, fits an isotonic
+    regression to correct systematic over/under-confidence, and saves the
+    calibrator to ml/artifacts/. The predictor picks it up automatically on
+    the next prediction call (no reload required).
+    """
+    from app.ml.calibration import fit_calibration_from_db, save_calibration
+
+    svc: MlbPredictionService | None = getattr(request.app.state, "prediction_service", None)
+    if svc is None:
+        raise HTTPException(status_code=400, detail="No hay modelo cargado en memoria.")
+
+    base_version = str(
+        getattr(svc, "_bundle", None) and svc._bundle.get("model_base_version")  # type: ignore[union-attr]
+        or svc.model_version.split("@")[0]
+    )
+
+    try:
+        calibrator, n_samples = await fit_calibration_from_db(session, base_version)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    cal_path = save_calibration(base_version, calibrator)
+    log.info("admin calibrate: model_version=%s n=%d path=%s by=%s", base_version, n_samples, cal_path, username)
+
+    return CalibrateModelResponse(
+        message="Calibración ajustada y guardada. El predictor la aplicará automáticamente.",
+        model_version=base_version,
+        n_samples=n_samples,
+        calibration_path=str(cal_path),
+    )

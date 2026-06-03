@@ -1,0 +1,38 @@
+# Normalize to LF in repo; checkout as LF on all platforms
+* text=auto eol=lf
+
+# Code and config — always LF
+*.py    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.md    text eol=lf
+*.sh    text eol=lf
+*.toml  text eol=lf
+*.json  text eol=lf
+*.ts    text eol=lf
+*.html  text eol=lf
+*.scss  text eol=lf
+*.css   text eol=lf
+*.sql   text eol=lf
+*.txt   text eol=lf
+*.cfg   text eol=lf
+*.ini   text eol=lf
+
+# Windows-only scripts keep CRLF
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Binaries — no conversion
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pkl   binary
+*.joblib binary
+*.woff  binary
+*.woff2 binary
+*.eot   binary
+*.ttf   binary
+*.otf   binary

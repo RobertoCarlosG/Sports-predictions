@@ -1,4 +1,4 @@
-"""Entrena un modelo (Random Forest o XGBoost) desde `game_feature_snapshots` + `games`.
+﻿"""Entrena un modelo (Random Forest o XGBoost) desde `game_feature_snapshots` + `games`.
 
 Uso (desde `backend/`):
 
@@ -9,6 +9,13 @@ Uso (desde `backend/`):
   # XGBoost
   uv run python -m app.ml.train_from_db --algorithm xgb
   uv run python -m app.ml.train_from_db --algorithm xgb --val-from 2025-07-01
+
+  # Bayesian hyperparameter search (builds on prior runs via Optuna SQLite study)
+  uv run python -m app.ml.train_from_db --bayesian
+  uv run python -m app.ml.train_from_db --bayesian --bayesian-trials 50
+
+  # Train + fit calibration layer on validation set
+  uv run python -m app.ml.train_from_db --calibrate
 
 Partición: filas con `game_date` < `--val-from` → train; `>= val-from` → validación.
 Si no pasas `--val-from`, usa 80% temporal (primer 80% fechas train, resto val).
@@ -212,7 +219,23 @@ async def _async_main(args: argparse.Namespace) -> None:
             raise
     log.info("split: %s | train=%d val=%d", split_note, len(yh_tr), len(yh_va))
 
-    if args.algorithm == "xgb":
+    if getattr(args, "bayesian", False):
+        from app.ml.bayesian_search import build_models_from_params, run_study
+
+        log.info("Bayesian hyperparameter search enabled (n_trials=%d)", args.bayesian_trials)
+        best_params = run_study(
+            algorithm=args.algorithm,
+            x_tr=x_tr,
+            x_va=x_va,
+            yh_tr=yh_tr,
+            yh_va=yh_va,
+            yr_tr=yr_tr,
+            yr_va=yr_va,
+            n_trials=args.bayesian_trials,
+        )
+        log.info("Using best Optuna params: %s", best_params)
+        clf, reg = build_models_from_params(args.algorithm, best_params)
+    elif args.algorithm == "xgb":
         clf, reg = _build_xgb(args)
         log.info(
             "XGBoost: trees=%d max_depth=%d lr=%.4f subsample=%.2f colsample=%.2f min_child_weight=%d",
@@ -275,6 +298,16 @@ async def _async_main(args: argparse.Namespace) -> None:
     joblib.dump(bundle, out)
     log.info("wrote %s  [algorithm=%s version=%s]", out.resolve(), args.algorithm, args.model_version)
 
+    if getattr(args, "calibrate", False):
+        from app.ml.calibration import fit_calibration_from_arrays, save_calibration
+
+        log.info("Fitting calibration layer on validation set probabilities...")
+        proba_va = clf.predict_proba(x_va)
+        raw_probs = proba_va[:, 1] if proba_va.shape[1] > 1 else proba_va[:, 0]
+        calibrator = fit_calibration_from_arrays(raw_probs, yh_va)
+        cal_path = save_calibration(args.model_version, calibrator)
+        log.info("calibration saved to %s", cal_path)
+
 
 def main(argv: list[str] | None = None) -> None:
     # stdout: el panel admin muestra stdout_tail del subproceso (stderr se fusiona allí también).
@@ -331,6 +364,24 @@ def main(argv: list[str] | None = None) -> None:
     )
     p.add_argument(
         "--min-child-weight", type=int, default=3, help="[XGB only] Minimum child weight"
+    )
+    # Bayesian hyperparameter search
+    p.add_argument(
+        "--bayesian",
+        action="store_true",
+        help="Use Optuna Bayesian search to find best hyperparameters (persists study across runs)",
+    )
+    p.add_argument(
+        "--bayesian-trials",
+        type=int,
+        default=30,
+        help="Number of Optuna trials to run when --bayesian is set (default: 30)",
+    )
+    # Post-training calibration
+    p.add_argument(
+        "--calibrate",
+        action="store_true",
+        help="After training, fit a probability calibration layer on the validation set",
     )
 
     args = p.parse_args(argv)

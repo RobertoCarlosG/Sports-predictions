@@ -1,4 +1,4 @@
-.page {
+﻿.page {
   max-width: 1120px;
   margin: 0 auto;
   padding: 1rem 1rem 2.5rem;
@@ -344,4 +344,33 @@ button mat-spinner {
   display: inline-block;
   margin-right: 6px;
   vertical-align: middle;
+}
+
+.ops-section-label {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.5));
+}
+
+.ops-section-hint {
+  margin: -2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
+
+  code {
+    font-size: 11px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--mat-sys-surface-container, rgba(0, 0, 0, 0.06));
+  }
+}
+
+.ops-divider {
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin: 4px 0;
 }
