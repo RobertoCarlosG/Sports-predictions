@@ -1,4 +1,4 @@
-﻿"""Entrena un modelo (Random Forest o XGBoost) desde `game_feature_snapshots` + `games`.
+"""Entrena un modelo (Random Forest o XGBoost) desde `game_feature_snapshots` + `games`.
 
 Uso (desde `backend/`):
 
