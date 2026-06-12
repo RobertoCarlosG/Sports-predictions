@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from app.core.config import settings
 from app.db.session import async_session_factory
+from app.ml.model_routing import get_prediction_service_optional
 from app.services.prediction_cache import upsert_prediction_cache
 from app.services.prediction_infer import compute_prediction_response
 
@@ -28,7 +29,7 @@ async def refresh_prediction_cache_for_games(
     if not force and not settings.pipeline_auto_cache_predictions:
         return
     await asyncio.sleep(0.08)
-    svc: MlbPredictionService | None = getattr(app.state, "prediction_service", None)
+    svc = get_prediction_service_optional(app)
     model_version: str = getattr(app.state, "active_model_version", "") or ""
     if svc is None or not model_version:
         log.debug("skip auto prediction cache: no model loaded")

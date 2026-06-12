@@ -40,11 +40,13 @@ async def test_predict_rf_response_has_asian_handicap(client: AsyncClient) -> No
     assert 0.0 <= ah["home"]["cover_probability"] <= 1.0
 
 
-async def test_predict_rf_default_model_param(client: AsyncClient) -> None:
-    # No ?model= query → defaults to rf
+async def test_predict_xgb_default_model_param(client: AsyncClient) -> None:
+    # No ?model= query → defaults to xgb
     r = await client.get(f"/api/v1/predict/{SCHEDULED_GAME_PK}")
     assert r.status_code == 200
-    assert "home_win_probability" in r.json()
+    body = r.json()
+    assert "home_win_probability" in body
+    assert "xgb" in body["model_version"]
 
 
 async def test_predict_rf_final_game_returns_prediction(client: AsyncClient) -> None:

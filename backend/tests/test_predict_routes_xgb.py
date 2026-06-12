@@ -9,7 +9,7 @@ import pytest
 from fastapi import HTTPException, Request
 from httpx import ASGITransport, AsyncClient
 
-from app.api.routes.predict import _get_prediction_service
+from app.ml.model_routing import get_prediction_service
 from app.main import app
 from app.schemas.games import AsianHandicapBlock, AsianHandicapSideOut, PredictionResponse
 
@@ -72,7 +72,7 @@ async def client(override_app_db: Any) -> Any:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests: _get_prediction_service (no HTTP)
+# Unit tests: get_prediction_service (no HTTP)
 # ---------------------------------------------------------------------------
 
 def _mock_request(rf: Any = None, xgb: Any = None) -> MagicMock:
@@ -85,21 +85,21 @@ def _mock_request(rf: Any = None, xgb: Any = None) -> MagicMock:
 def test_get_service_rf_returns_rf() -> None:
     sentinel = object()
     req = _mock_request(rf=sentinel, xgb=None)
-    result = _get_prediction_service(req, model="rf")
+    result = get_prediction_service(req, model="rf")
     assert result is sentinel
 
 
 def test_get_service_xgb_returns_xgb() -> None:
     sentinel = object()
     req = _mock_request(rf=None, xgb=sentinel)
-    result = _get_prediction_service(req, model="xgb")
+    result = get_prediction_service(req, model="xgb")
     assert result is sentinel
 
 
 def test_get_service_xgb_none_raises_503() -> None:
     req = _mock_request(rf=_mock_svc(), xgb=None)
     with pytest.raises(HTTPException) as exc_info:
-        _get_prediction_service(req, model="xgb")
+        get_prediction_service(req, model="xgb")
     assert exc_info.value.status_code == 503
     assert "XGBoost" in exc_info.value.detail
 
@@ -107,8 +107,14 @@ def test_get_service_xgb_none_raises_503() -> None:
 def test_get_service_rf_none_raises_503() -> None:
     req = _mock_request(rf=None, xgb=_mock_svc())
     with pytest.raises(HTTPException) as exc_info:
-        _get_prediction_service(req, model="rf")
+        get_prediction_service(req, model="rf")
     assert exc_info.value.status_code == 503
+
+
+def test_get_service_default_returns_xgb() -> None:
+    sentinel = object()
+    req = _mock_request(rf=_mock_svc(), xgb=sentinel)
+    assert get_prediction_service(req) is sentinel
 
 
 # ---------------------------------------------------------------------------
@@ -179,28 +185,29 @@ async def test_get_predict_rf_503_no_service(client: AsyncClient) -> None:
 # GET — active_model_version side-effect
 # ---------------------------------------------------------------------------
 
-async def test_get_predict_rf_sets_active_model_version(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr("app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None))
-    monkeypatch.setattr("app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED))
-    monkeypatch.setattr("app.api.routes.predict.upsert_prediction_cache", AsyncMock(return_value=None))
-    app.state.prediction_service = _mock_svc("rf-test@abc")
-    r = await client.get("/api/v1/predict/777?model=rf")
-    assert r.status_code == 200
-    assert app.state.active_model_version == "rf-test@abc"
-
-
-async def test_get_predict_xgb_skips_active_model_version(
+async def test_get_predict_rf_skips_active_model_version_when_xgb_is_default(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr("app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None))
     monkeypatch.setattr("app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED))
     monkeypatch.setattr("app.api.routes.predict.upsert_prediction_cache", AsyncMock(return_value=None))
     app.state.active_model_version = "sentinel-version"
-    r = await client.get("/api/v1/predict/777?model=xgb")
+    app.state.prediction_service = _mock_svc("rf-test@abc")
+    r = await client.get("/api/v1/predict/777?model=rf")
     assert r.status_code == 200
     assert app.state.active_model_version == "sentinel-version"
+
+
+async def test_get_predict_xgb_default_sets_active_model_version(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None))
+    monkeypatch.setattr("app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED))
+    monkeypatch.setattr("app.api.routes.predict.upsert_prediction_cache", AsyncMock(return_value=None))
+    app.state.prediction_service_xgb = _mock_svc("xgb-test@abc")
+    r = await client.get("/api/v1/predict/777")
+    assert r.status_code == 200
+    assert app.state.active_model_version == "xgb-test@abc"
 
 
 # ---------------------------------------------------------------------------

@@ -278,7 +278,7 @@ async def client(
     # Set state that the lifespan would normally set
     app.state.prediction_service = rf_svc
     app.state.prediction_service_xgb = xgb_svc
-    app.state.active_model_version = rf_svc.model_version
+    app.state.active_model_version = xgb_svc.model_version
     app.state.http_client = httpx.AsyncClient(timeout=10.0)
     app.state.games_list_inflight = {}
     app.state.backfill_job = initial_backfill_job_state()

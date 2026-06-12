@@ -20,6 +20,9 @@ interface ListMlbHistoryParams {
   offset?: number;
 }
 
+/** Modelo por defecto en GET/POST /predict (debe coincidir con backend DEFAULT_ML_MODEL). */
+export const DEFAULT_ML_MODEL = 'xgb' as const;
+
 @Injectable({ providedIn: 'root' })
 export class GamesApiService {
   private readonly http = inject(HttpClient);
@@ -83,14 +86,15 @@ export class GamesApiService {
     gamePk: number,
     options?: { force?: boolean; model?: 'rf' | 'xgb' },
   ): Observable<PredictionOut> {
-    const model = options?.model ?? 'rf';
+    const model = options?.model ?? DEFAULT_ML_MODEL;
     const cacheKey = `${gamePk}|${model}`;
     return this.predictCache.get(
       cacheKey,
       () => {
-        const params = model === 'rf'
-          ? new HttpParams()
-          : new HttpParams().set('model', model);
+        const params =
+          model === DEFAULT_ML_MODEL
+            ? new HttpParams()
+            : new HttpParams().set('model', model);
         return this.http.get<PredictionOut>(`${this.base}/predict/${gamePk}`, { params });
       },
       options?.force === true,
@@ -99,8 +103,9 @@ export class GamesApiService {
 
   /** Recalcula la estimación en el servidor (por si el proceso automático no actualizó a tiempo). */
   refreshPrediction(gamePk: number, options?: { model?: 'rf' | 'xgb' }): Observable<PredictionOut> {
-    const model = options?.model ?? 'rf';
-    const params = model === 'rf' ? new HttpParams() : new HttpParams().set('model', model);
+    const model = options?.model ?? DEFAULT_ML_MODEL;
+    const params =
+      model === DEFAULT_ML_MODEL ? new HttpParams() : new HttpParams().set('model', model);
     return this.http
       .post<PredictionOut>(`${this.base}/predict/${gamePk}/refresh`, {}, { params })
       .pipe(tap(() => this.invalidatePrediction(gamePk)));

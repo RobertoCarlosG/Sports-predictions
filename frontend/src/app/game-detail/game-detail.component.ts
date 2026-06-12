@@ -62,7 +62,7 @@ export class GameDetailComponent implements OnInit {
   predictionRefreshMessage: string | null = null;
   predictionRefreshIsError = false;
 
-  selectedModel: 'rf' | 'xgb' = 'rf';
+  selectedModel: 'rf' | 'xgb' = 'xgb';
 
   private gamePk: number | null = null;
 
@@ -105,12 +105,12 @@ export class GameDetailComponent implements OnInit {
         this.game = g;
         this.loading = false;
         if ('prediction' in g) {
-          this.rfPrediction = g.prediction ?? null;
-          this.predLoading = false;
+          this.xgbPrediction = g.prediction ?? null;
+          this.xgbLoading = false;
         } else {
-          this.loadPrediction(gamePk, { force });
+          this.loadXgbPrediction(gamePk, { force });
         }
-        this.loadXgbPrediction(gamePk, { force });
+        this.loadRfPrediction(gamePk, { force });
         this.loadHeadToHead(g);
       },
       error: () => {
@@ -121,7 +121,7 @@ export class GameDetailComponent implements OnInit {
     });
   }
 
-  private loadPrediction(gamePk: number, options?: { force?: boolean }): void {
+  private loadRfPrediction(gamePk: number, options?: { force?: boolean }): void {
     this.predLoading = true;
     this.api.predict(gamePk, { force: options?.force === true, model: 'rf' }).subscribe({
       next: (p) => {

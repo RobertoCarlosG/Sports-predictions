@@ -413,13 +413,17 @@ async def admin_reload_model(
             status_code=400,
             detail="No hay archivo de modelo en la ruta configurada.",
         )
+    from app.ml.model_routing import DEFAULT_ML_MODEL, sync_primary_model_version
+
     svc = MlbPredictionService(path)
     svc.reload()
     ver = svc.model_version
-    request.app.state.active_model_version = ver
     request.app.state.prediction_service = svc
+    sync_primary_model_version(request, "rf", svc)
     try:
-        await record_model_load(session, svc, loaded_by=username, notes="manual reload")
+        notes = "manual reload"
+        if DEFAULT_ML_MODEL == "rf":
+            await record_model_load(session, svc, loaded_by=username, notes=notes)
         await session.commit()
     except Exception:
         log.warning(
@@ -447,12 +451,16 @@ async def admin_reload_model_xgb(
             status_code=400,
             detail=f"No XGBoost model file found at {path}. Train one first with --algorithm xgb.",
         )
+    from app.ml.model_routing import DEFAULT_ML_MODEL, sync_primary_model_version
+
     svc_xgb = MlbPredictionService(path)
     svc_xgb.reload()
     ver = svc_xgb.model_version
     request.app.state.prediction_service_xgb = svc_xgb
+    sync_primary_model_version(request, "xgb", svc_xgb)
     try:
-        await record_model_load(session, svc_xgb, loaded_by=username, notes="manual xgb reload")
+        if DEFAULT_ML_MODEL == "xgb":
+            await record_model_load(session, svc_xgb, loaded_by=username, notes="manual xgb reload")
         await session.commit()
     except Exception:
         log.warning("model_versions: could not record xgb reload", exc_info=True)

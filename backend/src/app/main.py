@@ -18,6 +18,7 @@ from app.core.exception_handlers import (
     sqlalchemy_error_handler,
 )
 from app.db.session import async_session_factory, engine
+from app.ml.model_routing import DEFAULT_ML_MODEL, get_prediction_service_optional
 from app.ml.predictor import MlbPredictionService, ensure_model_exists, resolve_model_path
 from app.services.admin_backfill_state import initial_backfill_job_state
 from app.services.mlb_daily_snapshot import daily_snapshot_loop_forever
@@ -48,16 +49,47 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "Panel Operaciones: ADMIN_JWT_SECRET vacío — /api/v1/admin/auth/login responderá 503 hasta configurarlo.",
         )
 
+    app.state.prediction_service = None
+    app.state.prediction_service_xgb = None
+    app.state.active_model_version = ""
+
     if model_path.is_file():
-        svc = MlbPredictionService(model_path)
-        app.state.prediction_service = svc
-        app.state.active_model_version = svc.model_version
-        log.info("ML model loaded from %s version=%s", model_path, app.state.active_model_version)
-        # Registrar en model_versions para auditoría / endpoint público.
-        # No fallar el arranque si la BD aún no tiene la tabla (migración 006 pendiente).
+        app.state.prediction_service = MlbPredictionService(model_path)
+        log.info(
+            "Random Forest loaded from %s version=%s",
+            model_path,
+            app.state.prediction_service.model_version,
+        )
+    else:
+        log.info("No Random Forest model at %s — ?model=rf will return 503.", model_path)
+
+    xgb_path = resolve_model_path(settings.ml_model_path_xgb, default_name="model_xgb.joblib")
+    if xgb_path.is_file():
+        app.state.prediction_service_xgb = MlbPredictionService(xgb_path)
+        log.info(
+            "XGBoost loaded from %s version=%s",
+            xgb_path,
+            app.state.prediction_service_xgb.model_version,
+        )
+    else:
+        log.info("No XGBoost model at %s — default predict/games need this file.", xgb_path)
+
+    primary_svc = get_prediction_service_optional(app)
+    if primary_svc is not None:
+        app.state.active_model_version = primary_svc.model_version
+        log.info(
+            "Primary ML model (%s) active version=%s",
+            DEFAULT_ML_MODEL,
+            app.state.active_model_version,
+        )
         try:
             async with async_session_factory() as session:
-                await record_model_load(session, svc, loaded_by=None, notes="lifespan startup")
+                await record_model_load(
+                    session,
+                    primary_svc,
+                    loaded_by=None,
+                    notes=f"lifespan startup (default={DEFAULT_ML_MODEL})",
+                )
                 await session.commit()
         except Exception:
             log.warning(
@@ -66,20 +98,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
     else:
         log.warning(
-            "No ML model at %s — predict endpoints return 503 until you train and reload or restart.",
-            model_path,
+            "No primary ML model (%s) loaded — predict/games return 503 until you deploy artifacts.",
+            DEFAULT_ML_MODEL,
         )
-        app.state.prediction_service = None
-        app.state.active_model_version = ""
-
-    xgb_path = resolve_model_path(settings.ml_model_path_xgb, default_name="model_xgb.joblib")
-    if xgb_path.is_file():
-        svc_xgb = MlbPredictionService(xgb_path)
-        app.state.prediction_service_xgb = svc_xgb
-        log.info("XGBoost model loaded from %s version=%s", xgb_path, svc_xgb.model_version)
-    else:
-        app.state.prediction_service_xgb = None
-        log.info("No XGBoost model at %s — ?model=xgb will return 503.", xgb_path)
 
     if settings.mlb_daily_snapshot_enabled:
         app.state.mlb_daily_snapshot_task = asyncio.create_task(

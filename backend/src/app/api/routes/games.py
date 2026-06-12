@@ -13,7 +13,12 @@ from sqlalchemy.orm import selectinload
 from app.api.deps_rate_limit import rate_limit_public_read, rate_limit_public_write
 from app.core.config import settings
 from app.db.session import get_db
-from app.ml.predictor import MlbPredictionService
+from app.ml.model_routing import (
+    DEFAULT_ML_MODEL,
+    MlModelKind,
+    get_prediction_service_optional,
+    sync_primary_model_version,
+)
 from app.models.mlb import Game, GameFeatureSnapshot, GamePredictionCache, GameWeather
 from app.schemas.games import GameDetailResponse, GamesListMeta, GamesListResponse, PredictionResponse
 from app.schemas.team_display import team_out_from_model
@@ -73,12 +78,13 @@ async def _compute_or_cache_prediction(
     cache_reason: str,
     *,
     pred_cache_row: GamePredictionCache | None = None,
+    model: MlModelKind = DEFAULT_ML_MODEL,
 ) -> PredictionResponse | None:
-    svc: MlbPredictionService | None = getattr(request.app.state, "prediction_service", None)
+    svc = get_prediction_service_optional(request, model)
     if svc is None:
         return None
+    sync_primary_model_version(request, model, svc)
     model_version = svc.model_version
-    request.app.state.active_model_version = model_version
     if model_version:
         if pred_cache_row is not None and pred_cache_row.model_version == model_version:
             base = PredictionResponse(
@@ -220,9 +226,10 @@ async def _list_games_impl(
                 f"iguales. Ejemplos game_pk: {sample}{more}. "
                 f"En Operaciones → «Recalcular indicadores»."
             )
-    if include_predictions and getattr(request.app.state, "prediction_service", None) is None:
+    if include_predictions and get_prediction_service_optional(request) is None:
         meta_info.append(
-            "Modelo ML no cargado en el API: no hay predicciones nuevas hasta configurar ML_MODEL_PATH y recargar."
+            "Modelo ML no cargado en el API: no hay predicciones nuevas hasta desplegar "
+            f"artifacts/model_{DEFAULT_ML_MODEL}.joblib (o el path en ML_MODEL_PATH_XGB) y recargar."
         )
 
     out: list[GameDetailResponse] = []

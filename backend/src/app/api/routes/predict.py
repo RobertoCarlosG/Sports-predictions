@@ -8,41 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps_rate_limit import rate_limit_public_read, rate_limit_public_write
 from app.db.session import get_db
-from app.ml.predictor import MlbPredictionService
+from app.ml.model_routing import DEFAULT_ML_MODEL, get_prediction_service, sync_primary_model_version
 from app.services.prediction_cache import get_cached_prediction, upsert_prediction_cache
 from app.services.prediction_infer import attach_asian_handicap_if_missing, compute_prediction_response
 from app.schemas.games import PredictionResponse
 
 router = APIRouter()
 log = logging.getLogger(__name__)
-
-
-def _get_prediction_service(
-    request: Request,
-    model: Literal["rf", "xgb"] = "rf",
-) -> MlbPredictionService:
-    if model == "xgb":
-        svc: MlbPredictionService | None = getattr(request.app.state, "prediction_service_xgb", None)
-        if svc is None:
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "Modelo XGBoost no disponible. Entrena con --algorithm xgb, "
-                    "coloca el archivo en artifacts/model_xgb.joblib y reinicia el servicio."
-                ),
-            )
-        return svc
-
-    svc = getattr(request.app.state, "prediction_service", None)
-    if svc is None:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Modelo no disponible. Entrena el modelo, configura ML_MODEL_PATH y usa "
-                "administración para recargar, o reinicia el servicio."
-            ),
-        )
-    return svc
 
 
 @router.get(
@@ -54,13 +26,15 @@ async def predict_game(
     game_pk: int,
     request: Request,
     session: Annotated[AsyncSession, Depends(get_db)],
-    model: Literal["rf", "xgb"] = Query(default="rf", description="Model to use: 'rf' (Random Forest) or 'xgb' (XGBoost)"),
+    model: Literal["rf", "xgb"] = Query(
+        default=DEFAULT_ML_MODEL,
+        description="Model to use: 'xgb' (XGBoost, default) or 'rf' (Random Forest)",
+    ),
 ) -> PredictionResponse:
     """Sirve estimación desde caché si coincide la versión del modelo; si no, calcula y guarda."""
-    svc = _get_prediction_service(request, model)
+    svc = get_prediction_service(request, model)
     model_version = svc.model_version
-    if model == "rf":
-        request.app.state.active_model_version = model_version
+    sync_primary_model_version(request, model, svc)
     if model_version:
         cached = await get_cached_prediction(session, game_pk, model_version)
         if cached is not None:
@@ -90,10 +64,14 @@ async def refresh_prediction_game(
     game_pk: int,
     request: Request,
     session: Annotated[AsyncSession, Depends(get_db)],
-    model: Literal["rf", "xgb"] = Query(default="rf", description="Model to use: 'rf' or 'xgb'"),
+    model: Literal["rf", "xgb"] = Query(
+        default=DEFAULT_ML_MODEL,
+        description="Model to use: 'xgb' (default) or 'rf'",
+    ),
 ) -> PredictionResponse:
     """Recalcula y actualiza la caché."""
-    svc = _get_prediction_service(request, model)
+    svc = get_prediction_service(request, model)
+    sync_primary_model_version(request, model, svc)
     try:
         out = await compute_prediction_response(session, svc, game_pk)
     except HTTPException:
