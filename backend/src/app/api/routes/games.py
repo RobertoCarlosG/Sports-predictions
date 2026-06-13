@@ -105,36 +105,6 @@ async def _compute_or_cache_prediction(
         if cached is not None:
             return await attach_asian_handicap_if_missing(session, cached)
     
-    now = dt.datetime.now(dt.timezone.utc)
-    game_is_future = False
-    
-    if game.game_datetime_utc is not None:
-        if game.game_datetime_utc.tzinfo is None:
-            game_dt = game.game_datetime_utc.replace(tzinfo=dt.timezone.utc)
-        else:
-            game_dt = game.game_datetime_utc
-        game_is_future = game_dt > now
-    else:
-        today = now.date()
-        game_is_future = game.game_date > today
-    
-    game_status_lower = game.status.lower()
-    game_is_live_or_scheduled = any(
-        status in game_status_lower
-        for status in ["scheduled", "pre-game", "warmup", "in progress", "live", "delayed"]
-    )
-    
-    should_predict = game_is_future or game_is_live_or_scheduled
-    
-    if not should_predict:
-        log.info(
-            "game_pk=%s is in the past (date=%s, status=%s) with no cached prediction, skipping prediction",
-            game.game_pk,
-            game.game_date,
-            game.status,
-        )
-        return None
-    
     try:
         pr = svc.predict(game, game.weather, snapshot)
         if game.home_team is None or game.away_team is None:
