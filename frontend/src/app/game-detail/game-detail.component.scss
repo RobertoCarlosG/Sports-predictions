@@ -1,3 +1,5 @@
+@use 'glass' as *;
+
 .page {
   max-width: 1040px;
   margin: 0 auto;
@@ -8,7 +10,6 @@
   margin-bottom: 1rem;
 }
 
-/* Panel discreto: acción secundaria, sin competir con «Actualizar datos». */
 .pred-hint-bar {
   display: flex;
   flex-wrap: wrap;
@@ -17,26 +18,26 @@
   gap: 10px 16px;
   margin-bottom: 12px;
   padding: 10px 14px;
-  border-radius: 12px;
-  background: var(--mat-sys-surface-container-low, #f4edec);
-  border: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant, #ccc) 55%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
 }
 
 .pred-hint-text {
   margin: 0;
   flex: 1 1 200px;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-weight: 400;
   line-height: 1.45;
-  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+  color: var(--text-secondary);
   max-width: 42rem;
 }
 
 .pred-hint-action {
   flex-shrink: 0;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
   font-weight: 500;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .pred-hint-action .btn-spinner {
@@ -47,12 +48,12 @@
 
 .pred-hint-feedback {
   margin: -4px 0 12px;
-  font-size: 12px;
-  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
 }
 
 .pred-hint-feedback-err {
-  color: var(--mat-sys-error, #b3261e);
+  color: var(--danger);
 }
 
 .loading-block {
@@ -61,17 +62,17 @@
   align-items: center;
   gap: 1rem;
   padding: 2rem;
-  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+  color: var(--text-secondary);
 }
 
 .error-panel {
   margin-bottom: 1.25rem;
-  border-color: var(--mat-sys-error, #b3261e) !important;
+  border-color: var(--danger) !important;
 }
 
 .error-avatar {
-  background: var(--mat-sys-error-container, #fce8e6);
-  color: var(--mat-sys-error, #b3261e);
+  background: var(--danger-bg);
+  color: var(--danger);
   padding: 8px;
   border-radius: 50%;
   width: 40px;
@@ -106,6 +107,7 @@
 
 .head-card {
   margin-bottom: 1.25rem;
+  border-radius: var(--radius-lg) !important;
 }
 
 .head-inner {
@@ -123,15 +125,16 @@
 
 .headline {
   margin: 0 0 6px;
-  font-size: 1.35rem;
+  font-size: var(--font-size-lg);
   font-weight: 500;
   line-height: 1.25;
+  color: var(--text-primary);
 }
 
 .sub {
   margin: 0 0 16px;
-  font-size: 12px;
-  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
 }
 
 .cta-row {
@@ -142,8 +145,8 @@
 
 .soft-warn {
   margin: 12px 0 0;
-  font-size: 13px;
-  color: var(--mat-sys-error, #b3261e);
+  font-size: var(--font-size-sm);
+  color: var(--danger);
 }
 
 .prob-stack {
@@ -155,9 +158,9 @@
 .runs-ou-detail {
   margin-top: 1.25rem;
   padding: 1rem 1.1rem;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--mat-sys-primary, #8f343c) 6%, transparent);
-  border: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant, #ccc) 50%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  border: 1px solid var(--glass-border-hi);
 }
 
 .runs-ou-detail-row {
@@ -170,7 +173,7 @@
 }
 
 .runs-ou-detail-label {
-  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
+  color: var(--text-secondary);
   font-weight: 400;
 }
 
@@ -184,19 +187,19 @@
   margin: 0.75rem 0 0.35rem;
   font-size: 0.9rem;
   line-height: 1.4;
-  color: var(--mat-sys-on-surface, rgba(0, 0, 0, 0.88));
+  color: var(--text-primary);
 }
 
 .detail-lean-over strong {
-  color: #1b5e20;
+  color: var(--success);
 }
 
 .detail-lean-under strong {
-  color: #4e342e;
+  color: var(--danger);
 }
 
 .detail-lean-push strong {
-  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -204,7 +207,7 @@
   margin: 0.5rem 0 0;
   font-size: 0.8rem;
   line-height: 1.4;
-  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.55));
+  color: var(--text-tertiary);
 }
 
 .h2h-list {
@@ -223,13 +226,13 @@
 
 .sync-err {
   padding-top: 0;
-  color: var(--mat-sys-error, #b3261e);
+  color: var(--danger);
   font-size: 0.9rem;
 }
 
 .head-avatar {
-  background: var(--mat-sys-primary-container, #e3f2fd);
-  color: var(--mat-sys-on-primary-container, #0d47a1);
+  background: var(--accent-soft);
+  color: var(--accent-text);
   padding: 8px;
   border-radius: 50%;
   width: 40px;
@@ -258,7 +261,7 @@
 }
 
 .predict-card {
-  background: var(--mat-sys-surface-container-high, #f0f4f8);
+  border-radius: var(--radius-lg) !important;
 }
 
 .metrics {
@@ -268,10 +271,10 @@
   margin: 0;
 
   dt {
-    font-size: 0.75rem;
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+    color: var(--text-secondary);
     margin: 0 0 0.25rem;
   }
 
@@ -292,7 +295,7 @@
 }
 
 .muted {
-  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -300,7 +303,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+  color: var(--text-secondary);
 }
 
 .json-accordion {
@@ -316,9 +319,10 @@
   overflow: auto;
   font-size: 0.75rem;
   line-height: 1.45;
-  border-radius: 8px;
-  background: var(--mat-sys-surface-container-highest, #1e1e1e);
-  color: #e5e5e5;
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
 }
 
 mat-card-actions button mat-spinner {
@@ -330,7 +334,7 @@ mat-card-actions button mat-spinner {
 .ah-block {
   margin-top: 1rem;
   padding-top: 0.75rem;
-  border-top: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant, #ccc) 55%, transparent);
+  border-top: 1px solid var(--glass-border);
 }
 
 .ah-title {
@@ -355,9 +359,9 @@ mat-card-actions button mat-spinner {
   font-size: 0.72rem;
   font-family: monospace;
   padding: 2px 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--mat-sys-secondary, #666) 12%, transparent);
-  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.65));
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
   letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
@@ -367,7 +371,7 @@ mat-card-actions button mat-spinner {
 
 .model-unavailable-hint {
   font-size: 0.78rem;
-  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.55));
+  color: var(--text-tertiary);
   font-style: italic;
 }
 

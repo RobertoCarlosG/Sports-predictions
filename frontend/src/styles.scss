@@ -184,6 +184,11 @@ app-root {
 .mat-mdc-form-field {
   width: 100%;
 
+  // Densidad: altura compacta para reducir el "muro" de campos
+  --mdc-outlined-text-field-container-shape: 12px;
+  --mat-form-field-container-height: 48px;
+  --mat-form-field-container-vertical-padding: 12px;
+
   // Fondo glass del campo
   .mat-mdc-text-field-wrapper {
     background: rgba(236, 239, 244, 0.04) !important;

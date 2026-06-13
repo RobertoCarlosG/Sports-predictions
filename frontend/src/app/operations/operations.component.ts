@@ -93,6 +93,16 @@ export class OperationsComponent implements OnInit, OnDestroy {
   trainMaxDepth = 16;
   trainMinSamplesLeaf = 2;
 
+  // Step form de entrenamiento RF (1: datos · 2: hiperparámetros · 3: confirmar)
+  trainStep = 1;
+  readonly trainTotalSteps = 3;
+  trainStepNext(): void {
+    if (this.trainStep < this.trainTotalSteps) this.trainStep++;
+  }
+  trainStepBack(): void {
+    if (this.trainStep > 1) this.trainStep--;
+  }
+
   sessionHint: string | null = null;
 
   backfillTracking = false;
