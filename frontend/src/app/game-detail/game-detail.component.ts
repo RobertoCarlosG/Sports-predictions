@@ -104,8 +104,8 @@ export class GameDetailComponent implements OnInit {
       next: (g) => {
         this.game = g;
         this.loading = false;
-        if ('prediction' in g) {
-          this.xgbPrediction = g.prediction ?? null;
+        if ('prediction' in g && g.prediction != null) {
+          this.xgbPrediction = g.prediction;
           this.xgbLoading = false;
         } else {
           this.loadXgbPrediction(gamePk, { force });
