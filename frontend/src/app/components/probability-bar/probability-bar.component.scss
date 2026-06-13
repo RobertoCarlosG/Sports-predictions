@@ -36,7 +36,7 @@
 .track {
   height: 6px;
   border-radius: var(--radius-pill);
-  background: rgba(248, 234, 236, 0.10);
+  background: rgba(236, 239, 244, 0.10);
   overflow: hidden;
 }
 
@@ -54,7 +54,7 @@
 
 .tone-mid {
   background: var(--accent);
-  box-shadow: 0 0 8px rgba(224, 86, 106, 0.35);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.35);
 }
 
 .tone-low {
@@ -63,5 +63,5 @@
 }
 
 .tone-muted {
-  background: rgba(248, 234, 236, 0.20);
+  background: rgba(236, 239, 244, 0.20);
 }

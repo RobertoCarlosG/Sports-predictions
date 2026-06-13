@@ -93,11 +93,13 @@
     }
 
     @if (games().length === 0 && !loadError()) {
-      <mat-card class="empty-card" appearance="outlined">
-        <mat-card-content>
-          <p class="empty-hint">No hay partidos en este rango.</p>
-        </mat-card-content>
-      </mat-card>
+      <div class="empty-state">
+        <span class="empty-ico" aria-hidden="true">
+          <mat-icon>sports_baseball</mat-icon>
+        </span>
+        <p class="empty-title">No hay partidos en este rango</p>
+        <p class="empty-hint">Prueba con otra fecha o vuelve más tarde.</p>
+      </div>
     }
   }
 </div>

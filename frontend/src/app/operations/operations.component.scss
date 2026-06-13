@@ -48,7 +48,7 @@
   width: 460px;
   height: 460px;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(224, 86, 106, 0.45) 0%, rgba(122, 26, 40, 0.25) 40%, transparent 70%);
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.45) 0%, rgba(37, 99, 235, 0.25) 40%, transparent 70%);
   filter: blur(70px);
   pointer-events: none;
   z-index: 0;
@@ -80,7 +80,7 @@
   box-shadow: var(--shadow-lg), var(--shadow-inset-top);
 
   @supports not (backdrop-filter: blur(1px)) {
-    background: rgba(38, 14, 20, 0.94);
+    background: rgba(20, 26, 35, 0.94);
   }
 }
 
@@ -102,7 +102,7 @@
   margin-bottom: var(--sp-4);
   border-radius: var(--radius-lg);
   background: var(--accent-soft);
-  border: 1px solid rgba(224, 86, 106, 0.35);
+  border: 1px solid rgba(59, 130, 246, 0.35);
   color: var(--accent-text);
 
   mat-icon {
@@ -197,7 +197,7 @@
     font-size: 11px;
     padding: 2px 5px;
     border-radius: var(--radius-sm);
-    background: rgba(248, 234, 236, 0.10);
+    background: rgba(236, 239, 244, 0.10);
     color: var(--accent-text);
   }
 }
@@ -314,6 +314,34 @@
   gap: var(--sp-2);
   margin-bottom: var(--sp-4);
   align-items: center;
+  padding: var(--sp-2);
+  border-radius: var(--radius-md);
+  background: rgba(236, 239, 244, 0.03);
+  border: 1px solid var(--glass-border);
+}
+
+// Grilla de tarjetas de sincronización rápida
+.sync-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+@media (min-width: 800px) {
+  .sync-cards-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.tom-link {
+  margin: var(--sp-1) 0 0;
+
+  a { padding-left: 0 !important; }
+}
+
+.last-sync {
+  font-size: var(--font-size-xs);
 }
 
 .session-hint {
@@ -322,7 +350,7 @@
   font-size: var(--font-size-xs);
   line-height: 1.5;
   color: var(--text-secondary);
-  background: rgba(248, 234, 236, 0.05);
+  background: rgba(236, 239, 244, 0.05);
   border-radius: var(--radius-sm);
   border: 1px solid var(--glass-border);
 }
@@ -399,7 +427,7 @@
   font-size: 0.88em;
   padding: 2px 8px;
   border-radius: var(--radius-sm);
-  background: rgba(248, 234, 236, 0.10);
+  background: rgba(236, 239, 244, 0.10);
   font-weight: 500;
   color: var(--accent-text);
 }
@@ -426,7 +454,7 @@
   mat-icon { flex-shrink: 0; color: var(--warning); }
 
   code {
-    background: rgba(248,234,236,.10);
+    background: rgba(236,239,244,.10);
     padding: 0 4px;
     border-radius: 3px;
   }
@@ -509,7 +537,7 @@ button mat-spinner {
     font-size: var(--font-size-xs);
     padding: 1px 5px;
     border-radius: 4px;
-    background: rgba(248, 234, 236, 0.10);
+    background: rgba(236, 239, 244, 0.10);
     color: var(--accent-text);
   }
 }

@@ -80,11 +80,13 @@
         }
       </div>
       @if (!loading && games.length === 0 && !loadError) {
-        <mat-card appearance="outlined" class="empty-card">
-          <mat-card-content>
-            <p class="empty-hint">No hay partidos con estos criterios. Ajusta el periodo o los filtros.</p>
-          </mat-card-content>
-        </mat-card>
+        <div class="empty-state">
+          <span class="empty-ico" aria-hidden="true">
+            <mat-icon>search_off</mat-icon>
+          </span>
+          <p class="empty-title">Sin resultados</p>
+          <p class="empty-hint">No hay partidos con estos criterios. Ajusta el periodo o los filtros.</p>
+        </div>
       }
     }
   </div>

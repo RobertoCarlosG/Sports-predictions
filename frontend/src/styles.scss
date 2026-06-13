@@ -2,10 +2,10 @@
 @use 'tokens' as *;
 @use 'glass' as *;
 
-// ─── Material M3 — tema guinda dark ──────────────────────────────────────────
+// ─── Material M3 — tema slate dark + azul ────────────────────────────────────
 html {
   @include mat.theme((
-    color:      mat.$rose-palette,
+    color:      mat.$azure-palette,
     typography: Roboto,
     density:    0,
   ));
@@ -13,37 +13,37 @@ html {
 
 html {
   @include mat.theme-overrides((
-    // Colores primarios (guinda)
-    primary:                      #E0566A,
-    on-primary:                   #1a0008,
-    primary-container:            #5c1828,
-    on-primary-container:         #ffd9de,
+    // Colores primarios (azul eléctrico)
+    primary:                      #3B82F6,
+    on-primary:                   #06101f,
+    primary-container:            #1e3a5f,
+    on-primary-container:         #d6e4ff,
 
-    // Secundario (guinda apagado)
-    secondary:                    #C28090,
-    on-secondary:                 #1a0008,
-    secondary-container:          #3d1820,
-    on-secondary-container:       #ffd9de,
+    // Secundario (slate)
+    secondary:                    #93A4B8,
+    on-secondary:                 #06101f,
+    secondary-container:          #1c2a3d,
+    on-secondary-container:       #d6e4ff,
 
-    // Superficies dark
-    surface:                      #1F0E13,
-    surface-dim:                  #160A0D,
-    surface-bright:                #2d1219,
-    surface-container-lowest:     #160A0D,
-    surface-container-low:        #1F0E13,
-    surface-container:            #271218,
-    surface-container-high:       #321520,
-    surface-container-highest:    #3d1828,
+    // Superficies slate dark
+    surface:                      #0F141C,
+    surface-dim:                  #0A0E14,
+    surface-bright:                #1b2330,
+    surface-container-lowest:     #0A0E14,
+    surface-container-low:        #0F141C,
+    surface-container:            #141A23,
+    surface-container-high:       #1b2330,
+    surface-container-highest:    #232e40,
 
-    on-surface:                   #F8EAEC,
-    on-surface-variant:           rgba(248,234,236,.65),
+    on-surface:                   #ECEFF4,
+    on-surface-variant:           rgba(236,239,244,.65),
 
-    outline:                      rgba(255,170,185,.28),
-    outline-variant:              rgba(255,170,185,.14),
+    outline:                      rgba(150,180,230,.28),
+    outline-variant:              rgba(150,180,230,.14),
 
     // Fondo global
-    background:                   #160A0D,
-    on-background:                #F8EAEC,
+    background:                   #0A0E14,
+    on-background:                #ECEFF4,
   ));
 }
 
@@ -71,7 +71,7 @@ app-root {
   box-sizing: border-box;
 }
 
-// ─── Fondo base con blobs guinda difuminados ─────────────────────────────────
+// ─── Fondo base con blobs azules difuminados ─────────────────────────────────
 body::before,
 body::after {
   content: '';
@@ -80,13 +80,13 @@ body::after {
   pointer-events: none;
   z-index: 0;
   filter: blur(90px);
-  opacity: 0.38;
+  opacity: 0.30;
 }
 
 body::before {
   width: 520px;
   height: 520px;
-  background: radial-gradient(circle, #7a1a28 0%, transparent 70%);
+  background: radial-gradient(circle, #1e3a8a 0%, transparent 70%);
   top: -100px;
   left: -80px;
 }
@@ -94,7 +94,7 @@ body::before {
 body::after {
   width: 420px;
   height: 420px;
-  background: radial-gradient(circle, #5c1020 0%, transparent 70%);
+  background: radial-gradient(circle, #0c2a52 0%, transparent 70%);
   bottom: -80px;
   right: 5%;
 }
@@ -107,8 +107,8 @@ app-root {
 // ─── Scrollbar global (dark) ──────────────────────────────────────────────────
 ::-webkit-scrollbar            { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track      { background: transparent; }
-::-webkit-scrollbar-thumb      { background: rgba(255,170,185,.20); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover{ background: rgba(255,170,185,.35); }
+::-webkit-scrollbar-thumb      { background: rgba(150,180,230,.20); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover{ background: rgba(150,180,230,.35); }
 
 // ─── Material overrides generales ────────────────────────────────────────────
 
@@ -133,7 +133,7 @@ app-root {
   color: var(--text-primary);
 
   @supports not (backdrop-filter: blur(1px)) {
-    background: rgba(38, 14, 20, 0.90) !important;
+    background: rgba(20, 26, 35, 0.90) !important;
   }
 }
 
@@ -177,4 +177,133 @@ app-root {
 // Divider
 .mat-divider {
   border-color: var(--glass-border) !important;
+}
+
+// ─── Form fields (inputs) — tratamiento glass intencional ────────────────────
+.mat-mdc-form-field {
+  width: 100%;
+
+  // Fondo glass del campo
+  .mat-mdc-text-field-wrapper {
+    background: rgba(236, 239, 244, 0.04) !important;
+    border-radius: var(--radius-md) !important;
+    transition: background var(--duration-fast) var(--ease-out);
+  }
+
+  &:hover .mat-mdc-text-field-wrapper {
+    background: rgba(236, 239, 244, 0.07) !important;
+  }
+
+  // Borde (notched outline) en reposo
+  .mdc-notched-outline__leading,
+  .mdc-notched-outline__notch,
+  .mdc-notched-outline__trailing {
+    border-color: var(--glass-border) !important;
+    border-width: 1px !important;
+  }
+
+  // Texto y label
+  .mat-mdc-input-element,
+  input.mat-mdc-input-element {
+    color: var(--text-primary) !important;
+    caret-color: var(--accent) !important;
+  }
+
+  .mdc-floating-label,
+  .mat-mdc-form-field-label {
+    color: var(--text-tertiary) !important;
+  }
+
+  // Hint
+  .mat-mdc-form-field-hint {
+    color: var(--text-tertiary) !important;
+  }
+}
+
+// Foco: borde acento guinda
+.mat-mdc-form-field.mat-focused {
+  .mdc-notched-outline__leading,
+  .mdc-notched-outline__notch,
+  .mdc-notched-outline__trailing {
+    border-color: var(--accent) !important;
+    border-width: 1.5px !important;
+  }
+
+  .mdc-floating-label {
+    color: var(--accent-text) !important;
+  }
+}
+
+// ─── Botones ─────────────────────────────────────────────────────────────────
+// Primario (mat-flat-button)
+.mat-mdc-unelevated-button.mat-primary,
+.mat-mdc-raised-button.mat-primary {
+  border-radius: var(--radius-pill) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  box-shadow: 0 2px 12px rgba(59, 130, 246, 0.30) !important;
+  transition: box-shadow var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out) !important;
+
+  &:hover:not(:disabled) {
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.45) !important;
+    transform: translateY(-1px);
+  }
+}
+
+// Stroked (secundario)
+.mat-mdc-outlined-button {
+  border-radius: var(--radius-pill) !important;
+  border-color: var(--glass-border-hi) !important;
+  color: var(--text-secondary) !important;
+  font-weight: 500 !important;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out) !important;
+
+  &:hover:not(:disabled) {
+    background: var(--glass-bg-hover) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--accent) !important;
+  }
+}
+
+// Text button
+.mat-mdc-button:not(.mat-mdc-icon-button) {
+  border-radius: var(--radius-pill) !important;
+}
+
+// ─── Progress bar ────────────────────────────────────────────────────────────
+.mat-mdc-progress-bar {
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+
+  .mdc-linear-progress__buffer-bar {
+    background: rgba(236, 239, 244, 0.10) !important;
+  }
+  .mdc-linear-progress__bar-inner {
+    border-color: var(--accent) !important;
+  }
+}
+
+// ─── Tabs ────────────────────────────────────────────────────────────────────
+.mat-mdc-tab .mdc-tab__text-label {
+  color: var(--text-secondary) !important;
+}
+.mat-mdc-tab.mdc-tab--active .mdc-tab__text-label {
+  color: var(--accent-text) !important;
+}
+.mat-mdc-tab-group .mdc-tab-indicator__content--underline {
+  border-color: var(--accent) !important;
+}
+
+// ─── Expansion panel (collapsible-section) ───────────────────────────────────
+.mat-expansion-panel {
+  background: var(--glass-bg) !important;
+  border: 1px solid var(--glass-border) !important;
+  color: var(--text-primary) !important;
+}
+.mat-expansion-panel-header-title {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+.mat-expansion-panel-header-description {
+  color: var(--text-tertiary) !important;
 }
