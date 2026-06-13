@@ -1,6 +1,7 @@
 @use '@angular/material' as mat;
 @use 'tokens' as *;
 @use 'glass' as *;
+@use 'app/operations/operations-auth.global';
 
 // ─── Material M3 — tema slate dark + azul ────────────────────────────────────
 html {

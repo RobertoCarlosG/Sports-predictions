@@ -1,0 +1,36 @@
+---
+description: Require tests and production builds before finishing changes
+alwaysApply: true
+---
+
+# Verify changes with tests and builds
+
+Every code change must be validated before the task is considered done.
+
+## Required checks
+
+| Area | Command | When |
+|------|---------|------|
+| Frontend | `cd frontend && npm run build` | Any change under `frontend/` |
+| Frontend tests | `cd frontend && npm test -- --no-watch --browsers=ChromeHeadless` | Logic, components, services, or templates |
+| Backend | `cd backend && pytest` | Any change under `backend/` |
+| Backend lint | `cd backend && ruff check src tests` | Python edits (if ruff is installed) |
+
+Run the checks that apply to the files you touched. If a check cannot run (missing deps, no DB), say what failed and what you verified instead.
+
+## Before marking work complete
+
+1. Run the relevant build (`npm run build` for frontend production config).
+2. Run tests for the area you changed, or add tests when fixing a bug.
+3. Fix build errors and test failures — do not leave the repo in a broken state.
+4. Report which commands ran and whether they passed.
+
+## Common frontend build failures
+
+- **Component style budget**: `anyComponentStyle` max is 8 kB per component SCSS output. Move large shared styles to global SCSS (see `operations-auth.global.scss`) or split into child components.
+- **CommonJS warnings**: `exceljs`, `file-saver` — warnings only unless listed in `angular.json` `allowedCommonJsDependencies`.
+
+## Scope discipline
+
+- Keep diffs focused; still run full builds for the affected package.
+- Do not skip builds because the change "looks small".
