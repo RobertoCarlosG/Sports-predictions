@@ -11,7 +11,7 @@
   min-height: 0;
   max-height: 100%;
   overflow: hidden;
-  background: var(--mat-sys-surface-container-lowest, #f5f5f5);
+  background: transparent;
 }
 
 .main-column {
@@ -29,5 +29,5 @@
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  background: var(--mat-sys-surface-container-lowest, #f5f5f5);
+  background: transparent;
 }

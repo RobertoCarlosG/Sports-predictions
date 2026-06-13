@@ -1,40 +1,42 @@
 .bets-page {
   max-width: 960px;
   margin: 0 auto;
-  padding: 1rem 1.25rem 2rem;
+  padding: var(--sp-5) var(--sp-5) var(--sp-8);
 }
 
 .loading {
-  padding: 2rem;
+  padding: var(--sp-8);
   text-align: center;
+  color: var(--text-secondary);
 }
 
 .notice-card,
 .hero-card,
 .block {
-  margin-bottom: 1rem;
+  margin-bottom: var(--sp-4);
 }
 
 .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: var(--sp-4);
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--sp-2);
 }
 
 .who .email {
   font-weight: 600;
+  color: var(--accent-text);
 }
 
 .muted {
-  color: rgba(0, 0, 0, 0.6);
+  color: var(--text-tertiary);
 }
 
 .tiny {
-  font-size: 0.85rem;
-  color: rgba(0, 0, 0, 0.55);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
 }
 
 .full {
@@ -44,70 +46,67 @@
 .form-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-3);
 }
 
-.main-two {
-  mat-form-field {
-    flex: 1 1 200px;
-  }
+.main-two mat-form-field {
+  flex: 1 1 200px;
 }
 
 .chip-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
 }
 
 .chip-closed {
-  font-size: 0.8rem;
-  opacity: 0.75;
+  font-size: var(--font-size-xs);
+  opacity: 0.65;
 }
 
 .period-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--sp-2);
 }
 
+// Estadísticas
 .stats-dl {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.75rem;
-  margin-top: 1rem;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
 }
 
 .stats-dl dt {
-  font-size: 0.8rem;
-  color: rgba(0, 0, 0, 0.6);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
 }
 
 .stats-dl dd {
   margin: 0;
   font-weight: 600;
+  font-size: var(--font-size-md);
+  color: var(--text-primary);
 }
 
 .roi-row {
   display: flex;
   align-items: baseline;
-  gap: 1rem;
-  margin: 0.5rem 0;
+  gap: var(--sp-4);
+  margin: var(--sp-2) 0;
 }
 
 .roi-val {
-  font-size: 1.75rem;
+  font-size: var(--font-size-xl);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
-.roi-val.positive {
-  color: #1b5e20;
-}
-
-.roi-val.negative {
-  color: #b71c1c;
-}
+.roi-val.positive { color: var(--success); }
+.roi-val.negative { color: var(--danger); }
 
 .table-wrap {
   overflow-x: auto;
@@ -118,16 +117,7 @@
   min-width: 520px;
 }
 
-.badge[data-status='won'] {
-  color: #1b5e20;
-  font-weight: 600;
-}
-
-.badge[data-status='lost'] {
-  color: #b71c1c;
-  font-weight: 600;
-}
-
-.badge[data-status='pending'] {
-  color: rgba(0, 0, 0, 0.55);
-}
+// Badge de estado de apuesta
+.badge[data-status='won']     { color: var(--success); font-weight: 600; }
+.badge[data-status='lost']    { color: var(--danger);  font-weight: 600; }
+.badge[data-status='pending'] { color: var(--text-tertiary); }

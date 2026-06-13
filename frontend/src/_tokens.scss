@@ -1,0 +1,77 @@
+// ─── Design Tokens — Guinda Dark Glass ───────────────────────────────────────
+
+// Fondos (planos, capas de profundidad)
+:root {
+  --bg-base:         #160A0D;
+  --bg-elevated:     #1F0E13;
+  --bg-raised:       #271218;
+
+  // Superficies glass
+  --glass-bg:        rgba(60, 18, 26, 0.52);
+  --glass-bg-raised: rgba(88, 30, 42, 0.60);
+  --glass-bg-hover:  rgba(100, 36, 50, 0.68);
+  --glass-border:    rgba(255, 170, 185, 0.13);
+  --glass-border-hi: rgba(255, 170, 185, 0.24);
+  --glass-blur:      18px;
+  --glass-saturation:140%;
+
+  // Acento guinda
+  --accent:          #E0566A;
+  --accent-strong:   #C23B52;
+  --accent-soft:     rgba(224, 86, 106, 0.18);
+  --accent-text:     #FF8FA0;
+
+  // Texto
+  --text-primary:    #F8EAEC;
+  --text-secondary:  rgba(248, 234, 236, 0.68);
+  --text-tertiary:   rgba(248, 234, 236, 0.42);
+  --text-disabled:   rgba(248, 234, 236, 0.28);
+
+  // Semánticos
+  --success:         #4ADE80;
+  --success-bg:      rgba(74, 222, 128, 0.14);
+  --danger:          #F87171;
+  --danger-bg:       rgba(248, 113, 113, 0.14);
+  --warning:         #FBBF24;
+  --warning-bg:      rgba(251, 191, 36, 0.14);
+  --info:            #60A5FA;
+  --info-bg:         rgba(96, 165, 250, 0.14);
+
+  // Escalas de radio
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  18px;
+  --radius-xl:  24px;
+  --radius-pill:999px;
+
+  // Espaciado (base 4px)
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  20px;
+  --sp-6:  24px;
+  --sp-8:  32px;
+  --sp-10: 40px;
+
+  // Tipografía
+  --font-size-xs:   11px;
+  --font-size-sm:   13px;
+  --font-size-base: 15px;
+  --font-size-md:   17px;
+  --font-size-lg:   21px;
+  --font-size-xl:   26px;
+
+  // Sombras
+  --shadow-sm:   0 2px 8px rgba(0,0,0,.30);
+  --shadow-md:   0 4px 20px rgba(0,0,0,.40);
+  --shadow-lg:   0 8px 40px rgba(0,0,0,.52);
+  --shadow-inset-top: inset 0 1px 0 rgba(255,255,255,.06);
+
+  // Transiciones
+  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:cubic-bezier(0.45, 0, 0.55, 1);
+  --duration-fast:  120ms;
+  --duration-base:  220ms;
+  --duration-slow:  360ms;
+}

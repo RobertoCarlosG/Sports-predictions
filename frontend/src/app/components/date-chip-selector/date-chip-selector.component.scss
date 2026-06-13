@@ -1,15 +1,35 @@
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--sp-2);
   align-items: center;
 }
 
 .chip {
-  border-radius: 999px !important;
-  font-weight: 500;
+  border-radius: var(--radius-pill) !important;
+  font-size: var(--font-size-sm) !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  padding: 0 var(--sp-4) !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--glass-border) !important;
+  background: var(--glass-bg) !important;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out) !important;
+
+  &:hover:not(.chip-on) {
+    background: var(--glass-bg-hover) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--glass-border-hi) !important;
+  }
 }
 
 .chip-on {
-  background: color-mix(in srgb, var(--mat-sys-primary, #8f343c) 14%, transparent) !important;
+  background: var(--accent-soft) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent-text) !important;
 }

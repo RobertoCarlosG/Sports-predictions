@@ -6,27 +6,40 @@
 .scroll {
   display: flex;
   flex-wrap: nowrap;
-  gap: 4px;
+  gap: var(--sp-1);
   overflow-x: auto;
   padding-bottom: 2px;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
 }
 
 .tab {
   flex: 0 0 auto;
-  border-radius: 999px !important;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  border-radius: var(--radius-pill) !important;
+  font-size: var(--font-size-sm) !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  color: var(--text-secondary) !important;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out) !important;
+
+  &:hover:not(.tab-active) {
+    background: var(--glass-bg-hover) !important;
+    color: var(--text-primary) !important;
+  }
 }
 
 .tab-active {
-  background: color-mix(in srgb, var(--mat-sys-primary, #8f343c) 16%, transparent) !important;
+  background: var(--accent-soft) !important;
+  color: var(--accent-text) !important;
 }
 
 .soon {
-  opacity: 0.65;
-  font-size: 0.85em;
+  opacity: 0.5;
+  font-size: 0.82em;
   font-weight: 400;
   margin-left: 2px;
 }

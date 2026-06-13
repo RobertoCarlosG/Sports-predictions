@@ -1,0 +1,31 @@
+// ─── Glass Mixin ─────────────────────────────────────────────────────────────
+
+@mixin glass($bg: var(--glass-bg)) {
+  background: $bg;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md), var(--shadow-inset-top);
+}
+
+@mixin glass-raised {
+  @include glass(var(--glass-bg-raised));
+  border-color: var(--glass-border-hi);
+  box-shadow: var(--shadow-lg), var(--shadow-inset-top);
+}
+
+// Sin blur (fallback para @supports)
+@mixin glass-fallback($bg: rgba(38, 14, 20, 0.88)) {
+  background: $bg;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md);
+}
+
+// Aplica glass con fallback automático
+@mixin glass-safe($bg: var(--glass-bg)) {
+  @include glass-fallback;
+
+  @supports (backdrop-filter: blur(1px)) {
+    @include glass($bg);
+  }
+}

@@ -1,4 +1,4 @@
 .panel {
-  border-radius: 12px !important;
-  margin-bottom: 12px;
+  border-radius: var(--radius-md) !important;
+  margin-bottom: var(--sp-3);
 }
