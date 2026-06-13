@@ -1,41 +1,41 @@
-// ─── Design Tokens — Slate Dark + Azul eléctrico ─────────────────────────────
+// ─── Design Tokens — Claro + Azul ─────────────────────────────────────────────
 
-// Fondos (planos, capas de profundidad)
 :root {
-  --bg-base:         #0A0E14;
-  --bg-elevated:     #0F141C;
-  --bg-raised:       #141A23;
+  // Fondos
+  --bg-base:         #EEF2F7;
+  --bg-elevated:     #F5F8FC;
+  --bg-raised:       #FFFFFF;
 
-  // Superficies glass (slate azulado)
-  --glass-bg:        rgba(28, 38, 56, 0.55);
-  --glass-bg-raised: rgba(34, 46, 68, 0.62);
-  --glass-bg-hover:  rgba(44, 58, 84, 0.70);
-  --glass-border:    rgba(150, 180, 230, 0.12);
-  --glass-border-hi: rgba(150, 180, 230, 0.22);
-  --glass-blur:      18px;
-  --glass-saturation:140%;
+  // Glass (blanco semitransparente)
+  --glass-bg:        rgba(255, 255, 255, 0.60);
+  --glass-bg-raised: rgba(255, 255, 255, 0.78);
+  --glass-bg-hover:  rgba(255, 255, 255, 0.90);
+  --glass-border:    rgba(59, 130, 246, 0.14);
+  --glass-border-hi: rgba(59, 130, 246, 0.28);
+  --glass-blur:      20px;
+  --glass-saturation:160%;
 
-  // Acento azul eléctrico
-  --accent:          #3B82F6;
-  --accent-strong:   #2563EB;
-  --accent-soft:     rgba(59, 130, 246, 0.18);
-  --accent-text:     #60A5FA;
+  // Acento (azul más oscuro para contraste sobre blanco)
+  --accent:          #2563EB;
+  --accent-strong:   #1D4ED8;
+  --accent-soft:     rgba(37, 99, 235, 0.10);
+  --accent-text:     #1D4ED8;
 
-  // Texto (blanco frío)
-  --text-primary:    #ECEFF4;
-  --text-secondary:  rgba(236, 239, 244, 0.66);
-  --text-tertiary:   rgba(236, 239, 244, 0.42);
-  --text-disabled:   rgba(236, 239, 244, 0.28);
+  // Texto (slate oscuro)
+  --text-primary:    #0F172A;
+  --text-secondary:  rgba(15, 23, 42, 0.65);
+  --text-tertiary:   rgba(15, 23, 42, 0.42);
+  --text-disabled:   rgba(15, 23, 42, 0.28);
 
   // Semánticos (verde/rojo reservados para acierto/fallo)
-  --success:         #22C55E;
-  --success-bg:      rgba(34, 197, 94, 0.14);
-  --danger:          #EF4444;
-  --danger-bg:       rgba(239, 68, 68, 0.14);
-  --warning:         #FBBF24;
-  --warning-bg:      rgba(251, 191, 36, 0.14);
-  --info:            #38BDF8;
-  --info-bg:         rgba(56, 189, 248, 0.14);
+  --success:         #16A34A;
+  --success-bg:      rgba(22, 163, 74, 0.12);
+  --danger:          #DC2626;
+  --danger-bg:       rgba(220, 38, 38, 0.10);
+  --warning:         #D97706;
+  --warning-bg:      rgba(217, 119, 6, 0.12);
+  --info:            #0284C7;
+  --info-bg:         rgba(2, 132, 199, 0.10);
 
   // Escalas de radio
   --radius-sm:  8px;
@@ -62,15 +62,15 @@
   --font-size-lg:   21px;
   --font-size-xl:   26px;
 
-  // Sombras
-  --shadow-sm:   0 2px 8px rgba(0,0,0,.30);
-  --shadow-md:   0 4px 20px rgba(0,0,0,.40);
-  --shadow-lg:   0 8px 40px rgba(0,0,0,.52);
-  --shadow-inset-top: inset 0 1px 0 rgba(255,255,255,.06);
+  // Sombras (suaves, fondo claro)
+  --shadow-sm:        0 1px 4px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.05);
+  --shadow-md:        0 4px 16px rgba(15,23,42,.10), 0 2px 6px rgba(15,23,42,.06);
+  --shadow-lg:        0 8px 32px rgba(15,23,42,.14), 0 4px 12px rgba(15,23,42,.08);
+  --shadow-inset-top: inset 0 1px 0 rgba(255,255,255,.80);
 
   // Transiciones
-  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out:cubic-bezier(0.45, 0, 0.55, 1);
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
   --duration-fast:  120ms;
   --duration-base:  220ms;
   --duration-slow:  360ms;

@@ -15,7 +15,7 @@
 }
 
 // Sin blur (fallback para @supports)
-@mixin glass-fallback($bg: rgba(20, 26, 35, 0.88)) {
+@mixin glass-fallback($bg: rgba(255, 255, 255, 0.92)) {
   background: $bg;
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-md);

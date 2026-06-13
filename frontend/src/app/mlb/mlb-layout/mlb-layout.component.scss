@@ -22,13 +22,13 @@
   margin: 0;
   padding: var(--sp-3) var(--sp-4);
 
-  @include glass-safe(rgba(10, 14, 20, 0.75));
+  @include glass-safe();
   border-bottom: 1px solid var(--glass-border);
   border-left: none;
   border-right: none;
   border-top: none;
   border-radius: 0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.30);
+  box-shadow: var(--shadow-sm);
 }
 
 .mlb-subnav a {

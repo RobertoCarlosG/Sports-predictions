@@ -3,7 +3,7 @@
 @use 'glass' as *;
 @use 'app/operations/operations-auth.global';
 
-// ─── Material M3 — tema slate dark + azul ────────────────────────────────────
+// ─── Material M3 — tema claro + azul ─────────────────────────────────────────
 html {
   @include mat.theme((
     color:      mat.$azure-palette,
@@ -14,42 +14,42 @@ html {
 
 html {
   @include mat.theme-overrides((
-    // Colores primarios (azul eléctrico)
-    primary:                      #3B82F6,
-    on-primary:                   #06101f,
-    primary-container:            #1e3a5f,
-    on-primary-container:         #d6e4ff,
+    // Colores primarios (azul)
+    primary:                      #2563EB,
+    on-primary:                   #FFFFFF,
+    primary-container:            #DBEAFE,
+    on-primary-container:         #1D4ED8,
 
     // Secundario (slate)
-    secondary:                    #93A4B8,
-    on-secondary:                 #06101f,
-    secondary-container:          #1c2a3d,
-    on-secondary-container:       #d6e4ff,
+    secondary:                    #64748B,
+    on-secondary:                 #FFFFFF,
+    secondary-container:          #E2E8F0,
+    on-secondary-container:       #0F172A,
 
-    // Superficies slate dark
-    surface:                      #0F141C,
-    surface-dim:                  #0A0E14,
-    surface-bright:                #1b2330,
-    surface-container-lowest:     #0A0E14,
-    surface-container-low:        #0F141C,
-    surface-container:            #141A23,
-    surface-container-high:       #1b2330,
-    surface-container-highest:    #232e40,
+    // Superficies claras
+    surface:                      #F5F8FC,
+    surface-dim:                  #EEF2F7,
+    surface-bright:               #FFFFFF,
+    surface-container-lowest:     #EEF2F7,
+    surface-container-low:        #EEF2F7,
+    surface-container:            #E6ECF3,
+    surface-container-high:       #DCE4EE,
+    surface-container-highest:    #D0DAE8,
 
-    on-surface:                   #ECEFF4,
-    on-surface-variant:           rgba(236,239,244,.65),
+    on-surface:                   #0F172A,
+    on-surface-variant:           rgba(15,23,42,.65),
 
-    outline:                      rgba(150,180,230,.28),
-    outline-variant:              rgba(150,180,230,.14),
+    outline:                      rgba(15,23,42,.20),
+    outline-variant:              rgba(15,23,42,.12),
 
     // Fondo global
-    background:                   #0A0E14,
-    on-background:                #ECEFF4,
+    background:                   #EEF2F7,
+    on-background:                #0F172A,
   ));
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
   height: 100%;
 }
 
@@ -87,7 +87,7 @@ body::after {
 body::before {
   width: 520px;
   height: 520px;
-  background: radial-gradient(circle, #1e3a8a 0%, transparent 70%);
+  background: radial-gradient(circle at 20% 15%, rgba(37, 99, 235, 0.09) 0%, transparent 55%);
   top: -100px;
   left: -80px;
 }
@@ -95,7 +95,7 @@ body::before {
 body::after {
   width: 420px;
   height: 420px;
-  background: radial-gradient(circle, #0c2a52 0%, transparent 70%);
+  background: radial-gradient(circle at 82% 88%, rgba(99, 102, 241, 0.07) 0%, transparent 50%);
   bottom: -80px;
   right: 5%;
 }
@@ -105,11 +105,11 @@ app-root {
   z-index: 1;
 }
 
-// ─── Scrollbar global (dark) ──────────────────────────────────────────────────
+// ─── Scrollbar global (light) ─────────────────────────────────────────────────
 ::-webkit-scrollbar            { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track      { background: transparent; }
-::-webkit-scrollbar-thumb      { background: rgba(150,180,230,.20); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover{ background: rgba(150,180,230,.35); }
+::-webkit-scrollbar-thumb      { background: rgba(15,23,42,.18); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover{ background: rgba(15,23,42,.32); }
 
 // ─── Material overrides generales ────────────────────────────────────────────
 
@@ -134,7 +134,7 @@ app-root {
   color: var(--text-primary);
 
   @supports not (backdrop-filter: blur(1px)) {
-    background: rgba(20, 26, 35, 0.90) !important;
+    background: rgba(255, 255, 255, 0.92) !important;
   }
 }
 
@@ -191,13 +191,13 @@ app-root {
 
   // Fondo glass del campo
   .mat-mdc-text-field-wrapper {
-    background: rgba(236, 239, 244, 0.04) !important;
+    background: rgba(255, 255, 255, 0.65) !important;
     border-radius: var(--radius-md) !important;
     transition: background var(--duration-fast) var(--ease-out);
   }
 
   &:hover .mat-mdc-text-field-wrapper {
-    background: rgba(236, 239, 244, 0.07) !important;
+    background: rgba(255, 255, 255, 0.85) !important;
   }
 
   // Borde (notched outline) en reposo
@@ -282,7 +282,7 @@ app-root {
   overflow: hidden;
 
   .mdc-linear-progress__buffer-bar {
-    background: rgba(236, 239, 244, 0.10) !important;
+    background: rgba(15, 23, 42, 0.08) !important;
   }
   .mdc-linear-progress__bar-inner {
     border-color: var(--accent) !important;
