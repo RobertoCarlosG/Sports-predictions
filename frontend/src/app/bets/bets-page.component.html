@@ -143,22 +143,100 @@
       </mat-card-content>
     </mat-card>
 
+    <!-- ── NUEVA APUESTA ──────────────────────────────────────────────────── -->
     <mat-card appearance="outlined" class="block">
       <mat-card-header>
         <mat-card-title>Nueva apuesta</mat-card-title>
-        <mat-card-subtitle>Máximo dos campos visibles: usa «Opciones» para el resto</mat-card-subtitle>
+        <mat-card-subtitle>Elige fecha y liga para ver los partidos disponibles</mat-card-subtitle>
       </mat-card-header>
       <mat-card-content>
-        <div class="form-row main-two">
+
+        <!-- Fila 1: fecha + liga -->
+        <div class="form-row picker-filters">
           <mat-form-field appearance="outline">
-            <mat-label>Número de partido</mat-label>
-            <input matInput type="number" [(ngModel)]="newBetGamePk" placeholder="Ej. 776655" />
+            <mat-label>Fecha</mat-label>
+            <input
+              matInput
+              type="date"
+              [(ngModel)]="pickerDateStr"
+              (change)="loadPickerGames()"
+            />
           </mat-form-field>
           <mat-form-field appearance="outline">
-            <mat-label>Importe apostado</mat-label>
-            <input matInput type="number" [(ngModel)]="newBetStake" />
+            <mat-label>Liga</mat-label>
+            <mat-select
+              [(ngModel)]="pickerLeagueStr"
+              (ngModelChange)="loadPickerGames()"
+            >
+              @for (opt of leagueOptions; track opt.value) {
+                <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+              }
+            </mat-select>
           </mat-form-field>
         </div>
+
+        <!-- Fila 2: selector de partido (full width) -->
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Partido</mat-label>
+          <mat-select
+            [(ngModel)]="selectedGamePk"
+            (ngModelChange)="onGameSelect($event)"
+            [disabled]="pickerLoadingGames() || pickerGames().length === 0"
+          >
+            @for (g of pickerGames(); track g.game_pk) {
+              <mat-option [value]="g.game_pk">{{ gamePickerLabel(g) }}</mat-option>
+            }
+          </mat-select>
+          @if (pickerLoadingGames()) {
+            <mat-hint>Cargando partidos…</mat-hint>
+          } @else if (pickerGames().length === 0 && pickerDateStr) {
+            <mat-hint>Sin partidos para esta fecha{{ pickerLeagueStr ? ' en liga ' + pickerLeagueStr : '' }}.</mat-hint>
+          }
+        </mat-form-field>
+
+        <!-- Vista previa de la predicción al seleccionar partido -->
+        @if (selectedGame(); as g) {
+          <div class="prediction-preview">
+            <div class="preview-header">
+              <span class="preview-teams">{{ gamePickerLabel(g) }}</span>
+              <a
+                mat-stroked-button
+                [routerLink]="['/mlb/game', g.game_pk]"
+                class="preview-link"
+                target="_blank"
+              >
+                <mat-icon aria-hidden="true">open_in_new</mat-icon>
+                Detalle
+              </a>
+            </div>
+            @if (g.prediction) {
+              <app-probability-bar
+                [probability]="selectedGameFavorite().favoriteWinProb"
+                [label]="selectedGameFavoriteLabel()"
+              />
+              <div class="runs-ou-row">
+                <span>Carreras ~{{ g.prediction.total_runs_estimate | number: '1.0-1' }}</span>
+                <span class="sep">·</span>
+                <span>O/U {{ g.prediction.over_under_line | number: '1.0-1' }}</span>
+                @if (selectedGameRunsLean(); as lean) {
+                  <span class="lean" [class.lean-over]="lean === 'Sobre'" [class.lean-under]="lean === 'Bajo'">
+                    {{ lean }}
+                  </span>
+                }
+              </div>
+            } @else {
+              <p class="muted tiny">Sin estimación disponible para este partido.</p>
+            }
+          </div>
+        }
+
+        <!-- Importe apostado -->
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Importe apostado</mat-label>
+          <input matInput type="number" [(ngModel)]="newBetStake" />
+        </mat-form-field>
+
+        <!-- Opciones de apuesta (colapsadas) -->
         <mat-expansion-panel>
           <mat-expansion-panel-header>
             <mat-panel-title>Opciones de apuesta</mat-panel-title>
@@ -196,10 +274,12 @@
             <input matInput type="number" step="0.01" [(ngModel)]="newBetOdds" />
           </mat-form-field>
         </mat-expansion-panel>
+
         <button mat-flat-button color="primary" type="button" (click)="submitBet()">Registrar apuesta</button>
       </mat-card-content>
     </mat-card>
 
+    <!-- ── TABLA DE APUESTAS ──────────────────────────────────────────────── -->
     <mat-card appearance="outlined" class="block">
       <mat-card-header>
         <mat-card-title>Apuestas</mat-card-title>
@@ -210,7 +290,10 @@
             <ng-container matColumnDef="partido">
               <th mat-header-cell *matHeaderCellDef>Partido</th>
               <td mat-cell *matCellDef="let row">
-                <a mat-button color="primary" [routerLink]="['/mlb/game', row.game_pk]">Abrir partido</a>
+                <a mat-button color="primary" [routerLink]="['/mlb/game', row.game_pk]">
+                  <mat-icon aria-hidden="true">sports_baseball</mat-icon>
+                  #{{ row.game_pk }}
+                </a>
               </td>
             </ng-container>
             <ng-container matColumnDef="tipo">

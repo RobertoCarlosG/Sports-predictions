@@ -14,15 +14,15 @@ from typing import Any
 # ---------------------------------------------------------------------------
 
 def make_team_la() -> dict[str, Any]:
-    return dict(id=119, name="Los Angeles Dodgers", abbreviation="LAD", venue_id=22, venue_name="Dodger Stadium")
+    return dict(id=119, name="Los Angeles Dodgers", abbreviation="LAD", venue_id=22, venue_name="Dodger Stadium", league="NL", division="NL West")
 
 
 def make_team_ny() -> dict[str, Any]:
-    return dict(id=147, name="New York Yankees", abbreviation="NYY", venue_id=3289, venue_name="Yankee Stadium")
+    return dict(id=147, name="New York Yankees", abbreviation="NYY", venue_id=3289, venue_name="Yankee Stadium", league="AL", division="AL East")
 
 
 def make_team_boston() -> dict[str, Any]:
-    return dict(id=111, name="Boston Red Sox", abbreviation="BOS", venue_id=3, venue_name="Fenway Park")
+    return dict(id=111, name="Boston Red Sox", abbreviation="BOS", venue_id=3, venue_name="Fenway Park", league="AL", division="AL East")
 
 
 ALL_TEAMS = [make_team_la(), make_team_ny(), make_team_boston()]

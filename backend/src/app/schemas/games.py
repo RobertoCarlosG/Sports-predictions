@@ -12,6 +12,8 @@ class TeamOut(BaseModel):
     id: int
     name: str
     abbreviation: str
+    league: str | None = None
+    division: str | None = None
 
 
 class GameSummaryResponse(BaseModel):

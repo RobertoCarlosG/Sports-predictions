@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -14,6 +14,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { RouterLink } from '@angular/router';
 
+import type { GameDetail } from '../models/game';
+import { ProbabilityBarComponent } from '../components/probability-bar/probability-bar.component';
 import {
   BetBankOut,
   BetOut,
@@ -22,7 +24,11 @@ import {
   BetsApiService,
   BetsStatsOut,
 } from '../services/bets-api.service';
+import { GamesApiService } from '../services/games-api.service';
 import { UserAuthService } from '../services/user-auth.service';
+import { currentSeasonDateBounds } from '../utils/date-bounds';
+import { mlbDisplayAbbrev } from '../utils/mlb-team-abbr';
+import { favoriteFromHomeWinProbability } from '../utils/prediction-favorite';
 
 @Component({
   selector: 'app-bets-page',
@@ -42,6 +48,7 @@ import { UserAuthService } from '../services/user-auth.service';
     MatSnackBarModule,
     MatTableModule,
     RouterLink,
+    ProbabilityBarComponent,
   ],
   templateUrl: './bets-page.component.html',
   styleUrl: './bets-page.component.scss',
@@ -49,6 +56,7 @@ import { UserAuthService } from '../services/user-auth.service';
 export class BetsPageComponent implements OnInit {
   private readonly userAuth = inject(UserAuthService);
   private readonly betsApi = inject(BetsApiService);
+  private readonly gamesApi = inject(GamesApiService);
   private readonly snack = inject(MatSnackBar);
 
   readonly loading = signal(true);
@@ -67,7 +75,50 @@ export class BetsPageComponent implements OnInit {
   newBankName = '';
   newBankAmount: number | null = null;
 
-  newBetGamePk: number | null = null;
+  // ── Game picker ──────────────────────────────────────────────────────────
+  pickerDateStr = currentSeasonDateBounds().today;
+  pickerLeagueStr: string | null = null;
+  readonly pickerGames = signal<GameDetail[]>([]);
+  readonly pickerLoadingGames = signal(false);
+  readonly selectedGame = signal<GameDetail | null>(null);
+  /** game_pk activo en el mat-select del picker */
+  selectedGamePk: number | null = null;
+
+  readonly leagueOptions: { value: string | null; label: string }[] = [
+    { value: null, label: 'Todas las ligas' },
+    { value: 'AL', label: 'AL – Americana' },
+    { value: 'NL', label: 'NL – Nacional' },
+  ];
+
+  // División del partido seleccionado (sólo para info en el picker)
+  readonly divisionByLeague: Record<string, string[]> = {
+    AL: ['AL East', 'AL Central', 'AL West'],
+    NL: ['NL East', 'NL Central', 'NL West'],
+  };
+
+  // ── Prediction computed helpers ──────────────────────────────────────────
+  readonly selectedGamePrediction = computed(() => this.selectedGame()?.prediction ?? null);
+  readonly selectedGameFavorite = computed(() =>
+    favoriteFromHomeWinProbability(this.selectedGamePrediction()?.home_win_probability),
+  );
+  readonly selectedGameFavoriteLabel = computed(() => {
+    const g = this.selectedGame();
+    if (!g) return 'Victoria del favorito';
+    const fav = this.selectedGameFavorite();
+    const team = fav.favorite === 'home' ? g.home_team : g.away_team;
+    return `Victoria ${mlbDisplayAbbrev(team)}`;
+  });
+  readonly selectedGameRunsLean = computed(() => {
+    const pred = this.selectedGamePrediction();
+    if (!pred) return null;
+    const { total_runs_estimate: est, over_under_line: line } = pred;
+    if (est == null || line == null) return null;
+    if (est > line + 0.1) return 'Sobre';
+    if (est < line - 0.1) return 'Bajo';
+    return 'En la línea';
+  });
+
+  // ── Bet form ─────────────────────────────────────────────────────────────
   newBetType: 'moneyline' | 'over_under' = 'moneyline';
   newBetSideMl: 'home' | 'away' = 'home';
   newBetSideOu: 'over' | 'under' = 'over';
@@ -90,6 +141,8 @@ export class BetsPageComponent implements OnInit {
           next: (s) => {
             this.session.set({ email: s.email, display_name: s.display_name });
             this.reloadAll();
+            // Pre-cargar partidos del día al entrar
+            this.loadPickerGames();
           },
           error: () => {
             this.session.set(null);
@@ -103,6 +156,55 @@ export class BetsPageComponent implements OnInit {
       },
     });
   }
+
+  // ── Picker helpers ───────────────────────────────────────────────────────
+
+  loadPickerGames(): void {
+    const date = this.pickerDateStr;
+    if (!date) return;
+    this.pickerLoadingGames.set(true);
+    this.selectedGame.set(null);
+    this.selectedGamePk = null;
+    this.gamesApi.listGames(date, false, { includePredictions: true }).subscribe({
+      next: (res) => {
+        let games = res.games;
+        const league = this.pickerLeagueStr;
+        if (league) {
+          games = games.filter(
+            (g) => g.home_team.league === league || g.away_team.league === league,
+          );
+        }
+        this.pickerGames.set(games);
+        this.pickerLoadingGames.set(false);
+      },
+      error: () => {
+        this.pickerLoadingGames.set(false);
+        this.snack.open('No se pudieron cargar los partidos.', 'Cerrar', { duration: 4000 });
+      },
+    });
+  }
+
+  onGameSelect(pk: number | null): void {
+    if (pk == null) {
+      this.selectedGame.set(null);
+      return;
+    }
+    const g = this.pickerGames().find((x) => x.game_pk === pk) ?? null;
+    this.selectedGame.set(g);
+  }
+
+  gamePickerLabel(g: GameDetail): string {
+    const away = mlbDisplayAbbrev(g.away_team);
+    const home = mlbDisplayAbbrev(g.home_team);
+    const hasDivInfo = g.home_team.division || g.away_team.division;
+    const divInfo = hasDivInfo ? ` · ${g.away_team.division ?? '?'} vs ${g.home_team.division ?? '?'}` : '';
+    const score =
+      g.home_score != null && g.away_score != null ? ` (${g.away_score}–${g.home_score})` : '';
+    const statusTag = g.status === 'Final' ? ' · Final' : g.status === 'Live' ? ' · En vivo' : '';
+    return `${away} @ ${home}${score}${statusTag}${divInfo}`;
+  }
+
+  // ── Auth / session ───────────────────────────────────────────────────────
 
   login(): void {
     this.userAuth.startGoogleLogin();
@@ -120,6 +222,8 @@ export class BetsPageComponent implements OnInit {
       },
     });
   }
+
+  // ── Banco / periodos / apuestas ──────────────────────────────────────────
 
   reloadAll(): void {
     this.betsApi.listBanks().subscribe({
@@ -247,16 +351,16 @@ export class BetsPageComponent implements OnInit {
 
   submitBet(): void {
     const bid = this.selectedBankId();
-    const pk = this.newBetGamePk;
+    const game = this.selectedGame();
     const stake = this.newBetStake;
     const odds = this.newBetOdds;
-    if (bid == null || pk == null || stake == null || odds == null) {
-      this.snack.open('Completa banco, número de partido, importe y cuota.', 'OK', { duration: 3500 });
+    if (bid == null || game == null || stake == null || odds == null) {
+      this.snack.open('Selecciona banco, partido, importe y cuota.', 'OK', { duration: 3500 });
       return;
     }
     const body = {
       bank_id: bid,
-      game_pk: pk,
+      game_pk: game.game_pk,
       bet_type: this.newBetType,
       bet_side: this.newBetType === 'moneyline' ? this.newBetSideMl : this.newBetSideOu,
       stake,
@@ -269,7 +373,8 @@ export class BetsPageComponent implements OnInit {
     }
     this.betsApi.createBet(body).subscribe({
       next: () => {
-        this.newBetGamePk = null;
+        this.selectedGame.set(null);
+        this.selectedGamePk = null;
         this.newBetStake = null;
         this.newBetOdds = null;
         this.newBetOuLine = null;
@@ -286,7 +391,8 @@ export class BetsPageComponent implements OnInit {
         this.refreshPeriodsAndBets();
         this.snack.open('Resultado actualizado', 'OK', { duration: 2000 });
       },
-      error: () => this.snack.open('Aún no hay resultado o hubo un error.', 'Cerrar', { duration: 4000 }),
+      error: () =>
+        this.snack.open('Aún no hay resultado o hubo un error.', 'Cerrar', { duration: 4000 }),
     });
   }
 

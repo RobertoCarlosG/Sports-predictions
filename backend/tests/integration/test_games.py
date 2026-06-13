@@ -27,6 +27,10 @@ async def test_get_game_by_pk_returns_scheduled_game(client: AsyncClient) -> Non
     assert body["status"] == "Scheduled"
     assert body["home_team"]["abbreviation"] == "LAD"
     assert body["away_team"]["abbreviation"] == "NYY"
+    assert body["home_team"]["league"] == "NL"
+    assert body["home_team"]["division"] == "NL West"
+    assert body["away_team"]["league"] == "AL"
+    assert body["away_team"]["division"] == "AL East"
     assert body["home_score"] is None
     assert body["away_score"] is None
 

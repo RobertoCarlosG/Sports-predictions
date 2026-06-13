@@ -17,6 +17,9 @@ class Team(Base):
     abbreviation: Mapped[str] = mapped_column(String(8), nullable=False)
     venue_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     venue_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    # Liga (AL/NL) y división; afiliación estática, se rellena en el sync.
+    league: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    division: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
 
 class Game(Base):

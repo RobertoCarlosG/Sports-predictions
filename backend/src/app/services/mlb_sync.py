@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.mlb import Game, Team
+from app.data.mlb_league_division import league_division_for
 from app.data.mlb_team_abbreviations import team_abbr_for_display
 from app.services.mlb_client import (
     MlbApiClient,
@@ -198,6 +199,10 @@ async def upsert_team(
     venue_id: int | None,
     venue_name: str | None,
 ) -> Team:
+    ld = league_division_for(team_id)
+    league = ld[0] if ld is not None else None
+    division = ld[1] if ld is not None else None
+
     result = await session.execute(select(Team).where(Team.id == team_id))
     row = result.scalar_one_or_none()
     if row is None:
@@ -207,6 +212,8 @@ async def upsert_team(
             abbreviation=abbreviation[:8],
             venue_id=venue_id,
             venue_name=venue_name,
+            league=league,
+            division=division,
         )
         session.add(row)
     else:
@@ -225,7 +232,14 @@ async def upsert_team(
         if row.venue_name != venue_name:
             row.venue_name = venue_name
             needs_update = True
-        
+        # Rellena liga/división si falta o cambió (backfill de filas antiguas).
+        if league is not None and row.league != league:
+            row.league = league
+            needs_update = True
+        if division is not None and row.division != division:
+            row.division = division
+            needs_update = True
+
         # Si no hay cambios, marcar como "sin cambios" para SQLAlchemy
         if not needs_update:
             session.expire(row)

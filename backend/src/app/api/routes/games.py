@@ -244,6 +244,14 @@ async def list_games(
             description="Incluir estimación ML por partido (misma lógica que GET /predict/{game_pk})."
         ),
     ] = True,
+    league: Annotated[
+        str | None,
+        Query(description="Filtra partidos donde local o visitante es de esta liga (AL/NL)."),
+    ] = None,
+    division: Annotated[
+        str | None,
+        Query(description='Filtra por división (ej. "AL East"). Local o visitante.'),
+    ] = None,
 ) -> GamesListResponse:
     key = (game_date.isoformat(), sync, fetch_details, include_predictions)
     if not hasattr(request.app.state, "games_list_inflight"):
@@ -252,7 +260,7 @@ async def list_games(
         request.app.state.games_list_inflight
     )
     if key in inflight:
-        return await inflight[key]
+        return _filter_games_by_segment(await inflight[key], league, division)
 
     async def _run() -> GamesListResponse:
         return await _list_games_impl(
@@ -268,9 +276,31 @@ async def list_games(
     task = asyncio.create_task(_run())
     inflight[key] = task
     try:
-        return await task
+        result = await task
     finally:
         inflight.pop(key, None)
+    return _filter_games_by_segment(result, league, division)
+
+
+def _filter_games_by_segment(
+    result: GamesListResponse,
+    league: str | None,
+    division: str | None,
+) -> GamesListResponse:
+    """Filtra por liga/división (local o visitante). No muta la respuesta compartida."""
+    if not league and not division:
+        return result
+
+    def matches(game: GameDetailResponse) -> bool:
+        sides = (game.home_team, game.away_team)
+        if league and not any(t.league == league for t in sides):
+            return False
+        if division and not any(t.division == division for t in sides):
+            return False
+        return True
+
+    filtered = [g for g in result.games if matches(g)]
+    return GamesListResponse(games=filtered, meta=result.meta)
 
 
 @router.get(

@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps_rate_limit import rate_limit_public_write
 from app.core.config import settings
+from app.data.mlb_league_division import MLB_LEAGUE_STRUCTURE
 from app.db.session import get_db
 from app.models.mlb import Game, Team
 from app.schemas.games import GameDetailResponse, TeamOut
@@ -37,6 +38,12 @@ _MAX_SYNC_DAYS_PER_REQUEST = 7
 async def list_mlb_teams(session: Annotated[AsyncSession, Depends(get_db)]) -> list[TeamOut]:
     result = await session.execute(select(Team).order_by(Team.abbreviation))
     return [team_out_from_model(t) for t in result.scalars().all()]
+
+
+@router.get("/leagues", response_model=dict[str, list[str]])
+async def list_mlb_leagues() -> dict[str, list[str]]:
+    """Estructura liga -> divisiones para construir filtros en el cliente."""
+    return MLB_LEAGUE_STRUCTURE
 
 
 @router.get("/history/games", response_model=list[HistoryGameOut])

@@ -9,8 +9,10 @@
   padding: 6px var(--sp-4);
   font-size: var(--font-size-xs);
   line-height: 1;
-  color: var(--text-tertiary);
-  background: rgba(10, 14, 20, 0.72);
+  color: var(--text-secondary);
+  background: var(--glass-bg-raised);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
   border-top: 1px solid var(--glass-border);
   cursor: default;
   user-select: none;

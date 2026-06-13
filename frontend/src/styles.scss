@@ -165,10 +165,20 @@ app-root {
   &:hover { color: var(--text-primary); }
 }
 
-// Snackbar / toasts dark
+// Snackbar / toasts — superficie clara con texto slate legible
 .mdc-snackbar__surface {
   background: var(--bg-raised) !important;
   border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+.mdc-snackbar .mdc-snackbar__label,
+.mat-mdc-snack-bar-label {
+  color: var(--text-primary) !important;
+}
+// Botón de acción ("OK", "Cerrar") con color de acento
+.mat-mdc-snack-bar-action .mdc-button__label,
+.mat-mdc-snack-bar-action {
+  color: var(--accent-text) !important;
 }
 
 // Progress spinner en dark

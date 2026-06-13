@@ -54,6 +54,11 @@
   flex: 1 1 200px;
 }
 
+// Separa el botón "Registrar apuesta" del panel de opciones (evita que se encimen)
+.mat-expansion-panel + button {
+  margin-top: var(--sp-4);
+}
+
 .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -121,3 +126,59 @@
 .badge[data-status='won']     { color: var(--success); font-weight: 600; }
 .badge[data-status='lost']    { color: var(--danger);  font-weight: 600; }
 .badge[data-status='pending'] { color: var(--text-tertiary); }
+
+// Picker de partido
+.picker-filters {
+  mat-form-field { flex: 1 1 180px; }
+}
+
+// Tarjeta de predicción inline al elegir partido
+.prediction-preview {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4);
+
+  .preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-3);
+  }
+
+  .preview-teams {
+    font-weight: 600;
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+  }
+
+  .preview-link {
+    flex-shrink: 0;
+    font-size: var(--font-size-sm);
+  }
+}
+
+.runs-ou-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+
+  .sep { opacity: 0.4; }
+
+  .lean {
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-xs);
+    background: var(--accent-soft);
+    color: var(--accent-text);
+
+    &.lean-over { background: var(--success-bg); color: var(--success); }
+    &.lean-under { background: var(--info-bg); color: var(--info); }
+  }
+}

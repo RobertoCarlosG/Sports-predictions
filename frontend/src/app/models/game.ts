@@ -2,6 +2,8 @@ export interface TeamOut {
   id: number;
   name: string;
   abbreviation: string;
+  league?: string | null;
+  division?: string | null;
 }
 
 export interface GameDetail {
