@@ -24,8 +24,9 @@ class AppUser(Base):
         primary_key=True,
         server_default=text("gen_random_uuid()"),
     )
-    google_id: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    google_id: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True)
     email: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
+    password_hash: Mapped[str | None] = mapped_column(String(256), nullable=True)
     display_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     picture_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")

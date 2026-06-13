@@ -78,7 +78,7 @@ export class MlbHistoryComponent implements OnInit {
     this.seasonYearChoices = [y - 1, y, y + 1].filter((n) => n >= 2020);
     this.season = String(y);
     this.syncStart = `${y}-03-01`;
-    this.syncEnd = this.seasonBounds.max;
+    this.syncEnd = this.seasonBounds.today;
     this.applyQuick('last7', false);
     void this.load();
     this.api.listMlbTeams().subscribe({
@@ -93,19 +93,19 @@ export class MlbHistoryComponent implements OnInit {
 
   applyQuick(which: QuickRange, reload = true): void {
     this.quickActive = which;
-    const max = this.seasonBounds.max;
+    const today = this.seasonBounds.today;
     const min = this.seasonBounds.min;
     if (which === 'last7') {
-      this.dateFrom = addDaysIso(max, -6);
-      this.dateTo = max;
+      this.dateFrom = addDaysIso(today, -6);
+      this.dateTo = today;
     } else if (which === 'month') {
-      const parts = max.split('-').map(Number);
+      const parts = today.split('-').map(Number);
       const first = `${parts[0]}-${String(parts[1]).padStart(2, '0')}-01`;
       this.dateFrom = first < min ? min : first;
-      this.dateTo = max;
+      this.dateTo = today;
     } else {
       this.dateFrom = min;
-      this.dateTo = max;
+      this.dateTo = today;
       this.season = String(this.seasonBounds.year);
     }
     if (reload) {

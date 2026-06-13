@@ -27,6 +27,7 @@ import {
 } from '../services/admin-api.service';
 import { GamesApiService } from '../services/games-api.service';
 import { ModelInfoService } from '../services/model-info.service';
+import { NotificationService } from '../services/notification.service';
 import { toIsoDate } from '../utils/date-bounds';
 import { AdminOpResultData, AdminOpResultDialogComponent } from '../admin-panel/admin-op-result-dialog.component';
 
@@ -56,6 +57,7 @@ export class OperationsComponent implements OnInit, OnDestroy {
   private readonly admin = inject(AdminApiService);
   private readonly games = inject(GamesApiService);
   private readonly modelInfo = inject(ModelInfoService);
+  private readonly notif = inject(NotificationService);
   private readonly dialog = inject(MatDialog);
   private readonly snack = inject(MatSnackBar);
 
@@ -598,6 +600,7 @@ export class OperationsComponent implements OnInit, OnDestroy {
   }
 
   private openResultDialog(data: AdminOpResultData): void {
+    this.notif.push(data.message, data.success ? 'success' : 'error');
     this.dialog.open(AdminOpResultDialogComponent, {
       width: 'min(96vw, 440px)',
       autoFocus: 'dialog',

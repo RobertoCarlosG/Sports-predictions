@@ -32,6 +32,25 @@
   <div class="nav-block nav-block--system">
     <p class="nav-label" [class.hidden]="collapsed">Sistema</p>
     <nav class="nav-list" aria-label="Sistema">
+      <button
+        class="nav-item nav-item--icon"
+        type="button"
+        (click)="notif.togglePanel()"
+        [attr.title]="collapsed ? 'Notificaciones' : null"
+        aria-label="Notificaciones"
+      >
+        <mat-icon
+          class="nav-ico"
+          [matBadge]="notif.unreadCount()"
+          [matBadgeHidden]="notif.unreadCount() === 0"
+          matBadgeSize="small"
+          matBadgeColor="warn"
+          aria-hidden="true"
+        >notifications</mat-icon>
+        @if (!collapsed) {
+          <span class="nav-text">Notificaciones</span>
+        }
+      </button>
       <a
         class="nav-item nav-item--icon"
         routerLink="/bets"

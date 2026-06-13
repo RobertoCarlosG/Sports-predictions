@@ -64,9 +64,10 @@
   }
 
   @if (loading()) {
-    <div class="loading-block">
-      <mat-spinner diameter="40" />
-      <p>Cargando partidos…</p>
+    <div class="card-grid skeleton-grid">
+      @for (n of skeletonItems; track n) {
+        <app-match-card-skeleton />
+      }
     </div>
   }
 

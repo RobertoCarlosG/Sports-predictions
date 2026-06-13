@@ -1,5 +1,7 @@
 import { Routes } from '@angular/router';
 
+import { authGuard } from './guards/auth.guard';
+
 export const routes: Routes = [
   {
     path: '',
@@ -40,6 +42,7 @@ export const routes: Routes = [
             path: 'history',
             loadComponent: () =>
               import('./mlb-history/mlb-history.component').then((m) => m.MlbHistoryComponent),
+            canActivate: [authGuard],
           },
           {
             path: 'game/:gamePk',
@@ -76,6 +79,11 @@ export const routes: Routes = [
         loadComponent: () => import('./bets/bets-page.component').then((m) => m.BetsPageComponent),
       },
     ],
+  },
+  {
+    path: 'login',
+    loadComponent: () =>
+      import('./login/login-page.component').then((m) => m.LoginPageComponent),
   },
   { path: '**', redirectTo: 'mlb/today' },
 ];

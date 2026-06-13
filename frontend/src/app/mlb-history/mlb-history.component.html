@@ -119,7 +119,7 @@
         [(ngModel)]="dateFrom"
         name="dateFrom"
         [min]="seasonBounds.min"
-        [max]="seasonBounds.max"
+        [max]="seasonBounds.today"
       />
     </mat-form-field>
 
@@ -131,7 +131,7 @@
         [(ngModel)]="dateTo"
         name="dateTo"
         [min]="seasonBounds.min"
-        [max]="seasonBounds.max"
+        [max]="seasonBounds.today"
       />
     </mat-form-field>
 

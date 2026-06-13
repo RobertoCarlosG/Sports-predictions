@@ -67,8 +67,16 @@ def _should_persist_snapshot(
     season: str | None,
     today: dt.date,
     upcoming_snapshot_days: int,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
 ) -> bool:
-    """Persist target season plus today's/tomorrow's scheduled games for live inference."""
+    """Persist target season plus today's/tomorrow's scheduled games for live inference.
+
+    When start_date/end_date are provided they take precedence: only games whose
+    game_date falls within [start_date, end_date] are written.
+    """
+    if start_date is not None and end_date is not None:
+        return start_date <= game.game_date <= end_date
     if season is None or game.season == season:
         return True
     upcoming_end = today + dt.timedelta(days=upcoming_snapshot_days)
@@ -80,26 +88,37 @@ async def rebuild_game_feature_snapshots(
     *,
     rolling_window: int = 10,
     season: str | None = None,
+    start_date: dt.date | None = None,
+    end_date: dt.date | None = None,
     mlb: MlbApiClient | None = None,
     upcoming_snapshot_days: int = UPCOMING_SNAPSHOT_DAYS,
 ) -> int:
     """Recalcula filas en `game_feature_snapshots`.
 
-    Recorre **todos** los partidos (todas las temporadas) en orden cronológico para que
-    las rachas rodantes tengan contexto previo. Si ``season`` está fijado, solo se borran y
-    reescriben snapshots de esa temporada; el resto de partidos solo alimenta el historial.
+    Recorre los partidos en orden cronológico para que las rachas rodantes tengan contexto
+    previo. Si ``season`` está fijado, solo se borran y reescriben snapshots de esa
+    temporada; el resto de partidos solo alimenta el historial.
+
+    Cuando se especifican ``start_date`` y ``end_date`` se carga todo el histórico previo
+    necesario para las rachas (todos los juegos hasta ``end_date``) pero solo se borran y
+    persisten snapshots para el rango [start_date, end_date].
 
     - `home_win` / `total_runs` solo para partidos finalizados con marcador.
-    - ERA de abridores y del staff (proxy «bullpen») si ``mlb`` está disponible; si no, se usan
-      valores por defecto (ver ``pitching_stats``).
+    - ERA de abridores y del staff (proxy «bullpen») si ``mlb`` está disponible; si no, se
+      usan valores por defecto (ver ``pitching_stats``).
     Devuelve el número de filas escritas.
     """
+    use_date_range = start_date is not None and end_date is not None
+
     stmt = (
         select(Game)
         .options(selectinload(Game.weather))
         .order_by(Game.game_date, Game.game_pk)
     )
-    if season is not None and season != "all":
+    if use_date_range:
+        # Load all games up to end_date so rolling history is correct.
+        stmt = stmt.where(Game.game_date <= end_date)
+    elif season is not None and season != "all":
         stmt = stmt.where(Game.season == season)
     result = await session.execute(stmt)
     games = result.scalars().unique().all()
@@ -108,7 +127,17 @@ async def rebuild_game_feature_snapshots(
 
     today = dt.datetime.now(dt.UTC).date()
 
-    if season is not None and season != "all":
+    if use_date_range:
+        await session.execute(
+            delete(GameFeatureSnapshot).where(
+                GameFeatureSnapshot.game_pk.in_(
+                    select(Game.game_pk).where(
+                        Game.game_date.between(start_date, end_date)
+                    )
+                )
+            )
+        )
+    elif season is not None and season != "all":
         upcoming_end = today + dt.timedelta(days=upcoming_snapshot_days)
         await session.execute(
             delete(GameFeatureSnapshot).where(
@@ -144,6 +173,8 @@ async def rebuild_game_feature_snapshots(
                 season=season,
                 today=today,
                 upcoming_snapshot_days=upcoming_snapshot_days,
+                start_date=start_date,
+                end_date=end_date,
             ):
                 continue
 

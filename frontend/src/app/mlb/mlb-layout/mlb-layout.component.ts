@@ -1,16 +1,32 @@
-import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
+import { Component, inject, signal } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter } from 'rxjs';
 
-/**
- * Detección por defecto: con OnPush, las actualizaciones del hijo bajo <router-outlet> (p. ej. señales
- * o HTTP en la lista de partidos) no siempre refrescan la vista hasta otra interacción.
- */
+const TABS = ['/mlb/today', '/mlb/tomorrow', '/mlb/week', '/mlb/history'] as const;
+
 @Component({
   selector: 'app-mlb-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatButtonModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './mlb-layout.component.html',
   styleUrl: './mlb-layout.component.scss',
 })
-export class MlbLayoutComponent {}
+export class MlbLayoutComponent {
+  activeIndex = signal(0);
+
+  constructor() {
+    const router = inject(Router);
+
+    this.updateIndex(router.url);
+
+    router.events
+      .pipe(filter(e => e instanceof NavigationEnd), takeUntilDestroyed())
+      .subscribe(e => this.updateIndex((e as NavigationEnd).urlAfterRedirects));
+  }
+
+  private updateIndex(url: string): void {
+    const idx = TABS.findIndex(t => url.startsWith(t));
+    this.activeIndex.set(idx >= 0 ? idx : 0);
+  }
+}

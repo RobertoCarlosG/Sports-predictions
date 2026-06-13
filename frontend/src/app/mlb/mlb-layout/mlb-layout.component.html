@@ -1,41 +1,12 @@
 <div class="mlb-layout">
   <nav class="mlb-subnav" aria-label="Vistas MLB">
-    <a
-      mat-stroked-button
-      color="primary"
-      routerLink="/mlb/today"
-      routerLinkActive="mlb-subnav-on"
-      [routerLinkActiveOptions]="{ exact: true }"
-    >
-      Hoy
-    </a>
-    <a
-      mat-stroked-button
-      color="primary"
-      routerLink="/mlb/tomorrow"
-      routerLinkActive="mlb-subnav-on"
-      [routerLinkActiveOptions]="{ exact: true }"
-    >
-      Mañana
-    </a>
-    <a
-      mat-stroked-button
-      color="primary"
-      routerLink="/mlb/week"
-      routerLinkActive="mlb-subnav-on"
-      [routerLinkActiveOptions]="{ exact: true }"
-    >
-      Esta semana
-    </a>
-    <a
-      mat-stroked-button
-      color="primary"
-      routerLink="/mlb/history"
-      routerLinkActive="mlb-subnav-on"
-      [routerLinkActiveOptions]="{ exact: true }"
-    >
-      Historial
-    </a>
+    <div class="seg-track" [style.--active-index]="activeIndex()">
+      <div class="seg-pill" aria-hidden="true"></div>
+      <a routerLink="/mlb/today"    routerLinkActive="seg-on" [routerLinkActiveOptions]="{exact:true}">Hoy</a>
+      <a routerLink="/mlb/tomorrow" routerLinkActive="seg-on" [routerLinkActiveOptions]="{exact:true}">Mañana</a>
+      <a routerLink="/mlb/week"     routerLinkActive="seg-on" [routerLinkActiveOptions]="{exact:true}">Semana</a>
+      <a routerLink="/mlb/history"  routerLinkActive="seg-on" [routerLinkActiveOptions]="{exact:true}">Historial</a>
+    </div>
   </nav>
   <router-outlet />
 </div>

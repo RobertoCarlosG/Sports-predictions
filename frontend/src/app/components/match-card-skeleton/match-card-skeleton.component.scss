@@ -1,0 +1,46 @@
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+@mixin shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    var(--glass-bg)        0%,
+    var(--glass-bg-hover)  50%,
+    var(--glass-bg)        100%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.card {
+  border-radius: var(--radius-lg);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md), var(--shadow-inset-top);
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.skel {
+  border-radius: var(--radius-pill);
+  @include shimmer-bg;
+}
+
+.skel-badge  { width: 64px;  height: 20px; }
+.skel-chip   { width: 48px;  height: 20px; }
+.skel-teams  { width: 80%;   height: 22px; }
+.skel-meta   { width: 45%;   height: 14px; border-radius: var(--radius-sm); }
+.skel-bar    { width: 100%;  height: 32px; border-radius: var(--radius-md); }

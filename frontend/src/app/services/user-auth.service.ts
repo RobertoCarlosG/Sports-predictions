@@ -9,6 +9,7 @@ export interface UserAuthReadyResponse {
   detail: string | null;
   jwt_configured?: boolean;
   google_configured?: boolean;
+  email_login_available?: boolean;
   app_users_table_reachable?: boolean;
 }
 
@@ -58,6 +59,22 @@ export class UserAuthService {
         return throwError(() => err);
       }),
     );
+  }
+
+  loginEmail(email: string, password: string): Observable<UserSessionResponse> {
+    return this.http
+      .post<UserSessionResponse>(`${this.base}/login`, { email, password }, this.opts())
+      .pipe(tap(() => (this.sessionOk = true)));
+  }
+
+  registerEmail(email: string, password: string, displayName?: string): Observable<UserSessionResponse> {
+    return this.http
+      .post<UserSessionResponse>(
+        `${this.base}/register`,
+        { email, password, display_name: displayName ?? null },
+        this.opts(),
+      )
+      .pipe(tap(() => (this.sessionOk = true)));
   }
 
   logout(): Observable<{ message: string; detail: string }> {

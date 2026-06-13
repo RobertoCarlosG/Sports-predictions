@@ -81,3 +81,77 @@ def test_should_not_persist_non_upcoming_snapshot_outside_requested_season() -> 
         boxscore_json=None,
     )
     assert not _should_persist_snapshot(g, season="2025", today=today, upcoming_snapshot_days=1)
+
+
+def _make_game(game_pk: int, game_date: dt.date) -> Game:
+    return Game(
+        game_pk=game_pk,
+        season="2025",
+        game_date=game_date,
+        game_datetime_utc=None,
+        status="Final",
+        home_team_id=1,
+        away_team_id=2,
+        venue_id=None,
+        venue_name=None,
+        home_score=5,
+        away_score=3,
+        lineups_json=None,
+        boxscore_json=None,
+    )
+
+
+def test_should_persist_snapshot_within_date_range() -> None:
+    today = dt.date(2025, 4, 15)
+    start = dt.date(2025, 4, 10)
+    end = dt.date(2025, 4, 20)
+    g = _make_game(10, dt.date(2025, 4, 15))
+    assert _should_persist_snapshot(
+        g, season=None, today=today, upcoming_snapshot_days=1, start_date=start, end_date=end
+    )
+
+
+def test_should_not_persist_snapshot_before_date_range() -> None:
+    today = dt.date(2025, 4, 15)
+    start = dt.date(2025, 4, 10)
+    end = dt.date(2025, 4, 20)
+    g = _make_game(11, dt.date(2025, 4, 5))
+    assert not _should_persist_snapshot(
+        g, season=None, today=today, upcoming_snapshot_days=1, start_date=start, end_date=end
+    )
+
+
+def test_should_not_persist_snapshot_after_date_range() -> None:
+    today = dt.date(2025, 4, 15)
+    start = dt.date(2025, 4, 10)
+    end = dt.date(2025, 4, 20)
+    g = _make_game(12, dt.date(2025, 4, 25))
+    assert not _should_persist_snapshot(
+        g, season=None, today=today, upcoming_snapshot_days=1, start_date=start, end_date=end
+    )
+
+
+def test_date_range_takes_precedence_over_season() -> None:
+    """start_date/end_date should override season-based filtering."""
+    today = dt.date(2025, 4, 15)
+    start = dt.date(2025, 4, 10)
+    end = dt.date(2025, 4, 20)
+    # Game is season 2024 (would normally be excluded by season="2025")
+    g = Game(
+        game_pk=13,
+        season="2024",
+        game_date=dt.date(2025, 4, 12),
+        game_datetime_utc=None,
+        status="Final",
+        home_team_id=1,
+        away_team_id=2,
+        venue_id=None,
+        venue_name=None,
+        home_score=3,
+        away_score=2,
+        lineups_json=None,
+        boxscore_json=None,
+    )
+    assert _should_persist_snapshot(
+        g, season="2025", today=today, upcoming_snapshot_days=1, start_date=start, end_date=end
+    )

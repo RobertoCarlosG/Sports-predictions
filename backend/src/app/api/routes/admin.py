@@ -342,6 +342,8 @@ async def admin_rebuild_snapshots(
         session,
         rolling_window=body.window,
         season=body.season,
+        start_date=body.start_date,
+        end_date=body.end_date,
         mlb=mlb,
     )
     return MessageResponse(message=f"Indicadores recalculados para {n} partidos.", detail=None)

@@ -1,9 +1,40 @@
 <div class="shell">
   <app-sidebar />
-  <div class="main-column">
-    <main class="main-shell">
-      <router-outlet />
-    </main>
-    <app-model-footer />
-  </div>
+  <mat-sidenav-container class="main-column">
+    <mat-sidenav-content>
+      <main class="main-shell">
+        <router-outlet />
+      </main>
+      <app-model-footer />
+    </mat-sidenav-content>
+
+    <mat-sidenav
+      position="end"
+      mode="over"
+      [opened]="notifOpen()"
+      (openedChange)="$event || notif.closePanel()"
+    >
+      <div class="notif-panel">
+        <div class="notif-panel-header">
+          <h2 class="notif-panel-title">Notificaciones</h2>
+          <button mat-icon-button type="button" (click)="notif.closePanel()" aria-label="Cerrar notificaciones">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        <div class="notif-list">
+          @for (n of notifications(); track n.id) {
+            <div class="notif-item notif-item--{{ n.type }}">
+              <mat-icon class="notif-ico" aria-hidden="true">{{ notifIcon(n.type) }}</mat-icon>
+              <div class="notif-content">
+                <p class="notif-msg">{{ n.message }}</p>
+                <time class="notif-time">{{ n.timestamp | date:'HH:mm' }}</time>
+              </div>
+            </div>
+          } @empty {
+            <p class="notif-empty">Sin notificaciones recientes</p>
+          }
+        </div>
+      </div>
+    </mat-sidenav>
+  </mat-sidenav-container>
 </div>

@@ -239,6 +239,35 @@ async def test_rebuild_snapshots_window_too_large_returns_422(admin_client: Asyn
     assert r.status_code == 422
 
 
+async def test_rebuild_snapshots_with_date_range_returns_success(admin_client: AsyncClient) -> None:
+    r = await admin_client.post(
+        "/api/v1/admin/pipeline/rebuild-snapshots",
+        json={"start_date": "2025-04-01", "end_date": "2025-04-30", "window": 10},
+        headers=ADMIN_HEADERS,
+    )
+    assert r.status_code == 200
+    assert "recalculados" in r.json()["message"].lower()
+
+
+async def test_rebuild_snapshots_invalid_date_format_returns_422(admin_client: AsyncClient) -> None:
+    r = await admin_client.post(
+        "/api/v1/admin/pipeline/rebuild-snapshots",
+        json={"start_date": "01-04-2025", "end_date": "30-04-2025"},
+        headers=ADMIN_HEADERS,
+    )
+    assert r.status_code == 422
+
+
+async def test_rebuild_snapshots_no_body_uses_all_dates(admin_client: AsyncClient) -> None:
+    r = await admin_client.post(
+        "/api/v1/admin/pipeline/rebuild-snapshots",
+        json={},
+        headers=ADMIN_HEADERS,
+    )
+    assert r.status_code == 200
+    assert "recalculados" in r.json()["message"].lower()
+
+
 # ---------------------------------------------------------------------------
 # GET /api/v1/admin/model/versions
 # ---------------------------------------------------------------------------

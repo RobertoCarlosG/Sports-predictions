@@ -16,13 +16,24 @@ from sqlalchemy import select
 from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.admin_security import create_access_token, decode_access_token, decode_token_expires_at_utc
+from app.core.admin_security import (
+    create_access_token,
+    decode_access_token,
+    decode_token_expires_at_utc,
+    hash_password,
+    verify_password,
+)
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.bets import AppUser
 from app.api.deps_user import user_token_from_request
-from app.schemas.user_auth import UserAuthReadyResponse, UserSessionResponse
-from app.services.user_auth import get_app_user, upsert_app_user_from_google_profile
+from app.schemas.user_auth import UserAuthReadyResponse, UserLoginRequest, UserRegisterRequest, UserSessionResponse
+from app.services.user_auth import (
+    create_email_user,
+    get_app_user,
+    get_user_by_email,
+    upsert_app_user_from_google_profile,
+)
 
 log = logging.getLogger(__name__)
 
@@ -138,12 +149,13 @@ async def user_auth_ready(
         log.warning("user auth/ready DB check: %s", e)
         table_hint = "No se pudo consultar app_users."
 
-    login_ok = jwt_ok and google_ok and table_ok
+    email_ok = jwt_ok and table_ok
+    login_ok = email_ok or (jwt_ok and google_ok and table_ok)
     parts: list[str] = []
     if not jwt_ok:
         parts.append("USER_JWT_SECRET no está definido o está vacío.")
     if not google_ok:
-        parts.append("Configura GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REDIRECT_URI.")
+        parts.append("Configura GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y GOOGLE_REDIRECT_URI para habilitar Google.")
     if not table_ok and table_hint:
         parts.append(table_hint)
     detail = "\n\n".join(parts) if parts else None
@@ -152,6 +164,7 @@ async def user_auth_ready(
         detail=detail,
         jwt_configured=jwt_ok,
         google_configured=google_ok,
+        email_login_available=email_ok,
         app_users_table_reachable=table_ok,
     )
 
@@ -278,6 +291,73 @@ async def user_me(
     user = await get_app_user(session, uid)
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="Usuario no encontrado.")
+    return _session_response(user, request)
+
+
+@router.post("/register", response_model=UserSessionResponse)
+async def user_register(
+    body: UserRegisterRequest,
+    response: Response,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> UserSessionResponse:
+    """Registro con email y contraseña. Crea cuenta y devuelve sesión."""
+    if not settings.user_jwt_secret.strip():
+        raise HTTPException(status_code=503, detail="El servicio de sesión no está configurado.")
+
+    existing = await get_user_by_email(session, body.email)
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="Ya existe una cuenta con ese email.")
+
+    try:
+        pw_hash = hash_password(body.password)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+    display = body.display_name.strip() if body.display_name else None
+    user = await create_email_user(session, email=body.email, password_hash=pw_hash, display_name=display)
+    await session.commit()
+
+    jwt = create_access_token(
+        secret=settings.user_jwt_secret,
+        subject=str(user.id),
+        expire_minutes=settings.user_token_expire_minutes,
+    )
+    _set_user_session_cookie(response, jwt)
+    return _session_response(user, request)
+
+
+@router.post("/login", response_model=UserSessionResponse)
+async def user_login_email(
+    body: UserLoginRequest,
+    response: Response,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> UserSessionResponse:
+    """Login con email y contraseña."""
+    if not settings.user_jwt_secret.strip():
+        raise HTTPException(status_code=503, detail="El servicio de sesión no está configurado.")
+
+    user = await get_user_by_email(session, body.email)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=401, detail="Email o contraseña incorrectos.")
+    if not user.password_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="Esta cuenta usa inicio de sesión con Google. Usa el botón de Google para entrar.",
+        )
+    if not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Email o contraseña incorrectos.")
+
+    user.last_login_at = dt.datetime.now(dt.UTC)
+    await session.commit()
+
+    jwt = create_access_token(
+        secret=settings.user_jwt_secret,
+        subject=str(user.id),
+        expire_minutes=settings.user_token_expire_minutes,
+    )
+    _set_user_session_cookie(response, jwt)
     return _session_response(user, request)
 
 

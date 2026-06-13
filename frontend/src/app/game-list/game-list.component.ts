@@ -28,6 +28,7 @@ import {
 } from '../components/date-chip-selector/date-chip-selector.component';
 import { FriendlyErrorBannerComponent } from '../components/friendly-error-banner/friendly-error-banner.component';
 import { MatchCardComponent } from '../components/match-card/match-card.component';
+import { MatchCardSkeletonComponent } from '../components/match-card-skeleton/match-card-skeleton.component';
 import type { GameDetail, GamesListMeta } from '../models/game';
 import { GamesApiService } from '../services/games-api.service';
 import { currentSeasonDateBounds } from '../utils/date-bounds';
@@ -56,12 +57,15 @@ function cacheKeyForDates(dates: string[]): string {
     MatTooltipModule,
     DateChipSelectorComponent,
     MatchCardComponent,
+    MatchCardSkeletonComponent,
     FriendlyErrorBannerComponent,
   ],
   templateUrl: './game-list.component.html',
   styleUrl: './game-list.component.scss',
 })
 export class GameListComponent {
+  readonly skeletonItems = [1, 2, 3, 4];
+
   private readonly api = inject(GamesApiService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);

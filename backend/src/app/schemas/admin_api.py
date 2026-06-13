@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -50,6 +51,8 @@ class AdminAuthReadyResponse(BaseModel):
 class RebuildSnapshotsBody(BaseModel):
     season: str | None = None
     window: int = Field(default=10, ge=1, le=50)
+    start_date: dt.date | None = None
+    end_date: dt.date | None = None
 
 
 class TrainModelBody(BaseModel):

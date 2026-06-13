@@ -2,8 +2,8 @@
 
 Uso:
 
-  uv run python -m app.cli.rebuild_feature_snapshots
-  uv run python -m app.cli.rebuild_feature_snapshots --season 2025 --window 10
+  python -m app.cli.rebuild_feature_snapshots
+  python -m app.cli.rebuild_feature_snapshots --season 2025 --window 10
 """
 
 from __future__ import annotations

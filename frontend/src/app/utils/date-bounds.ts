@@ -16,19 +16,22 @@ export function eachIsoDateInRange(start: string, end: string): string[] {
   return out;
 }
 
-/** Límites de fecha para temporada en curso (año civil actual con margen futuro de 30 días). */
-export function currentSeasonDateBounds(): { min: string; max: string; year: number } {
+/**
+ * Límites de fecha para la temporada en curso.
+ * - `today`: hoy (consultas de histórico y «últimos N días»).
+ * - `max`: hoy + 30 días (tope en selectores que incluyen partidos programados).
+ */
+export function currentSeasonDateBounds(): { min: string; today: string; max: string; year: number } {
   const today = new Date();
   const y = today.getFullYear();
+  const todayIso = toIsoDate(today);
   const futureDate = new Date(today);
   futureDate.setDate(futureDate.getDate() + 30);
-  const maxY = futureDate.getFullYear();
-  const maxM = String(futureDate.getMonth() + 1).padStart(2, '0');
-  const maxD = String(futureDate.getDate()).padStart(2, '0');
   return {
     year: y,
     min: `${y}-01-01`,
-    max: `${maxY}-${maxM}-${maxD}`,
+    today: todayIso,
+    max: toIsoDate(futureDate),
   };
 }
 

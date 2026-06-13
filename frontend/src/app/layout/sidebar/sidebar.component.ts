@@ -7,16 +7,18 @@ import {
   inject,
 } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { MatBadgeModule } from '@angular/material/badge';
 import { MatIconModule } from '@angular/material/icon';
 import { filter, Subscription } from 'rxjs';
 import { MatIconButton } from '@angular/material/button';
 
 import { SPORT_OPTIONS, type SportId, type SportOption } from '../../models/sport';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [RouterLink, MatIconModule, MatIconButton],
+  imports: [RouterLink, MatBadgeModule, MatIconModule, MatIconButton],
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -24,6 +26,7 @@ import { SPORT_OPTIONS, type SportId, type SportOption } from '../../models/spor
 export class SidebarComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly cdr = inject(ChangeDetectorRef);
+  protected readonly notif = inject(NotificationService);
   private sub: Subscription | null = null;
 
   readonly title = 'Sports Predictions';

@@ -2,6 +2,7 @@
 @use 'tokens' as *;
 @use 'glass' as *;
 @use 'app/operations/operations-auth.global';
+@use 'app/operations/operations-wiz.global';
 
 // ─── Material M3 — tema claro + azul ─────────────────────────────────────────
 html {

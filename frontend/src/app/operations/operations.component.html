@@ -275,14 +275,16 @@
                   <mat-card-subtitle>Descarga desde la fuente oficial día a día (cola de segundo plano)</mat-card-subtitle>
                 </mat-card-header>
                 <mat-card-content class="stack">
-                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
-                    <mat-label>Desde</mat-label>
-                    <input matInput type="date" [(ngModel)]="backfillStart" name="bf1" />
-                  </mat-form-field>
-                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
-                    <mat-label>Hasta</mat-label>
-                    <input matInput type="date" [(ngModel)]="backfillEnd" name="bf2" />
-                  </mat-form-field>
+                  <div class="date-row">
+                    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                      <mat-label>Desde</mat-label>
+                      <input matInput type="date" [(ngModel)]="backfillStart" name="bf1" />
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                      <mat-label>Hasta</mat-label>
+                      <input matInput type="date" [(ngModel)]="backfillEnd" name="bf2" />
+                    </mat-form-field>
+                  </div>
                   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
                     <mat-label>Pausa entre días (segundos)</mat-label>
                     <input matInput type="number" step="0.1" min="0" [(ngModel)]="backfillSleep" name="bfs" />
@@ -357,11 +359,11 @@
                       } @else if (trainStep === 2) {
                         <p class="wiz-hint">Ajusta la complejidad del modelo. Los valores por defecto funcionan bien.</p>
                         <div class="wiz-row">
-                          <mat-form-field appearance="outline">
+                          <mat-form-field appearance="outline" subscriptSizing="dynamic">
                             <mat-label>Árboles</mat-label>
                             <input matInput type="number" min="10" max="500" [(ngModel)]="trainTrees" name="trt" />
                           </mat-form-field>
-                          <mat-form-field appearance="outline">
+                          <mat-form-field appearance="outline" subscriptSizing="dynamic">
                             <mat-label>Profundidad máx.</mat-label>
                             <input matInput type="number" min="2" max="48" [(ngModel)]="trainMaxDepth" name="trd" />
                           </mat-form-field>
