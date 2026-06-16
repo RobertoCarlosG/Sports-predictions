@@ -358,6 +358,55 @@ async def admin_clear_prediction_cache(
     return MessageResponse(message="Caché de estimaciones vaciada.", detail=f"Filas eliminadas: {n}")
 
 
+@router.post("/pipeline/fix-fifty", response_model=MessageResponse)
+async def admin_fix_fifty(
+    request: Request,
+    username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> MessageResponse:
+    """Atajo para predicciones atascadas en ~50%: recalcula indicadores de la temporada
+    actual (con ERA real vía MLB), vacía la caché de estimaciones y recarga el modelo.
+
+    Camino rápido y seguro. Si tras esto un partido sigue en ~50% es porque falta
+    histórico previo: hay que hacer backfill profundo (ver ml_fix_fifty_runbook.md).
+    """
+    season = str(dt.datetime.now(dt.UTC).year)
+
+    mlb = MlbApiClient(settings.mlb_api_base_url, request.app.state.http_client)
+    n_snap = await rebuild_game_feature_snapshots(session, season=season, mlb=mlb)
+    n_cache = await clear_prediction_cache(session)
+
+    path = resolve_model_path(settings.ml_model_path)
+    if not path.is_file():
+        raise HTTPException(
+            status_code=400,
+            detail="No hay archivo de modelo en la ruta configurada.",
+        )
+    from app.ml.model_routing import DEFAULT_ML_MODEL, sync_primary_model_version
+
+    svc = MlbPredictionService(path)
+    svc.reload()
+    ver = svc.model_version
+    request.app.state.prediction_service = svc
+    sync_primary_model_version(request, "rf", svc)
+    try:
+        if DEFAULT_ML_MODEL == "rf":
+            await record_model_load(session, svc, loaded_by=username, notes="fix-fifty reload")
+    except Exception:
+        log.warning(
+            "model_versions: no se pudo registrar la recarga en fix-fifty.",
+            exc_info=True,
+        )
+
+    return MessageResponse(
+        message=f"Indicadores recalculados ({n_snap} partidos), caché vaciada y modelo recargado.",
+        detail=(
+            f"Temporada: {season}. Filas de caché eliminadas: {n_cache}. Versión del modelo: {ver}. "
+            "Si algún partido sigue en ~50%, falta histórico previo: ver ml_fix_fifty_runbook.md (caso B)."
+        ),
+    )
+
+
 @router.post("/predictions/evaluate-pending", response_model=MessageResponse)
 async def evaluate_pending_predictions(
     _username: AdminUserDep,

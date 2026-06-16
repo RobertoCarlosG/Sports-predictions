@@ -45,6 +45,12 @@
           [label]="favoriteVictoryLabel"
           [probability]="favoriteBarProbability"
         />
+        @if (insufficientData) {
+          <div class="insufficient-data" role="note">
+            <mat-icon>info</mat-icon>
+            <span>Datos insuficientes — predicción no fiable</span>
+          </div>
+        }
       }
       @if (hasRunsLine) {
         <div class="runs-ou" role="group" [attr.aria-label]="'Total de carreras y O/U'">

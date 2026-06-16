@@ -70,6 +70,11 @@ export class GameDetailComponent implements OnInit {
     return this.selectedModel === 'xgb' ? this.xgbPrediction : this.rfPrediction;
   }
 
+  /** true = la predicción activa usó constantes por falta de datos; la prob. ~50% no es fiable. */
+  get insufficientData(): boolean {
+    return this.activePrediction?.defaults_injected === true;
+  }
+
   ngOnInit(): void {
     this.route.paramMap.subscribe((pm) => {
       const pk = pm.get('gamePk');

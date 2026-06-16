@@ -202,6 +202,12 @@ export class AdminApiService {
       .pipe(tap(() => this.backtestCache.clear()));
   }
 
+  fixFifty(): Observable<MessageResponse> {
+    return this.http
+      .post<MessageResponse>(`${this.base}/pipeline/fix-fifty`, {}, this.opts())
+      .pipe(tap(() => this.backtestCache.clear()));
+  }
+
   reloadModel(): Observable<MessageResponse> {
     return this.http
       .post<MessageResponse>(`${this.base}/model/reload`, {}, this.opts())

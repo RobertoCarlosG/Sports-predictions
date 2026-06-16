@@ -33,6 +33,7 @@ async def get_cached_prediction(
         total_runs_estimate=row.total_runs_estimate,
         over_under_line=row.over_under_line,
         model_version=row.model_version,
+        defaults_injected=row.defaults_injected,
         predicted_winner=row.predicted_winner,
         actual_winner=row.actual_winner,
         is_correct=row.is_correct,
@@ -57,6 +58,7 @@ async def upsert_prediction_cache(
             total_runs_estimate=response.total_runs_estimate,
             over_under_line=response.over_under_line,
             model_version=response.model_version,
+            defaults_injected=response.defaults_injected,
             trigger_reason=trigger_reason,
             computed_at=now,
             predicted_winner=predicted_winner,
@@ -67,6 +69,7 @@ async def upsert_prediction_cache(
         row.total_runs_estimate = response.total_runs_estimate
         row.over_under_line = response.over_under_line
         row.model_version = response.model_version
+        row.defaults_injected = response.defaults_injected
         row.trigger_reason = trigger_reason
         row.computed_at = now
         row.predicted_winner = predicted_winner

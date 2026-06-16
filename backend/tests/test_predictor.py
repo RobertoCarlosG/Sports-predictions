@@ -13,7 +13,7 @@ from app.ml.predictor import (
     resolve_model_path,
 )
 from app.ml.training import train_default_model
-from app.models.mlb import Game, GameWeather
+from app.models.mlb import Game, GameFeatureSnapshot, GameWeather
 
 
 def test_train_and_predict_roundtrip(tmp_path: Path) -> None:
@@ -48,6 +48,54 @@ def test_train_and_predict_roundtrip(tmp_path: Path) -> None:
     assert 0.0 <= pr.home_win_probability <= 1.0
     assert np.isfinite(pr.total_runs_estimate)
     assert pr.model_version.startswith("rf-synthetic-v0@")
+
+
+def _scheduled_game() -> Game:
+    return Game(
+        game_pk=1,
+        season="2024",
+        game_date=dt.date(2024, 6, 15),
+        game_datetime_utc=None,
+        status="Scheduled",
+        home_team_id=1,
+        away_team_id=2,
+        venue_id=3289,
+        venue_name="Yankee Stadium",
+        lineups_json=None,
+        boxscore_json=None,
+    )
+
+
+def test_predict_flags_defaults_injected_without_snapshot(tmp_path: Path) -> None:
+    mp = tmp_path / "m.joblib"
+    train_default_model(mp)
+    svc = MlbPredictionService(mp)
+    # Sin snapshot: el vector se rellena con constantes simétricas → defaults_injected True.
+    pr = svc.predict(_scheduled_game(), None, None)
+    assert pr.defaults_injected is True
+
+
+def test_predict_no_defaults_with_full_snapshot(tmp_path: Path) -> None:
+    mp = tmp_path / "m.joblib"
+    train_default_model(mp)
+    svc = MlbPredictionService(mp)
+    snap = GameFeatureSnapshot(
+        game_pk=1,
+        home_wins_roll=0.62,
+        away_wins_roll=0.41,
+        home_runs_avg_roll=5.1,
+        away_runs_avg_roll=3.8,
+        temperature_c=22.0,
+        humidity_pct=55.0,
+        wind_speed_mps=3.0,
+        elevation_m=10.0,
+        home_starter_era=3.2,
+        away_starter_era=4.9,
+        home_bullpen_era=3.7,
+        away_bullpen_era=4.4,
+    )
+    pr = svc.predict(_scheduled_game(), None, snap)
+    assert pr.defaults_injected is False
 
 
 def test_resolve_model_path_default() -> None:

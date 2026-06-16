@@ -319,6 +319,25 @@
 
               <mat-card appearance="outlined">
                 <mat-card-header>
+                  <mat-card-title>Predicciones atascadas en 50%</mat-card-title>
+                  <mat-card-subtitle>Recalcula indicadores, vacía caché y recarga el modelo en un paso</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="stack">
+                  <p class="ops-section-hint">
+                    Un 50% suele significar que el partido no tiene indicadores o que faltan datos.
+                    Esta acción recalcula la temporada actual, vacía la caché y recarga el modelo.
+                    Si tras esto un partido sigue en 50%, falta histórico previo: hay que hacer
+                    <strong>backfill profundo</strong> (ver <code>docs/ml_fix_fifty_runbook.md</code>).
+                  </p>
+                  <button mat-flat-button color="primary" type="button" (click)="fixFifty()" [disabled]="operationsLocked">
+                    <mat-icon>auto_fix_high</mat-icon>
+                    Arreglar predicciones al 50%
+                  </button>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card appearance="outlined">
+                <mat-card-header>
                   <mat-card-title>Modelo</mat-card-title>
                   <mat-card-subtitle>Entrenar, recargar y calibrar sin reiniciar el servidor</mat-card-subtitle>
                 </mat-card-header>

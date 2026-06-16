@@ -96,7 +96,8 @@ curl -X POST http://localhost:8000/api/v1/admin/pipeline/rebuild-snapshots \
 ```
 
 ```bash
-# Via CLI (no soporta rango de fechas; usar la API para este caso)
+# Via CLI
+python -m app.cli.rebuild_feature_snapshots --start 2025-06-01 --end 2025-06-07
 ```
 
 > **Nota:** cuando se especifica un rango de fechas, el servicio carga todo el histórico anterior para calcular las rachas rodantes correctamente, pero solo borra y reescribe snapshots dentro del rango indicado.
@@ -106,7 +107,10 @@ curl -X POST http://localhost:8000/api/v1/admin/pipeline/rebuild-snapshots \
 ## Escenario 3 — Actualizar los últimos N días
 
 ```bash
-# Ejemplo: últimos 7 días (ajustar N según necesidad)
+# Via CLI (--last-days N calcula el rango automáticamente)
+python -m app.cli.rebuild_feature_snapshots --last-days 7
+
+# Via API (alternativa)
 N=7
 START=$(date -v -${N}d +%Y-%m-%d)   # macOS
 # START=$(date -d "-${N} days" +%Y-%m-%d)  # Linux
@@ -327,10 +331,27 @@ TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/admin/auth/login \
 
 ## CLI disponibles
 
+Todos se ejecutan desde el directorio `backend/` con `uv run python -m <comando>`.
+
+### Pipeline principal
+
+| Comando | Equivalente en panel | Descripción |
+|---|---|---|
+| `python -m app.cli.backfill_history --start YYYY-MM-DD --end YYYY-MM-DD [--sleep 0.5]` | Importar fechas | Importa histórico de MLB día a día |
+| `python -m app.cli.rebuild_feature_snapshots [--season 2026] [--window 10]` | Recalcular indicadores | Recalcula snapshots por temporada |
+| `python -m app.cli.rebuild_feature_snapshots --start YYYY-MM-DD --end YYYY-MM-DD` | Recalcular indicadores | Recalcula snapshots en rango de fechas |
+| `python -m app.cli.rebuild_feature_snapshots --last-days N` | Recalcular indicadores | Recalcula los últimos N días |
+| `python -m app.ml.train_from_db [--season 2026] [--algorithm xgb]` | Entrenar modelo | Reentrena el modelo desde `game_feature_snapshots` |
+| `python -m app.cli.clear_prediction_cache` | Limpiar caché | Vacía `prediction_results` para forzar recalcular |
+| `python -m app.cli.daily_snapshot` | ETL diario | Sync hoy+mañana + rebuild snapshots de la temporada |
+| `python -m app.cli.fix_fifty [--season 2026]` | Arreglar predicciones al 50% | Rebuild temporada actual + vaciar caché |
+
+> **Nota sobre "Recargar modelo":** este botón cambia el estado en memoria del servidor en Render y **no tiene equivalente CLI local**. No es necesario: el servidor detecta cambios en `model.joblib` automáticamente en el siguiente request tras un re-entrenamiento.
+
+### Auditoría y utilidades
+
 | Comando | Descripción |
 |---|---|
-| `python -m app.cli.snapshot_status [--season 2025] [--show-missing]` | **Audita snapshots: cobertura y fechas que faltan** |
-| `python -m app.cli.rebuild_feature_snapshots [--season 2025] [--window 10]` | Recalcula snapshots |
-| `python -m app.cli.backfill_history --start YYYY-MM-DD --end YYYY-MM-DD [--sleep 0.5]` | Importa histórico de MLB |
+| `python -m app.cli.snapshot_status [--season 2026] [--show-missing]` | **Audita cobertura de snapshots y fechas que faltan** |
 | `python -m app.cli.calibrate [--model-version rf-db-v1]` | Ajusta calibración de probabilidades |
 | `python -m app.cli.create_admin` | Crea usuario del panel admin |

@@ -117,6 +117,7 @@ class GamePredictionCache(Base):
     total_runs_estimate: Mapped[float] = mapped_column(Float, nullable=False)
     over_under_line: Mapped[float] = mapped_column(Float, nullable=False)
     model_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    defaults_injected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     trigger_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
     computed_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True),

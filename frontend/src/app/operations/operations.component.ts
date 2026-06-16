@@ -375,6 +375,14 @@ export class OperationsComponent implements OnInit, OnDestroy {
     this._run('Vaciando caché…', () => this.admin.clearPredictionCache());
   }
 
+  fixFifty(): void {
+    this._run(
+      'Arreglando predicciones al 50% (recalcular + recargar)…',
+      () => this.admin.fixFifty(),
+      { onSuccess: () => this.modelInfo.refreshOnce() },
+    );
+  }
+
   reloadModel(): void {
     this._run('Recargando modelo RF…', () => this.admin.reloadModel(), {
       onSuccess: () => this.modelInfo.refreshOnce(),

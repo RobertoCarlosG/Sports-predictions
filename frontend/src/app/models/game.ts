@@ -53,6 +53,8 @@ export interface PredictionOut {
   total_runs_estimate: number;
   over_under_line: number;
   model_version: string;
+  // true = el vector se rellenó con constantes por falta de datos; la prob. ~50% no es fiable.
+  defaults_injected?: boolean;
   predicted_winner?: 'home' | 'away' | null;
   actual_winner?: 'home' | 'away' | 'tie' | null;
   is_correct?: boolean | null;

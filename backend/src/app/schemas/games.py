@@ -46,6 +46,9 @@ class PredictionResponse(BaseModel):
     total_runs_estimate: float
     over_under_line: float
     model_version: str
+    # True = el vector de features se rellenó con constantes simétricas (sin snapshot o
+    # sin historial); la probabilidad ~50% no es fiable. El front muestra un aviso.
+    defaults_injected: bool = False
     predicted_winner: str | None = None
     actual_winner: str | None = None
     is_correct: bool | None = None

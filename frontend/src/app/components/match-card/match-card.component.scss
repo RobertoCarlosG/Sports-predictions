@@ -190,6 +190,25 @@
   align-self: flex-start;
 }
 
+.insufficient-data {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--info-bg);
+  color: var(--info);
+  font-size: var(--font-size-xs);
+  line-height: 1.2;
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
 .lean-over  { color: var(--success); }
 .lean-under { color: var(--danger); }
 .lean-push  {

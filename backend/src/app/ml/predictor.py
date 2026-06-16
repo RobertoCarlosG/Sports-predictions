@@ -111,6 +111,7 @@ class PredictionResult:
     total_runs_estimate: float
     over_under_line: float
     model_version: str
+    defaults_injected: bool = False
 
 
 class MlbPredictionService:
@@ -157,6 +158,10 @@ class MlbPredictionService:
         clf: Any = bundle["clf"]
         reg: Any = bundle["reg"]
         x: NDArray[np.float64] = build_feature_matrix_row(game, weather, snapshot)
+        # Última columna = flag defaults_injected (1.0 si el vector se rellenó con
+        # constantes simétricas). Se captura antes de alinear, porque _align_feature_vector
+        # puede recortar columnas en bundles legacy entrenados con <13 features.
+        defaults_injected = bool(x[0, -1])
         x = _align_feature_vector(x, clf, reg)
         proba = clf.predict_proba(x)
         p_home_raw = float(proba[0][1]) if proba.shape[1] > 1 else float(proba[0][0])
@@ -173,6 +178,7 @@ class MlbPredictionService:
             total_runs_estimate=total_runs,
             over_under_line=_half_run_total_line(total_runs),
             model_version=model_version,
+            defaults_injected=defaults_injected,
         )
 
 

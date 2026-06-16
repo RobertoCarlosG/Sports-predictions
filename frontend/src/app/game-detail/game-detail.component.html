@@ -123,6 +123,12 @@
                 [label]="favoriteVictoryLabel()"
                 [probability]="favoriteBarProbability()"
               />
+              @if (insufficientData) {
+                <div class="insufficient-data" role="note">
+                  <mat-icon>info</mat-icon>
+                  <span>Datos insuficientes — predicción no fiable. Falta histórico previo de estos equipos.</span>
+                </div>
+              }
             </div>
             @if (hasRunsProjection()) {
               <div class="runs-ou-detail" role="region" aria-label="Total de carreras y línea O/U">

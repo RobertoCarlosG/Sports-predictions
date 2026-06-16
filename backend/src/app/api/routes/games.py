@@ -93,6 +93,7 @@ async def _compute_or_cache_prediction(
                 total_runs_estimate=pred_cache_row.total_runs_estimate,
                 over_under_line=pred_cache_row.over_under_line,
                 model_version=pred_cache_row.model_version,
+                defaults_injected=pred_cache_row.defaults_injected,
                 predicted_winner=pred_cache_row.predicted_winner,
                 actual_winner=pred_cache_row.actual_winner,
                 is_correct=pred_cache_row.is_correct,

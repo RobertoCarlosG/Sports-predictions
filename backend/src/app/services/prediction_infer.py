@@ -35,6 +35,7 @@ def prediction_response_from_result(
         total_runs_estimate=pr.total_runs_estimate,
         over_under_line=pr.over_under_line,
         model_version=pr.model_version,
+        defaults_injected=pr.defaults_injected,
         predicted_winner=predicted_winner,
         asian_handicap=asian,
     )
