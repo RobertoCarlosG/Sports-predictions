@@ -129,3 +129,104 @@ Recarga un partido y confirma que `home_win_probability` ya no es ~0.5 y que
 
 > 50% = features simétricas = "no tengo datos para diferenciar a estos equipos".
 > El arreglo es **darle datos**: snapshots recalculados (Caso A) o histórico profundo + rebuild (Caso B).
+
+---
+
+## Ejemplo real — 2026-06-16
+
+### Diagnóstico inicial
+
+```
+$ cd backend
+$ uv run python -m app.cli.snapshot_status --season 2026 --show-missing
+
+==================================================================
+  TEMPORADA   JUEGOS   SNAPS  FALTAN  DESDE        HASTA
+==================================================================
+  2026          1610    1466     144  2026-02-20   2026-06-21    ←
+==================================================================
+
+  Último snapshot : 2026-06-13
+  Último juego    : 2026-06-21
+  Desfase         : 8 día(s) sin snapshot
+
+  Juegos FINALES sin snapshot — necesitan rebuild (5 días):
+    2026-06-08  juegos=8  (Final)
+    2026-06-09  juegos=15  (Final)
+    2026-06-10  juegos=15  (Final)
+    2026-06-14  juegos=12  (Final, Game Over)
+    2026-06-15  juegos=10  (Final)
+
+  Juegos NO finales sin snapshot — 10 registros (no requieren acción inmediata):
+    2026-06-14  juegos=3  (In Progress, Postponed, Pre-Game)
+    2026-06-16  juegos=15  (Pre-Game, Scheduled)
+    2026-06-17  juegos=14  (Scheduled)
+    ...
+```
+
+### Lectura del diagnóstico
+
+- **144 partidos sin snapshot** pero ya hay 1 466 con snapshot → el histórico
+  profundo **existe**. Esto es **Caso A**, no Caso B.
+- Los 5 días de finales (08, 09, 10, 14, 15 de junio) son los que están
+  dando 50%: sus resultados reales no se sumaron a las rachas rodantes.
+- Los partidos "No finales" (hoy y días futuros) **no requieren acción inmediata**:
+  sus snapshots se crearán con las rachas que surjan del rebuild.
+
+### Por qué el badge "Datos insuficientes" aparece hoy
+
+Los partidos de hoy (2026-06-16, `Pre-Game`) **sí tienen snapshot**, pero ese
+snapshot se calculó el 13-jun usando solo el historial hasta el 13-jun. Los
+60 finales de los días 08–15 que faltan no estaban incluidos, así que las
+rachas de ciertos equipos están desactualizadas → vector parcialmente simétrico
+→ predicción cercana a 50%.
+
+### Solución (Caso A)
+
+Hay tres caminos equivalentes. Elige según dónde estés.
+
+#### Opción 1 — Panel de Operaciones (más rápido)
+
+Botón **"Arreglar predicciones al 50%"** → hace rebuild + clear caché + reload modelo en un solo clic.
+
+> Solo disponible en el panel admin → sección Operaciones.
+
+#### Opción 2 — CLI (cuando no tienes acceso al panel)
+
+```bash
+cd backend
+
+# Paso 1 — Rebuild + clear caché en un solo comando
+uv run python -m app.cli.fix_fifty --season 2026
+# Output esperado: "fix-fifty done: N snapshot rows rebuilt, M cache rows cleared"
+
+# Paso 2 — Recargar el modelo en el servidor (NO se puede hacer desde CLI local)
+# El CLI corre contra tu BD local/Supabase, pero el modelo vive en el proceso
+# del servidor (Render). Tienes que llamar al endpoint desde el panel o con curl:
+curl -X POST https://<tu-dominio>/api/v1/admin/model/reload \
+     -H "Authorization: Bearer <tu-token>"
+```
+
+> Si **no reentrenaste** el modelo recientemente, el reload es opcional: el modelo
+> en memoria ya es el correcto, solo cambiaron los snapshots y el caché.
+> Si reentrenaste → el reload es obligatorio.
+
+#### Opción 3 — API directamente (tres pasos)
+
+```
+POST /api/v1/admin/pipeline/rebuild-snapshots      { "season": "2026" }
+POST /api/v1/admin/pipeline/clear-prediction-cache
+POST /api/v1/admin/model/reload                    (solo si reentrenaste)
+```
+
+### Verificación
+
+```bash
+uv run python -m app.cli.snapshot_status --season 2026
+```
+
+Espera: `FALTAN = 0` para la temporada 2026 (los "no finales" futuros pueden
+quedar como 0 si no se importaron aún; eso es normal).
+
+En la UI: los badges "Datos insuficientes" deben desaparecer de los partidos
+de hoy, y las probabilidades deben alejarse de 50%.

@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -31,6 +32,7 @@ import { MatchCardComponent } from '../components/match-card/match-card.componen
 import { MatchCardSkeletonComponent } from '../components/match-card-skeleton/match-card-skeleton.component';
 import type { GameDetail, GamesListMeta } from '../models/game';
 import { GamesApiService } from '../services/games-api.service';
+import { NotificationService } from '../services/notification.service';
 import { currentSeasonDateBounds } from '../utils/date-bounds';
 
 /** Entrada de caché por rango de fechas (evita GET repetidos al volver a Hoy/Mañana/Semana). */
@@ -52,6 +54,7 @@ function cacheKeyForDates(dates: string[]): string {
     RouterLink,
     MatButtonModule,
     MatCardModule,
+    MatExpansionModule,
     MatIconModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
@@ -64,9 +67,10 @@ function cacheKeyForDates(dates: string[]): string {
   styleUrl: './game-list.component.scss',
 })
 export class GameListComponent {
-  readonly skeletonItems = [1, 2, 3, 4];
+  readonly skeletonItems = [1, 2, 3, 4, 5, 6, 7, 8];
 
   private readonly api = inject(GamesApiService);
+  private readonly notif = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -302,6 +306,8 @@ export class GameListComponent {
         const info = [...new Set(chunks.flatMap((c) => c.meta.info))];
         const missingTotal = chunks.reduce((acc, c) => acc + c.meta.missing_snapshot_count, 0);
         this.listMeta.set({ warnings, info, missing_snapshot_count: missingTotal });
+        warnings.forEach((w) => this.notif.push(w, 'warn'));
+        info.forEach((i) => this.notif.push(i, 'info'));
         this.games.set(merged);
         this.loading.set(false);
         if (merged.length > 0 && !('prediction' in merged[0])) {
@@ -324,6 +330,7 @@ export class GameListComponent {
         this.loading.set(false);
         this.loadError.set(true);
         this.games.set([]);
+        this.notif.push('No se pudieron cargar los partidos. Revisa la conexión o reintenta.', 'error');
       },
     });
   }
