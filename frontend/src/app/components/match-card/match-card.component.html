@@ -41,16 +41,20 @@
           }
         </div>
       } @else {
-        <app-probability-bar
-          [label]="favoriteVictoryLabel"
-          [probability]="favoriteBarProbability"
-        />
-        @if (insufficientData) {
-          <div class="insufficient-data" role="note">
-            <mat-icon>info</mat-icon>
-            <span>Datos insuficientes — predicción no fiable</span>
-          </div>
-        }
+        <div class="pred-bar-wrap">
+          <app-probability-bar
+            [label]="favoriteVictoryLabel"
+            [probability]="favoriteBarProbability"
+          />
+          @if (insufficientData) {
+            <mat-icon
+              class="data-hint-icon"
+              matTooltip="Estimación calculada con datos históricos insuficientes"
+              matTooltipPosition="above"
+              aria-label="Datos insuficientes"
+            >info</mat-icon>
+          }
+        </div>
       }
       @if (hasRunsLine) {
         <div class="runs-ou" role="group" [attr.aria-label]="'Total de carreras y O/U'">

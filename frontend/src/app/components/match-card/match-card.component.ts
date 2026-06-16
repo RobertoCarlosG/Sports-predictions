@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { CommonModule } from '@angular/common';
 
 import type { GameDetail, PredictionOut } from '../../models/game';
@@ -20,6 +21,7 @@ import { WeatherChipComponent } from '../weather-chip/weather-chip.component';
     RouterLink,
     MatCardModule,
     MatIconModule,
+    MatTooltipModule,
     StatusBadgeComponent,
     WeatherChipComponent,
     ProbabilityBarComponent,

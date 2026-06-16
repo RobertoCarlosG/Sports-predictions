@@ -119,16 +119,20 @@
             </div>
           } @else {
             <div class="prob-stack">
-              <app-probability-bar
-                [label]="favoriteVictoryLabel()"
-                [probability]="favoriteBarProbability()"
-              />
-              @if (insufficientData) {
-                <div class="insufficient-data" role="note">
-                  <mat-icon>info</mat-icon>
-                  <span>Datos insuficientes — predicción no fiable. Falta histórico previo de estos equipos.</span>
-                </div>
-              }
+              <div class="pred-bar-wrap">
+                <app-probability-bar
+                  [label]="favoriteVictoryLabel()"
+                  [probability]="favoriteBarProbability()"
+                />
+                @if (insufficientData) {
+                  <mat-icon
+                    class="data-hint-icon"
+                    matTooltip="El modelo usó valores por defecto por falta de histórico previo. Corre un rebuild de snapshots para mejorar la predicción."
+                    matTooltipPosition="above"
+                    aria-label="Datos insuficientes"
+                  >info</mat-icon>
+                }
+              </div>
             </div>
             @if (hasRunsProjection()) {
               <div class="runs-ou-detail" role="region" aria-label="Total de carreras y línea O/U">
