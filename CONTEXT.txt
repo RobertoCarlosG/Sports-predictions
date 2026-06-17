@@ -1,0 +1,222 @@
+====================================================
+SPORTS-PREDICTIONS — CONTEXTO COMPLETO DEL PROYECTO
+Generado: 2026-06-14
+====================================================
+
+## OVERVIEW
+
+Monorepo con dos apps:
+  backend/   FastAPI + SQLAlchemy async + ML (Random Forest / XGBoost)
+  frontend/  Angular 19 + Angular Material
+
+Deploy: backend en Render (Docker), DB en Supabase (PostgreSQL), frontend independiente.
+
+
+## ESTRUCTURA DE DIRECTORIOS
+
+Sports-Predictions/
+├── backend/
+│   ├── Dockerfile                        Imagen python:3.12-slim-bookworm
+│   ├── pyproject.toml                    Build + deps (setuptools)
+│   ├── src/app/
+│   │   ├── main.py                       Punto de entrada FastAPI
+│   │   ├── config.py                     Settings via .env
+│   │   ├── api/routes/
+│   │   │   ├── games.py                  GET /games, GET /games/{pk} → predicciones
+│   │   │   ├── admin.py                  Panel admin: pipeline, modelo, snapshots
+│   │   │   └── ...
+│   │   ├── ml/
+│   │   │   ├── features.py               build_feature_matrix_row() — 13 columnas
+│   │   │   ├── predictor.py              MlbPredictionService — carga y corre modelo
+│   │   │   ├── training.py               train_default_model() — modelo SINTÉTICO (placeholder)
+│   │   │   ├── train_from_db.py          train_from_db — modelo REAL desde BD
+│   │   │   ├── calibration.py            Calibración isotónica de probabilidades
+│   │   │   ├── bayesian_search.py        Optuna hyperparameter search
+│   │   │   ├── model_routing.py          Selección de modelo activo
+│   │   │   └── artifacts/
+│   │   │       ├── model.joblib          Modelo RF activo (rf-db-v1, 128 árboles, 13 features)
+│   │   │       ├── model_xgb.joblib      Modelo XGBoost alternativo (xgb-db-v1)
+│   │   │       └── calibration_xgb-db-v1.joblib
+│   │   ├── models/mlb.py                 SQLAlchemy ORM — tablas (ver abajo)
+│   │   ├── services/
+│   │   │   ├── feature_snapshots.py      rebuild_game_feature_snapshots()
+│   │   │   ├── mlb_daily_snapshot.py     ETL diario (sync API + rebuild snapshots)
+│   │   │   ├── pitching_stats.py         ERA de abridores y bullpen; DEFAULT_ERA=4.5
+│   │   │   └── ...
+│   │   └── db/session.py                 async_session_factory (Supabase)
+│   ├── sql/                              DDL scripts (correr en orden)
+│   ├── tests/                            pytest (unit + integration)
+│   └── docs/
+│       ├── ml_algorithm_overview.md
+│       ├── ml_phase_training.md
+│       ├── ml_phase_inference.md
+│       └── ml_retraining_runbook.md
+└── frontend/
+    ├── src/app/
+    │   ├── _tokens.scss                  Design tokens (colores, tamaños)
+    │   ├── _glass.scss                   Mixins glass/slate UI
+    │   └── operations/                   Panel admin Angular
+    └── angular.json                      Budget: max 8kB por componente SCSS
+
+
+## TABLAS EN BD (Supabase PostgreSQL)
+
+teams                   Equipos MLB
+games                   Partidos (game_pk, game_date, season, home/away team, estado)
+game_weather            Clima asociado a cada partido
+game_feature_snapshots  FEATURES ML por partido (rolling stats + ERA + clima + resultado)
+pitching_era_cache      Caché de ERA de pitchers
+prediction_results      Caché de predicciones ya calculadas
+admin_users             Usuarios del panel admin
+model_versions          Registro de versiones del modelo
+
+
+## COLUMNAS DE game_feature_snapshots (las 13 features del modelo)
+
+home_wins_roll          Tasa de victorias local (ventana rolling)
+away_wins_roll          Tasa de victorias visitante (ventana rolling)
+home_runs_avg_roll      Promedio de carreras local (rolling)
+away_runs_avg_roll      Promedio de carreras visitante (rolling)
+temperature_c           Temperatura del estadio
+humidity_pct            Humedad
+wind_speed_mps          Viento
+elevation_m             Altitud del estadio
+home_starter_era        ERA del abridor local
+away_starter_era        ERA del abridor visitante
+home_bullpen_era        ERA del bullpen local
+away_bullpen_era        ERA del bullpen visitante
+defaults_injected       Flag 0/1: ¿se usaron constantes por falta de datos reales?
+
+Columnas de etiqueta (solo para training):
+home_win                1 = ganó local, 0 = ganó visitante
+total_runs              Total de carreras del partido
+
+
+## MODELO ML
+
+Tipo activo:       Random Forest Classifier (clf) + Random Forest Regressor (reg)
+Versión:           rf-db-v1
+Archivo:           backend/src/app/ml/artifacts/model.joblib
+n_estimators:      128 árboles
+n_features_in_:    13
+Entrenado con:     game_feature_snapshots + games (datos reales de BD)
+
+Modelo XGBoost alternativo: model_xgb.joblib (xgb-db-v1), con calibración isotónica.
+
+IMPORTANTE: también existe training.py::train_default_model() que genera un modelo
+SINTÉTICO ("rf-synthetic-v0") entrenado con datos Gaussianos aleatorios. Este modelo
+se usa solo como placeholder cuando no hay model.joblib. No predice partidos reales.
+
+
+## PIPELINE DE DATOS (orden obligatorio)
+
+1. IMPORTAR PARTIDOS (backfill)
+   Admin → "Importar fechas" / endpoint POST /admin/pipeline/import-games
+   Descarga resultados históricos de MLB API → tabla `games` + `game_weather`
+
+2. RECALCULAR INDICADORES (rebuild_feature_snapshots)
+   Admin → "Recalcular indicadores" / POST /admin/pipeline/rebuild-snapshots
+   Calcula rolling stats + ERA para cada partido → tabla `game_feature_snapshots`
+   Sin este paso los snapshots están vacíos y las predicciones usan constantes → ~50%
+
+3. ENTRENAR MODELO (train_from_db)
+   CLI: cd backend && uv run python -m app.ml.train_from_db
+   O desde panel admin → "Entrenar modelo"
+   Lee game_feature_snapshots con home_win y total_runs NO NULL → entrena RF/XGB
+   Requiere mínimo 20 partidos etiquetados
+
+4. RECARGAR MODELO
+   Admin → "Recargar modelo" / POST /admin/model/reload
+   Carga el nuevo model.joblib en memoria sin reiniciar el servidor
+
+5. ETL DIARIO (automático o manual)
+   POST /admin/pipeline/mlb-daily-snapshot
+   Ejecuta sync hoy+mañana + rebuild snapshots + limpia caché de predicciones
+
+
+## POR QUÉ SIEMPRE VES ~50%
+
+Causa raíz: los partidos de hoy NO tienen fila en game_feature_snapshots
+(o la tienen pero con home_wins_roll, away_wins_roll, etc. = NULL).
+
+Cuando snapshot es None o tiene campos nulos, features.py inyecta constantes SIMÉTRICAS:
+  home_wins_roll = 0.5   away_wins_roll = 0.5   (idénticos)
+  home_runs_avg  = 4.5   away_runs_avg  = 4.5   (idénticos)
+  home_starter_era = 4.5 away_starter_era = 4.5 (idénticos)
+  home_bullpen_era = 4.2 away_bullpen_era = 4.2 (idénticos)
+
+Con features idénticas para local y visitante, el modelo no tiene información para
+diferenciarlos → devuelve probabilidad cercana a 50% para todos los partidos.
+
+El modelo (rf-db-v1) ES real y fue entrenado con datos históricos. El problema no es
+el modelo sino que en inferencia no tiene datos de entrada reales.
+
+
+## EL ARCHIVO model.joblib — ACLARACIÓN
+
+El model.joblib actual (rf-db-v1, 8.3 MB) fue entrenado con datos reales de 2026
+vía train_from_db.py. NO es el modelo sintético (ese sería rf-synthetic-v0 y pesa ~KB).
+
+Antes hubo un commit que borraba el artifact del repo; se recuperó con
+"feat(ml): keep trained model.joblib (resolve delete conflict)".
+No necesitas renombrarlo; el nombre correcto es model.joblib.
+
+
+## ENDPOINTS CLAVE
+
+GET  /games?date=YYYY-MM-DD          Lista partidos del día con predicciones
+GET  /games/{game_pk}                Detalle de un partido + predicción
+POST /admin/pipeline/mlb-daily-snapshot   ETL diario completo
+POST /admin/pipeline/rebuild-snapshots    Recalcular indicadores (rango de fechas)
+POST /admin/pipeline/import-games         Importar partidos históricos
+POST /admin/model/reload                  Recargar model.joblib en memoria
+POST /admin/pipeline/clear-prediction-cache   Borrar caché de predicciones
+
+
+## PROBLEMAS CONOCIDOS / INCIDENTES
+
+1. BOM UTF-8 (jun 2026)
+   Commit 3ac7597 introdujo BOM (EF BB BF) en pyproject.toml y 8 archivos más.
+   tomllib lo rechaza → el build de Render falla con "Invalid statement at line 1, col 1".
+   Fix: eliminar BOM; quien lo introduce usa un editor con "UTF-8 con BOM" (VS Code: "files.encoding": "utf8").
+
+2. Supabase free-tier egress
+   En MVP1 se superó el límite de GB del plan free de Supabase.
+   Render fue diferido como medida de ahorro.
+
+3. sklearn version mismatch
+   model.joblib se generó con sklearn 1.9.0; el entorno local tiene 1.8.0.
+   Causa InconsistentVersionWarning pero no rompe la inferencia.
+   Regenerar el modelo en el mismo entorno resuelve la advertencia.
+
+
+## CONVENCIONES DE DESARROLLO
+
+- Commits: Conventional Commits (feat:, fix:, refactor:, chore:, etc.)
+- Backend: async SQLAlchemy 2, ruff + black (ver pyproject.toml)
+- Frontend: Angular Material + SCSS con tokens en src/_tokens.scss y mixins en src/_glass.scss
+- UI: paleta slate + azul tokenizada; verde/rojo solo para acierto/fallo de predicción
+- No drive-by refactors: cambiar solo lo pedido
+
+
+## CÓMO CORRER LOCALMENTE
+
+Backend:
+  cd backend
+  cp .env.example .env   # llenar DATABASE_URL, MLB_API_BASE_URL, etc.
+  uv run uvicorn app.main:app --reload --app-dir src
+
+Frontend:
+  cd frontend
+  npm install
+  npm start
+
+Tests:
+  cd backend && pytest
+  cd frontend && npm test -- --no-watch --browsers=ChromeHeadless
+
+Entrenar modelo manualmente:
+  cd backend
+  uv run python -m app.ml.train_from_db --season 2026
+
+====================================================

@@ -31,37 +31,25 @@
     </div>
   </header>
 
-  <mat-card class="pipeline-hint" appearance="outlined">
-    <mat-card-content class="pipeline-hint-inner">
-      <div class="pipeline-hint-text">
-        <strong>¿Misma probabilidad (~50&nbsp;%) en todos los partidos?</strong>
-        <span>
-          Hace falta histórico en base de datos, indicadores (snapshots) y un modelo entrenado con
-          <code>train_from_db</code>. Usa el panel
-          <a routerLink="/operations">Operaciones</a>
-          (importar fechas → recalcular indicadores → entrenar → recargar modelo) o el CLI del backend; guía en
-          <code>docs/MODELO_ENTRENAMIENTO.md</code> del repositorio.
-        </span>
-      </div>
+  <!-- Hint plegado por defecto para no interrumpir la vista de partidos -->
+  <mat-expansion-panel class="pipeline-hint" hideToggle>
+    <mat-expansion-panel-header>
+      <mat-panel-title>
+        <mat-icon class="hint-ico" aria-hidden="true">help_outline</mat-icon>
+        ¿Probabilidades todas en ~50 %?
+      </mat-panel-title>
+    </mat-expansion-panel-header>
+    <div class="pipeline-hint-text">
+      <span>
+        Hace falta histórico en base de datos, indicadores (snapshots) y un modelo entrenado con
+        <code>train_from_db</code>. Usa el panel
+        <a routerLink="/operations">Operaciones</a>
+        (importar fechas → recalcular indicadores → entrenar → recargar modelo) o el CLI del backend;
+        guía en <code>docs/MODELO_ENTRENAMIENTO.md</code> del repositorio.
+      </span>
       <a mat-stroked-button color="primary" routerLink="/operations">Abrir Operaciones</a>
-    </mat-card-content>
-  </mat-card>
-
-  @if (listMeta(); as lm) {
-    @if (lm.warnings.length > 0 || lm.info.length > 0) {
-      <mat-card class="api-meta-card" appearance="outlined">
-        <mat-card-content class="api-meta-inner">
-          <strong class="api-meta-title">Avisos del servidor</strong>
-          @for (w of lm.warnings; track w) {
-            <p class="api-meta-warn">{{ w }}</p>
-          }
-          @for (i of lm.info; track i) {
-            <p class="api-meta-info">{{ i }}</p>
-          }
-        </mat-card-content>
-      </mat-card>
-    }
-  }
+    </div>
+  </mat-expansion-panel>
 
   @if (loading()) {
     <div class="card-grid skeleton-grid">

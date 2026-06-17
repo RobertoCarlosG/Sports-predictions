@@ -57,12 +57,13 @@ def _build_feature_values_12(
         else:
             ara = float(snapshot.away_runs_avg_roll)
 
+        # Clima: mismo estadio para ambos equipos → no sesga la predicción entre ellos.
+        # Usar defaults aquí no activa `injected`.
         if snapshot.temperature_c is not None:
             t = float(snapshot.temperature_c)
         elif weather and weather.temperature_c is not None:
             t = float(weather.temperature_c)
         else:
-            injected = True
             t = 20.0
 
         if snapshot.humidity_pct is not None:
@@ -70,7 +71,6 @@ def _build_feature_values_12(
         elif weather and weather.humidity_pct is not None:
             h = float(weather.humidity_pct)
         else:
-            injected = True
             h = 50.0
 
         if snapshot.wind_speed_mps is not None:
@@ -78,7 +78,6 @@ def _build_feature_values_12(
         elif weather and weather.wind_speed_mps is not None:
             w = float(weather.wind_speed_mps)
         else:
-            injected = True
             w = 2.0
 
         if snapshot.elevation_m is not None:
@@ -86,7 +85,6 @@ def _build_feature_values_12(
         elif weather and weather.elevation_m is not None:
             e = float(weather.elevation_m)
         else:
-            injected = True
             e = 100.0
 
         if snapshot.home_starter_era is None:
