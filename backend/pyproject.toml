@@ -28,6 +28,7 @@ dependencies = [
 
 [project.scripts]
 create-admin = "app.cli.create_admin:main"
+sync-today = "app.cli.sync_today:main"
 
 [project.optional-dependencies]
 dev = [
