@@ -1,12 +1,10 @@
 from __future__ import annotations
 
+import logging
 import math
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-
-import logging
 
 import joblib
 import numpy as np
@@ -81,7 +79,11 @@ def compute_asian_handicap(
     ph = spread_cover_probability_home(lam_h, lam_a, home_line)
     return {
         "home": {"team_abbr": home_abbr, "line": home_line, "cover_probability": round(ph, 4)},
-        "away": {"team_abbr": away_abbr, "line": -home_line, "cover_probability": round(1.0 - ph, 4)},
+        "away": {
+            "team_abbr": away_abbr,
+            "line": -home_line,
+            "cover_probability": round(1.0 - ph, 4),
+        },
     }
 
 
@@ -165,7 +167,9 @@ class MlbPredictionService:
         x = _align_feature_vector(x, clf, reg)
         proba = clf.predict_proba(x)
         p_home_raw = float(proba[0][1]) if proba.shape[1] > 1 else float(proba[0][0])
-        base_version = str(bundle.get("model_base_version") or bundle.get("model_version") or "rf-v0")
+        base_version = str(
+            bundle.get("model_base_version") or bundle.get("model_version") or "rf-v0"
+        )
         calibrator = load_calibration(base_version)
         p_home = apply_calibration(p_home_raw, calibrator)
         if calibrator is not None:

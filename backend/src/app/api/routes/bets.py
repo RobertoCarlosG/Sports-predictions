@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps_user import UserIdDep
 from app.db.session import get_db
+from app.models.bets import Bet
 from app.schemas.bets_api import (
     BetBankCreate,
     BetBankOut,
@@ -20,13 +21,12 @@ from app.schemas.bets_api import (
     BetPeriodCreate,
     BetPeriodOut,
     BetPeriodStatsOut,
-    BetUpdate,
     BetsStatsOut,
+    BetUpdate,
 )
-from app.services.bets_excel import build_period_workbook_bytes, load_game_labels
-from app.models.bets import Bet
-from app.services.bets_resolver import compute_bet_outcome, fetch_scores_for_game
 from app.services import bets_service
+from app.services.bets_excel import build_period_workbook_bytes, load_game_labels
+from app.services.bets_resolver import compute_bet_outcome, fetch_scores_for_game
 
 router = APIRouter(prefix="/bets", tags=["bets"])
 

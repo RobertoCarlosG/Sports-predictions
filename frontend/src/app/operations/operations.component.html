@@ -245,6 +245,20 @@
               >
             </mat-card-header>
             <mat-card-content class="stack">
+              <mat-slide-toggle
+                [(ngModel)]="lowMemoryMode"
+                [disabled]="tomorrowSyncLoading || operationsLocked"
+                color="accent"
+              >
+                <span class="toggle-label">
+                  Modo streaming (recomendado)
+                  @if (lowMemoryMode) {
+                    <span class="toggle-hint">&nbsp;— procesa por lotes (yield_per) sin retener toda la temporada en memoria; evita quedarse sin RAM en Render</span>
+                  } @else {
+                    <span class="toggle-hint muted">&nbsp;— desactivado: carga toda la temporada en memoria de golpe (solo con RAM de sobra)</span>
+                  }
+                </span>
+              </mat-slide-toggle>
               <button
                 mat-flat-button
                 color="primary"

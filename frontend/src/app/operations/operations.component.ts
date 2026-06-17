@@ -12,6 +12,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTabsModule } from '@angular/material/tabs';
 
 import { Observable, Subscription, TimeoutError, catchError, interval, of, take } from 'rxjs';
@@ -45,6 +46,7 @@ import { AdminOpResultData, AdminOpResultDialogComponent } from '../admin-panel/
     MatInputModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
+    MatSlideToggleModule,
     MatSnackBarModule,
     MatTabsModule,
     BacktestDashboardComponent,
@@ -120,6 +122,8 @@ export class OperationsComponent implements OnInit, OnDestroy {
   activeModelVersion = '—';
 
   tomorrowSyncLoading = false;
+  /** Streaming (yield_per) por defecto: no agota la RAM en Render. Ver backend feature_snapshots. */
+  lowMemoryMode = true;
   currentSyncMessage = 'Iniciando...';
   private syncMessageSub: Subscription | null = null;
   readonly quickSyncMessages = [
@@ -351,7 +355,9 @@ export class OperationsComponent implements OnInit, OnDestroy {
   runMlbFullSnapshotForTomorrowView(): void {
     this.tomorrowSyncLoading = true;
     this.startSyncMessages();
-    this._run('ETL MLB: hoy+mañana, indicadores y predicciones…', () => this.admin.runMlbDailySnapshot());
+    this._run('ETL MLB: hoy+mañana, indicadores y predicciones…', () =>
+      this.admin.runMlbDailySnapshot(this.lowMemoryMode),
+    );
   }
 
   private parseModelVersionFromDetail(detail: string | null | undefined): string {

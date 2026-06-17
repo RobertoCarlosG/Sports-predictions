@@ -28,11 +28,11 @@ import logging
 
 import httpx
 
+from app.core.config import settings
 from app.db.session import async_session_factory
 from app.services.feature_snapshots import rebuild_game_feature_snapshots
 from app.services.mlb_client import MlbApiClient
 from app.services.prediction_cache import clear_prediction_cache
-from app.core.config import settings
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +54,8 @@ async def _run(*, season: str, window: int) -> None:
                     season,
                 )
                 log.info(
-                    "El servidor (Render) recargará el modelo automáticamente en el próximo request."
+                    "El servidor (Render) recargará el modelo "
+                    "automáticamente en el próximo request."
                 )
             except Exception:
                 await session.rollback()
@@ -63,7 +64,9 @@ async def _run(*, season: str, window: int) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    p = argparse.ArgumentParser(description="Fix ~50% predictions: rebuild snapshots + clear cache.")
+    p = argparse.ArgumentParser(
+        description="Fix ~50% predictions: rebuild snapshots + clear cache."
+    )
     p.add_argument(
         "--season",
         default=None,

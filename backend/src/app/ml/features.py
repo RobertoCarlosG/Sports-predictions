@@ -29,7 +29,10 @@ def _build_feature_values_12(
     weather: GameWeather | None,
     snapshot: GameFeatureSnapshot | None,
 ) -> tuple[list[float], bool]:
-    """12 números + si hubo imputación explícita con constantes del pipeline (no clima real vía API)."""
+    """12 números + si hubo imputación explícita con constantes del pipeline.
+
+    (No clima real vía API.)
+    """
     injected = False
 
     if snapshot is not None:

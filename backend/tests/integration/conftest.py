@@ -9,19 +9,21 @@ To start the test DB:
 To run integration tests:
     .venv/Scripts/pytest tests/integration/ -v
 """
+
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
-from typing import Any, AsyncIterator, Iterator
+from typing import Any
 
+import httpx
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-import httpx
 
 from app.db.base import Base
 from app.db.session import get_db
@@ -100,7 +102,7 @@ pytestmark = pytest.mark.skipif(
 def create_schema() -> Iterator[None]:
     """Create all ORM tables once per session."""
     import app.models.bets  # noqa: F401 — registers metadata
-    import app.models.mlb   # noqa: F401
+    import app.models.mlb  # noqa: F401
 
     async def _setup() -> None:
         engine = _make_engine()
@@ -135,10 +137,9 @@ def _get_table_names() -> str:
     global _TABLE_NAMES
     if _TABLE_NAMES is None:
         import app.models.bets  # noqa
-        import app.models.mlb   # noqa
-        _TABLE_NAMES = ", ".join(
-            f'"{t.name}"' for t in reversed(Base.metadata.sorted_tables)
-        )
+        import app.models.mlb  # noqa
+
+        _TABLE_NAMES = ", ".join(f'"{t.name}"' for t in reversed(Base.metadata.sorted_tables))
     return _TABLE_NAMES
 
 
@@ -165,7 +166,9 @@ async def truncate_between_tests() -> AsyncIterator[None]:
 async def db_session() -> AsyncIterator[AsyncSession]:
     """Yield a session using a freshly created engine (no cross-loop contamination)."""
     engine = _make_engine()
-    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
+    factory = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
+    )
     try:
         async with factory() as session:
             yield session
@@ -231,7 +234,12 @@ def xgb_model_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     clf.fit(x, y_c)
     reg.fit(x, y_r)
     joblib.dump(
-        {"clf": clf, "reg": reg, "model_version": "xgb-integration-v0", "feature_names": FEATURE_NAMES},
+        {
+            "clf": clf,
+            "reg": reg,
+            "model_version": "xgb-integration-v0",
+            "feature_names": FEATURE_NAMES,
+        },
         p,
     )
     return p
@@ -381,10 +389,8 @@ async def user_client(
     finally:
         settings.user_jwt_secret = original_secret
         client.headers.pop("Authorization", None)
-        try:
+        with contextlib.suppress(Exception):
             client.cookies.delete(settings.user_cookie_name, domain="test", path="/")
-        except Exception:
-            pass
 
 
 # ---------------------------------------------------------------------------

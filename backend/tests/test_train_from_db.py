@@ -1,5 +1,6 @@
 """Tests for app.ml.train_from_db — covering _log_feature_health, _split_temporal,
 _build_rf, _build_xgb, main() CLI defaults, and _async_main() pipeline."""
+
 from __future__ import annotations
 
 import argparse
@@ -19,18 +20,18 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from xgboost import XGBClassifier, XGBRegressor
 
 from app.ml.train_from_db import (
+    _async_main,
     _build_rf,
     _build_xgb,
-    _async_main,
     _log_feature_health,
     _split_temporal,
     main,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_args(**kwargs: Any) -> argparse.Namespace:
     defaults = dict(
@@ -71,6 +72,7 @@ async def _fake_session_ctx():
 # _log_feature_health
 # ---------------------------------------------------------------------------
 
+
 def test_log_feature_health_healthy(caplog: pytest.LogCaptureFixture) -> None:
     rng = np.random.default_rng(1)
     x = rng.normal(size=(50, 13))
@@ -110,6 +112,7 @@ def test_log_feature_health_fewer_than_12_cols(caplog: pytest.LogCaptureFixture)
 # ---------------------------------------------------------------------------
 # _split_temporal
 # ---------------------------------------------------------------------------
+
 
 def _build_split_data(n: int) -> tuple[Any, Any, Any, list[dt.date]]:
     rng = np.random.default_rng(0)
@@ -168,6 +171,7 @@ def test_split_temporal_data_integrity() -> None:
 # _build_rf
 # ---------------------------------------------------------------------------
 
+
 def test_build_rf_hyperparams() -> None:
     args = _make_args(trees=50, max_depth=10, min_samples_leaf=3)
     clf, reg = _build_rf(args)
@@ -185,9 +189,16 @@ def test_build_rf_hyperparams() -> None:
 # _build_xgb
 # ---------------------------------------------------------------------------
 
+
 def test_build_xgb_hyperparams() -> None:
-    args = _make_args(trees=100, max_depth=6, learning_rate=0.1, subsample=0.9,
-                      colsample_bytree=0.75, min_child_weight=2)
+    args = _make_args(
+        trees=100,
+        max_depth=6,
+        learning_rate=0.1,
+        subsample=0.9,
+        colsample_bytree=0.75,
+        min_child_weight=2,
+    )
     clf, reg = _build_xgb(args)
     assert isinstance(clf, XGBClassifier)
     assert isinstance(reg, XGBRegressor)
@@ -224,6 +235,7 @@ def test_build_xgb_models_can_fit() -> None:
 # ---------------------------------------------------------------------------
 # main() — CLI argument parsing
 # ---------------------------------------------------------------------------
+
 
 def test_main_rf_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: list[argparse.Namespace] = []
@@ -299,6 +311,7 @@ def test_main_explicit_model_version_overrides(monkeypatch: pytest.MonkeyPatch) 
 # _async_main — full pipeline (DB monkeypatched)
 # ---------------------------------------------------------------------------
 
+
 def _patch_db(monkeypatch: pytest.MonkeyPatch, n: int = 40) -> None:
     """Patches out all real DB access in train_from_db."""
     monkeypatch.setattr(
@@ -311,13 +324,12 @@ def _patch_db(monkeypatch: pytest.MonkeyPatch, n: int = 40) -> None:
     )
 
 
-def test_async_main_xgb_writes_bundle(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_async_main_xgb_writes_bundle(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _patch_db(monkeypatch)
     out = tmp_path / "m.joblib"
-    args = _make_args(algorithm="xgb", output=str(out), model_version="xgb-db-v1",
-                      trees=4, max_depth=3)
+    args = _make_args(
+        algorithm="xgb", output=str(out), model_version="xgb-db-v1", trees=4, max_depth=3
+    )
     asyncio.run(_async_main(args))
     assert out.exists()
     bundle = joblib.load(out)
@@ -327,13 +339,12 @@ def test_async_main_xgb_writes_bundle(
     assert meta["algorithm"] == "xgb"
 
 
-def test_async_main_rf_writes_bundle(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_async_main_rf_writes_bundle(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _patch_db(monkeypatch)
     out = tmp_path / "m.joblib"
-    args = _make_args(algorithm="rf", output=str(out), model_version="rf-db-v1",
-                      trees=4, max_depth=4)
+    args = _make_args(
+        algorithm="rf", output=str(out), model_version="rf-db-v1", trees=4, max_depth=4
+    )
     asyncio.run(_async_main(args))
     bundle = joblib.load(out)
     assert isinstance(bundle["clf"], RandomForestClassifier)
@@ -342,14 +353,18 @@ def test_async_main_rf_writes_bundle(
     assert meta["algorithm"] == "rf"
 
 
-def test_async_main_val_from_split(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_async_main_val_from_split(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _patch_db(monkeypatch, n=40)
     out = tmp_path / "m.joblib"
     # 40 rows: dates 2024-01-01 to 2024-02-09; val_from=2024-01-28 → 27 train, 13 val
-    args = _make_args(algorithm="rf", output=str(out), model_version="rf-db-v1",
-                      trees=4, max_depth=4, val_from="2024-01-28")
+    args = _make_args(
+        algorithm="rf",
+        output=str(out),
+        model_version="rf-db-v1",
+        trees=4,
+        max_depth=4,
+        val_from="2024-01-28",
+    )
     asyncio.run(_async_main(args))
     bundle = joblib.load(out)
     meta = json.loads(bundle["training_meta"])
@@ -357,15 +372,22 @@ def test_async_main_val_from_split(
 
 
 def test_async_main_bad_val_from_falls_back(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     # 25 rows (80pct cut=20→nv=5 is valid); val_from on last date → nv=1 → bad → fallback
     _patch_db(monkeypatch, n=25)
     out = tmp_path / "m.joblib"
     # dates[24] = 2024-01-25: nt=24, nv=1 → error → fallback to 80pct (nt=20, nv=5 ✓)
-    args = _make_args(algorithm="rf", output=str(out), model_version="rf-db-v1",
-                      trees=4, max_depth=4, val_from="2024-01-25")
+    args = _make_args(
+        algorithm="rf",
+        output=str(out),
+        model_version="rf-db-v1",
+        trees=4,
+        max_depth=4,
+        val_from="2024-01-25",
+    )
     with caplog.at_level(logging.WARNING, logger="app.ml.train_from_db"):
         asyncio.run(_async_main(args))
     bundle = joblib.load(out)
@@ -381,8 +403,14 @@ def test_async_main_bad_val_from_none_reraises(
     # 12 rows, val_from=None → 80/20 cut: 9 train < 10 → RuntimeError raised
     _patch_db(monkeypatch, n=12)
     out = tmp_path / "m.joblib"
-    args = _make_args(algorithm="rf", output=str(out), model_version="rf-db-v1",
-                      trees=4, max_depth=4, val_from=None)
+    args = _make_args(
+        algorithm="rf",
+        output=str(out),
+        model_version="rf-db-v1",
+        trees=4,
+        max_depth=4,
+        val_from=None,
+    )
     with pytest.raises(RuntimeError):
         asyncio.run(_async_main(args))
 
@@ -392,8 +420,9 @@ def test_async_main_creates_nested_output_dir(
 ) -> None:
     _patch_db(monkeypatch)
     out = tmp_path / "nested" / "dir" / "m.joblib"
-    args = _make_args(algorithm="rf", output=str(out), model_version="rf-db-v1",
-                      trees=4, max_depth=4)
+    args = _make_args(
+        algorithm="rf", output=str(out), model_version="rf-db-v1", trees=4, max_depth=4
+    )
     asyncio.run(_async_main(args))
     assert out.exists()
 
@@ -401,6 +430,7 @@ def test_async_main_creates_nested_output_dir(
 # ---------------------------------------------------------------------------
 # _load_xy — directly with SQLite (covers lines 55-95)
 # ---------------------------------------------------------------------------
+
 
 async def _seed_games(session: Any, n: int = 20, season: str = "2024", start_pk: int = 1) -> None:
     """Insert n Game + GameFeatureSnapshot rows into an async SQLAlchemy session."""
@@ -479,9 +509,8 @@ async def test_load_xy_raises_when_fewer_than_20(sqlite_session_factory: Any) ->
 # _async_main — Bayesian branch (lines 222-237)
 # ---------------------------------------------------------------------------
 
-def test_async_main_bayesian_branch(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+
+def test_async_main_bayesian_branch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _patch_db(monkeypatch, n=40)
 
     def fake_run_study(**kwargs: Any) -> dict[str, Any]:
@@ -489,6 +518,7 @@ def test_async_main_bayesian_branch(
 
     def fake_build_models(algorithm: str, best_params: dict[str, Any]) -> tuple[Any, Any]:
         from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+
         clf = RandomForestClassifier(n_estimators=2, random_state=0)
         reg = RandomForestRegressor(n_estimators=2, random_state=0)
         return clf, reg
@@ -498,8 +528,13 @@ def test_async_main_bayesian_branch(
 
     out = tmp_path / "m.joblib"
     args = _make_args(
-        algorithm="rf", output=str(out), model_version="rf-db-v1",
-        trees=4, max_depth=4, bayesian=True, bayesian_trials=3,
+        algorithm="rf",
+        output=str(out),
+        model_version="rf-db-v1",
+        trees=4,
+        max_depth=4,
+        bayesian=True,
+        bayesian_trials=3,
     )
     asyncio.run(_async_main(args))
     assert out.exists()
@@ -509,9 +544,8 @@ def test_async_main_bayesian_branch(
 # _async_main — calibration branch (lines 301-309)
 # ---------------------------------------------------------------------------
 
-def test_async_main_calibration_branch(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+
+def test_async_main_calibration_branch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _patch_db(monkeypatch, n=40)
 
     fake_calibrator = object()
@@ -527,8 +561,12 @@ def test_async_main_calibration_branch(
 
     out = tmp_path / "m.joblib"
     args = _make_args(
-        algorithm="rf", output=str(out), model_version="rf-db-v1",
-        trees=4, max_depth=4, calibrate=True,
+        algorithm="rf",
+        output=str(out),
+        model_version="rf-db-v1",
+        trees=4,
+        max_depth=4,
+        calibrate=True,
     )
     asyncio.run(_async_main(args))
     assert out.exists()

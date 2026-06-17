@@ -8,7 +8,8 @@ from app.core.config import settings
 from app.db.db_url import build_asyncpg_engine_params
 
 # Objetivo producción: Supabase TRANSACTION POOLER (free tier: direct 5432 no es IPv4-compatible).
-# PgBouncer + asyncpg: prepared_statement_cache_size=0, statement_cache_size=0, nombres únicos, NullPool.
+# PgBouncer + asyncpg: prepared_statement_cache_size=0, statement_cache_size=0,
+# nombres únicos, NullPool.
 # DATABASE_FORCE_IPV4 solo si tu URL directa tiene IPv4 (add-on); con pooler no hace falta.
 _engine_url, _ipv4_extras = build_asyncpg_engine_params(
     settings.database_url,

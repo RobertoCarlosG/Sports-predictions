@@ -50,7 +50,7 @@ async def upsert_prediction_cache(
     row = await session.get(GamePredictionCache, response.game_pk)
 
     predicted_winner = ml_pick_from_home_win_probability(response.home_win_probability)
-    
+
     if row is None:
         row = GamePredictionCache(
             game_pk=response.game_pk,
@@ -120,17 +120,15 @@ async def evaluate_prediction(
     Evalúa una predicción contra el resultado real del juego.
     Retorna True si se evaluó correctamente, False si no hay datos suficientes.
     """
-    result = await session.execute(
-        select(Game).where(Game.game_pk == game_pk)
-    )
+    result = await session.execute(select(Game).where(Game.game_pk == game_pk))
     game = result.scalar_one_or_none()
-    
+
     if game is None:
         return False
-    
+
     if game.home_score is None or game.away_score is None:
         return False
-    
+
     if not _is_final_status_for_eval(game.status):
         return False
 
@@ -191,21 +189,20 @@ async def evaluate_all_pending_predictions(
     Retorna (total_evaluados, total_correctos).
     """
     result = await session.execute(
-        select(GamePredictionCache)
-        .where(GamePredictionCache.evaluated_at.is_(None))
+        select(GamePredictionCache).where(GamePredictionCache.evaluated_at.is_(None))
     )
     pending = result.scalars().all()
-    
+
     evaluated_count = 0
     correct_count = 0
-    
+
     for pred in pending:
         if await evaluate_prediction(session, pred.game_pk):
             evaluated_count += 1
             refreshed = await session.get(GamePredictionCache, pred.game_pk)
             if refreshed and refreshed.is_correct:
                 correct_count += 1
-    
+
     return evaluated_count, correct_count
 
 
@@ -214,9 +211,7 @@ async def clear_prediction_cache(session: AsyncSession) -> int:
     return res.rowcount or 0
 
 
-async def delete_prediction_cache_for_game_pks(
-    session: AsyncSession, game_pks: list[int]
-) -> int:
+async def delete_prediction_cache_for_game_pks(session: AsyncSession, game_pks: list[int]) -> int:
     if not game_pks:
         return 0
     res = await session.execute(

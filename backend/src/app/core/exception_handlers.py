@@ -56,7 +56,7 @@ async def programming_error_handler(request: Request, exc: ProgrammingError) -> 
         missing_table = match.group(1) if match else None
         if missing_table:
             hint = (
-                f'La tabla `{missing_table}` no existe. '
+                f"La tabla `{missing_table}` no existe. "
                 "Aplica las migraciones pendientes en `backend/sql/` (en orden numérico) "
                 "en el SQL Editor de Supabase o tu instancia de PostgreSQL."
             )
@@ -93,4 +93,3 @@ async def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError) -> JS
         message="Error al consultar la base de datos.",
         technical=text,
     )
-

@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import datetime as dt
 import logging
 
 from sqlalchemy import func, select
@@ -50,7 +49,10 @@ async def _run(*, season: str | None, show_missing: bool) -> None:
 
         print()
         print("=" * 66)
-        print(f"  {'TEMPORADA':<10} {'JUEGOS':>7} {'SNAPS':>7} {'FALTAN':>7}  {'DESDE':<12} {'HASTA':<12}")
+        print(
+            f"  {'TEMPORADA':<10} {'JUEGOS':>7} {'SNAPS':>7} {'FALTAN':>7}  "
+            f"{'DESDE':<12} {'HASTA':<12}"
+        )
         print("=" * 66)
         for r in rows:
             missing = r.total_games - r.with_snapshot
@@ -62,9 +64,8 @@ async def _run(*, season: str | None, show_missing: bool) -> None:
         print("=" * 66)
 
         # ── últimas fechas con snapshot ───────────────────────────────────────
-        last_snap_q = (
-            select(func.max(Game.game_date))
-            .join(GameFeatureSnapshot, GameFeatureSnapshot.game_pk == Game.game_pk)
+        last_snap_q = select(func.max(Game.game_date)).join(
+            GameFeatureSnapshot, GameFeatureSnapshot.game_pk == Game.game_pk
         )
         if season:
             last_snap_q = last_snap_q.where(Game.season == season)
@@ -86,7 +87,9 @@ async def _run(*, season: str | None, show_missing: bool) -> None:
         # ── fechas sin snapshot, desglosadas por tipo ────────────────────────
         if show_missing:
             missing_base = (
-                select(Game.game_date, Game.season, Game.status, func.count(Game.game_pk).label("n"))
+                select(
+                    Game.game_date, Game.season, Game.status, func.count(Game.game_pk).label("n")
+                )
                 .outerjoin(GameFeatureSnapshot, GameFeatureSnapshot.game_pk == Game.game_pk)
                 .where(GameFeatureSnapshot.game_pk.is_(None))
                 .group_by(Game.game_date, Game.season, Game.status)
@@ -97,14 +100,26 @@ async def _run(*, season: str | None, show_missing: bool) -> None:
 
             all_missing = (await session.execute(missing_base)).all()
 
-            final_missing = [r for r in all_missing if "final" in r.status.lower() or "completed" in r.status.lower() or "game over" in r.status.lower()]
+            final_missing = [
+                r
+                for r in all_missing
+                if "final" in r.status.lower()
+                or "completed" in r.status.lower()
+                or "game over" in r.status.lower()
+            ]
             other_missing = [r for r in all_missing if r not in final_missing]
 
             if final_missing:
                 # Group by date for display
                 from itertools import groupby as _groupby
-                print(f"  Juegos FINALES sin snapshot — necesitan rebuild ({len(set(r.game_date for r in final_missing))} días):")
-                for date, grp in _groupby(sorted(final_missing, key=lambda r: r.game_date), key=lambda r: r.game_date):
+
+                print(
+                    f"  Juegos FINALES sin snapshot — necesitan rebuild "
+                    f"({len(set(r.game_date for r in final_missing))} días):"
+                )
+                for date, grp in _groupby(
+                    sorted(final_missing, key=lambda r: r.game_date), key=lambda r: r.game_date
+                ):
                     grp_list = list(grp)
                     total = sum(r.n for r in grp_list)
                     statuses = ", ".join(sorted({r.status for r in grp_list}))
@@ -116,8 +131,15 @@ async def _run(*, season: str | None, show_missing: bool) -> None:
 
             if other_missing:
                 from itertools import groupby as _groupby
-                print(f"  Juegos NO finales sin snapshot — {len(all_missing) - len(final_missing)} registros (no requieren acción inmediata):")
-                for date, grp in _groupby(sorted(other_missing, key=lambda r: r.game_date), key=lambda r: r.game_date):
+
+                print(
+                    f"  Juegos NO finales sin snapshot — "
+                    f"{len(all_missing) - len(final_missing)} registros "
+                    f"(no requieren acción inmediata):"
+                )
+                for date, grp in _groupby(
+                    sorted(other_missing, key=lambda r: r.game_date), key=lambda r: r.game_date
+                ):
                     grp_list = list(grp)
                     total = sum(r.n for r in grp_list)
                     statuses = ", ".join(sorted({r.status for r in grp_list}))
@@ -128,7 +150,9 @@ async def _run(*, season: str | None, show_missing: bool) -> None:
 def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
     p = argparse.ArgumentParser(description="Audita el estado de game_feature_snapshots.")
-    p.add_argument("--season", default=None, help="Filtrar por temporada (ej. 2025). Default: todas.")
+    p.add_argument(
+        "--season", default=None, help="Filtrar por temporada (ej. 2025). Default: todas."
+    )
     p.add_argument(
         "--show-missing",
         action="store_true",

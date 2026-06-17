@@ -87,6 +87,11 @@ export class UserAuthService {
 
   /** Navegación completa: el servidor redirige a Google y vuelve con cookie HttpOnly. */
   startGoogleLogin(): void {
-    window.location.href = `${this.base}/google`;
+    this.redirectTo(`${this.base}/google`);
+  }
+
+  /** Indirección sobre window.location para poder testear sin navegar el runner. */
+  protected redirectTo(url: string): void {
+    window.location.href = url;
   }
 }

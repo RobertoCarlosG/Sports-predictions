@@ -44,26 +44,34 @@ class Settings(BaseSettings):
     ml_model_path_xgb: str = ""
     # Si True y no hay archivo, arranca entrenando modelo sintético (no recomendado en prod).
     ml_auto_synthetic_on_missing: bool = False
-    # Si True, tras sync/listado MLB se precalcula caché de predicciones (por defecto manual vía admin).
+    # Si True, tras sync/listado MLB se precalcula caché de predicciones
+    # (por defecto manual vía admin).
     pipeline_auto_cache_predictions: bool = False
-    # Tarea en segundo plano: sincronizar schedule (hoy + mañana) y rebuild de snapshots a la hora UTC indicada.
+    # Tarea en segundo plano: sincronizar schedule (hoy + mañana) y rebuild
+    # de snapshots a la hora UTC indicada.
     mlb_daily_snapshot_enabled: bool = False
     mlb_daily_snapshot_utc_hour: int = 3
     mlb_daily_snapshot_utc_minute: int = 0
-    # Secreto HS256 para JWT del panel admin (mín. 16 caracteres en prod). Vacío = login deshabilitado.
+    # Secreto HS256 para JWT del panel admin (mín. 16 caracteres en prod).
+    # Vacío = login deshabilitado.
     admin_jwt_secret: str = ""
-    # Panel Operaciones: importaciones largas; sube a 360–720 en prod si hace falta (o usa POST /auth/refresh).
+    # Panel Operaciones: importaciones largas; sube a 360–720 en prod si hace
+    # falta (o usa POST /auth/refresh).
     admin_token_expire_minutes: int = 240
-    # Una sola vez: crear el primer operador vía POST /admin/auth/bootstrap (header X-Admin-Bootstrap-Secret).
+    # Una sola vez: crear el primer operador vía POST /admin/auth/bootstrap
+    # (header X-Admin-Bootstrap-Secret).
     # Vacío = ruta desactivada (404). Quitar de .env tras el primer usuario.
     admin_bootstrap_secret: str = ""
-    # Cookie HttpOnly para el JWT del panel (nombre distinto del doc genérico access_token para evitar colisiones).
+    # Cookie HttpOnly para el JWT del panel (nombre distinto del doc genérico
+    # access_token para evitar colisiones).
     admin_cookie_name: str = "sp_admin_access"
-    # lax = mismo sitio; none + secure para front y API en dominios distintos (p. ej. Vercel + Render).
+    # lax = mismo sitio; none + secure para front y API en dominios distintos
+    # (p. ej. Vercel + Render).
     admin_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     admin_cookie_secure: bool = False
     admin_cookie_domain: str | None = None
-    # Secreto HS256 para JWT de usuarios finales (control de apuestas / Google OAuth). Vacío = rutas /auth deshabilitadas.
+    # Secreto HS256 para JWT de usuarios finales (control de apuestas / Google
+    # OAuth). Vacío = rutas /auth deshabilitadas.
     user_jwt_secret: str = ""
     user_token_expire_minutes: int = 10080  # 7 días
     user_cookie_name: str = "sp_user_session"
@@ -80,12 +88,17 @@ class Settings(BaseSettings):
     oauth_state_cookie_name: str = "sp_oauth_state"
     # Exponer trazas/mensajes técnicos en JSON de error (solo desarrollo)
     debug: bool = False
-    # Solo si DATABASE_URL apunta a un host con IPv4 (p. ej. add-on IPv4 Supabase). Free tier + direct 5432
-    # suele ser IPv6-only: ahí usa transaction pooler; esta opción no arregla la falta de IPv4 en directo.
+    # Solo si DATABASE_URL apunta a un host con IPv4 (p. ej. add-on IPv4
+    # Supabase). Free tier + direct 5432
+    # suele ser IPv6-only: ahí usa transaction pooler; esta opción no arregla
+    # la falta de IPv4 en directo.
     database_force_ipv4: bool = False
-    # Límite de tiempo por sentencia SQL al conectar (p. ej. evita 8s por defecto en poolers).
-    # El sync MLB aplica además SET LOCAL a max(este valor, 300)s por transacción al escribir boxscore.
-    # 0 = no fijar al conectar (sigue el default del servidor); el sync aún usa mín. 300s en esa transacción.
+    # Límite de tiempo por sentencia SQL al conectar (p. ej. evita 8s por
+    # defecto en poolers).
+    # El sync MLB aplica además SET LOCAL a max(este valor, 300)s por
+    # transacción al escribir boxscore.
+    # 0 = no fijar al conectar (sigue el default del servidor); el sync aún
+    # usa mín. 300s en esa transacción.
     database_statement_timeout_seconds: int = 300
 
     @field_validator("admin_jwt_secret", "admin_bootstrap_secret", "user_jwt_secret", mode="before")

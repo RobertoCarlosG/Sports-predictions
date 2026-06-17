@@ -1,18 +1,18 @@
 """Tests for app.api.routes.predict — covering both RF and XGBoost model selection,
 503 handling, cache logic, error paths, and all major branches."""
+
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException, Request
 from httpx import ASGITransport, AsyncClient
 
-from app.ml.model_routing import get_prediction_service
 from app.main import app
+from app.ml.model_routing import get_prediction_service
 from app.schemas.games import AsianHandicapBlock, AsianHandicapSideOut, PredictionResponse
-
 
 # ---------------------------------------------------------------------------
 # Canned response used across tests
@@ -35,6 +35,7 @@ _MOCK_PRED = PredictionResponse(
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def clear_rate_limits() -> None:
@@ -74,6 +75,7 @@ async def client(override_app_db: Any) -> Any:
 # ---------------------------------------------------------------------------
 # Unit tests: get_prediction_service (no HTTP)
 # ---------------------------------------------------------------------------
+
 
 def _mock_request(rf: Any = None, xgb: Any = None) -> MagicMock:
     req = MagicMock(spec=Request)
@@ -121,6 +123,7 @@ def test_get_service_default_returns_xgb() -> None:
 # GET /api/v1/predict/{game_pk} — happy paths
 # ---------------------------------------------------------------------------
 
+
 async def test_get_predict_xgb_200(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "app.api.routes.predict.get_cached_prediction",
@@ -160,6 +163,7 @@ async def test_get_predict_rf_200(client: AsyncClient, monkeypatch: pytest.Monke
 # GET /api/v1/predict/{game_pk} — 503 when service not loaded
 # ---------------------------------------------------------------------------
 
+
 async def test_get_predict_xgb_503_no_service(client: AsyncClient) -> None:
     orig = app.state.prediction_service_xgb
     app.state.prediction_service_xgb = None
@@ -185,12 +189,19 @@ async def test_get_predict_rf_503_no_service(client: AsyncClient) -> None:
 # GET — active_model_version side-effect
 # ---------------------------------------------------------------------------
 
+
 async def test_get_predict_rf_skips_active_model_version_when_xgb_is_default(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None))
-    monkeypatch.setattr("app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED))
-    monkeypatch.setattr("app.api.routes.predict.upsert_prediction_cache", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        "app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None)
+    )
+    monkeypatch.setattr(
+        "app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED)
+    )
+    monkeypatch.setattr(
+        "app.api.routes.predict.upsert_prediction_cache", AsyncMock(return_value=None)
+    )
     app.state.active_model_version = "sentinel-version"
     app.state.prediction_service = _mock_svc("rf-test@abc")
     r = await client.get("/api/v1/predict/777?model=rf")
@@ -201,9 +212,15 @@ async def test_get_predict_rf_skips_active_model_version_when_xgb_is_default(
 async def test_get_predict_xgb_default_sets_active_model_version(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None))
-    monkeypatch.setattr("app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED))
-    monkeypatch.setattr("app.api.routes.predict.upsert_prediction_cache", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        "app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None)
+    )
+    monkeypatch.setattr(
+        "app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED)
+    )
+    monkeypatch.setattr(
+        "app.api.routes.predict.upsert_prediction_cache", AsyncMock(return_value=None)
+    )
     app.state.prediction_service_xgb = _mock_svc("xgb-test@abc")
     r = await client.get("/api/v1/predict/777")
     assert r.status_code == 200
@@ -213,6 +230,7 @@ async def test_get_predict_xgb_default_sets_active_model_version(
 # ---------------------------------------------------------------------------
 # GET — cache hit path
 # ---------------------------------------------------------------------------
+
 
 async def test_get_predict_cache_hit_skips_compute(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
@@ -232,10 +250,13 @@ async def test_get_predict_cache_hit_skips_compute(
 # GET — error paths
 # ---------------------------------------------------------------------------
 
+
 async def test_get_predict_compute_exception_returns_500(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        "app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None)
+    )
     monkeypatch.setattr(
         "app.api.routes.predict.compute_prediction_response",
         AsyncMock(side_effect=ValueError("boom")),
@@ -248,7 +269,9 @@ async def test_get_predict_compute_exception_returns_500(
 async def test_get_predict_http_exception_reraises(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        "app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None)
+    )
     monkeypatch.setattr(
         "app.api.routes.predict.compute_prediction_response",
         AsyncMock(side_effect=HTTPException(status_code=404, detail="Game not found")),
@@ -264,8 +287,12 @@ async def test_get_predict_cache_upsert_failure_still_200(
 ) -> None:
     import logging
 
-    monkeypatch.setattr("app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None))
-    monkeypatch.setattr("app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED))
+    monkeypatch.setattr(
+        "app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None)
+    )
+    monkeypatch.setattr(
+        "app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED)
+    )
     monkeypatch.setattr(
         "app.api.routes.predict.upsert_prediction_cache",
         AsyncMock(side_effect=Exception("DB down")),
@@ -281,16 +308,25 @@ async def test_get_predict_cache_upsert_failure_still_200(
 # POST /api/v1/predict/{game_pk}/refresh — happy path
 # ---------------------------------------------------------------------------
 
+
 async def test_post_refresh_xgb_200(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED))
-    monkeypatch.setattr("app.api.routes.predict.upsert_prediction_cache", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        "app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED)
+    )
+    monkeypatch.setattr(
+        "app.api.routes.predict.upsert_prediction_cache", AsyncMock(return_value=None)
+    )
     r = await client.post("/api/v1/predict/777/refresh?model=xgb")
     assert r.status_code == 200
 
 
 async def test_post_refresh_rf_200(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED))
-    monkeypatch.setattr("app.api.routes.predict.upsert_prediction_cache", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        "app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED)
+    )
+    monkeypatch.setattr(
+        "app.api.routes.predict.upsert_prediction_cache", AsyncMock(return_value=None)
+    )
     r = await client.post("/api/v1/predict/777/refresh?model=rf")
     assert r.status_code == 200
 
@@ -298,6 +334,7 @@ async def test_post_refresh_rf_200(client: AsyncClient, monkeypatch: pytest.Monk
 # ---------------------------------------------------------------------------
 # POST /refresh — 503 when service not loaded
 # ---------------------------------------------------------------------------
+
 
 async def test_post_refresh_xgb_503(client: AsyncClient) -> None:
     orig = app.state.prediction_service_xgb
@@ -313,6 +350,7 @@ async def test_post_refresh_xgb_503(client: AsyncClient) -> None:
 # ---------------------------------------------------------------------------
 # POST /refresh — error paths
 # ---------------------------------------------------------------------------
+
 
 async def test_post_refresh_compute_exception_500(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
@@ -344,7 +382,9 @@ async def test_post_refresh_upsert_failure_still_200(
 ) -> None:
     import logging
 
-    monkeypatch.setattr("app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED))
+    monkeypatch.setattr(
+        "app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED)
+    )
     monkeypatch.setattr(
         "app.api.routes.predict.upsert_prediction_cache",
         AsyncMock(side_effect=Exception("DB error")),

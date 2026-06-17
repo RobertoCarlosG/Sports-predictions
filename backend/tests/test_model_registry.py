@@ -6,9 +6,9 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pytest
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 
 from app.db.base import Base
 from app.ml.predictor import MlbPredictionService
@@ -65,9 +65,7 @@ async def session() -> AsyncSession:
     await engine.dispose()
 
 
-async def test_record_model_load_inserts_active_row(
-    tmp_path: Path, session: AsyncSession
-) -> None:
+async def test_record_model_load_inserts_active_row(tmp_path: Path, session: AsyncSession) -> None:
     p = tmp_path / "m.joblib"
     _write_min_bundle(p, base_version="rf-db-v1")
     svc = MlbPredictionService(p)
@@ -104,9 +102,7 @@ async def test_synthetic_flag_detected_from_base_version(
     assert row.val_accuracy_home is None
 
 
-async def test_only_one_active_row_after_two_loads(
-    tmp_path: Path, session: AsyncSession
-) -> None:
+async def test_only_one_active_row_after_two_loads(tmp_path: Path, session: AsyncSession) -> None:
     p1 = tmp_path / "m1.joblib"
     p2 = tmp_path / "m2.joblib"
     _write_min_bundle(p1, base_version="rf-db-v1")
@@ -119,8 +115,10 @@ async def test_only_one_active_row_after_two_loads(
 
     assert row1.id != row2.id
     actives = (
-        await session.execute(select(ModelVersion).where(ModelVersion.is_active.is_(True)))
-    ).scalars().all()
+        (await session.execute(select(ModelVersion).where(ModelVersion.is_active.is_(True))))
+        .scalars()
+        .all()
+    )
     assert len(actives) == 1
     assert actives[0].id == row2.id
 

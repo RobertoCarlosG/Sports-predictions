@@ -12,7 +12,16 @@ from pathlib import Path
 from typing import Annotated
 
 import joblib
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request, Response
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+)
 from sqlalchemy import func, select
 from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,8 +39,10 @@ from app.models.mlb import (
     AdminUser,
     Game,
     GamePredictionCache,
-    ModelVersion as ModelVersionModel,
     Team,
+)
+from app.models.mlb import (
+    ModelVersion as ModelVersionModel,
 )
 from app.schemas.admin_api import (
     AdminAuthReadyResponse,
@@ -43,6 +54,7 @@ from app.schemas.admin_api import (
     BackfillJobStatusResponse,
     CalibrateModelResponse,
     MessageResponse,
+    MlbDailySnapshotBody,
     PredictionEvaluationItem,
     PredictionEvaluationsResponse,
     PredictionMetricsResponse,
@@ -51,6 +63,13 @@ from app.schemas.admin_api import (
     TrainResultResponse,
 )
 from app.schemas.backtest import BacktestGameRow, BacktestResponse
+from app.services.admin_auth import AdminAuthError, login_with_password
+from app.services.admin_backfill_state import (
+    backfill_is_busy,
+    initial_backfill_job_state,
+    prepare_backfill_job,
+    run_tracked_backfill,
+)
 from app.services.backtest import (
     BacktestRowInputs,
     build_backtest_game_row,
@@ -58,13 +77,6 @@ from app.services.backtest import (
     build_timeseries,
     is_final_game_status,
     side_probability,
-)
-from app.services.admin_auth import AdminAuthError, login_with_password
-from app.services.admin_backfill_state import (
-    backfill_is_busy,
-    initial_backfill_job_state,
-    prepare_backfill_job,
-    run_tracked_backfill,
 )
 from app.services.feature_snapshots import rebuild_game_feature_snapshots
 from app.services.mlb_client import MlbApiClient
@@ -92,6 +104,7 @@ _login_attempts: dict[str, list[float]] = collections.defaultdict(list)
 LOGIN_MAX_ATTEMPTS = 5
 LOGIN_WINDOW_SECONDS = 60
 
+
 def _check_login_rate_limit(ip: str) -> None:
     now = time.time()
     attempts = _login_attempts[ip]
@@ -114,11 +127,7 @@ def _session_after_fresh_login(username: str) -> AdminSessionResponse:
 
 def _session_from_request_cookie(request: Request, username: str) -> AdminSessionResponse:
     token = token_from_request(request, None)
-    exp = (
-        decode_token_expires_at_utc(token, settings.admin_jwt_secret)
-        if token
-        else None
-    )
+    exp = decode_token_expires_at_utc(token, settings.admin_jwt_secret) if token else None
     now = dt.datetime.now(dt.UTC)
     sec = int((exp - now).total_seconds()) if exp else None
     exp_s = exp.replace(microsecond=0).isoformat().replace("+00:00", "Z") if exp else None
@@ -177,14 +186,19 @@ async def admin_auth_ready(
         )
     except SQLAlchemyError as e:
         log.warning("admin auth/ready DB check: %s", e)
-        table_hint = "No se pudo consultar admin_users. Revisa DATABASE_URL y que el API use la misma BD que migraste."
+        table_hint = (
+            "No se pudo consultar admin_users. Revisa DATABASE_URL y que el "
+            "API use la misma BD que migraste."
+        )
 
     login_ok = jwt_ok and table_ok
     parts: list[str] = []
     if not jwt_ok:
         parts.append(
-            "ADMIN_JWT_SECRET no está definido o está vacío en el proceso del API (Render → Environment). "
-            "Nombre exacto: ADMIN_JWT_SECRET. Tras guardar, haz un deploy manual o «Restart» para recargar el servicio.",
+            "ADMIN_JWT_SECRET no está definido o está vacío en el proceso del "
+            "API (Render → Environment). "
+            "Nombre exacto: ADMIN_JWT_SECRET. Tras guardar, haz un deploy "
+            "manual o «Restart» para recargar el servicio.",
         )
     if not table_ok and table_hint:
         parts.append(table_hint)
@@ -202,12 +216,15 @@ async def admin_bootstrap_first_user(
     response: Response,
     body: AdminLoginBody,
     session: Annotated[AsyncSession, Depends(get_db)],
-    x_admin_bootstrap_secret: Annotated[str | None, Header(alias="X-Admin-Bootstrap-Secret")] = None,
+    x_admin_bootstrap_secret: Annotated[
+        str | None, Header(alias="X-Admin-Bootstrap-Secret")
+    ] = None,
 ) -> AdminSessionResponse:
     """
     Crea el **primer** (y solo el primer) usuario en `admin_users` cuando la tabla está vacía.
     Requiere `ADMIN_BOOTSTRAP_SECRET` en el servidor y el mismo valor en el header.
-    Desactivar el secreto en .env tras usar; para más usuarios usar `python -m app.cli.create_admin`.
+    Desactivar el secreto en .env tras usar; para más usuarios usar
+    `python -m app.cli.create_admin`.
     """
     expected = settings.admin_bootstrap_secret.strip()
     if not expected:
@@ -215,7 +232,9 @@ async def admin_bootstrap_first_user(
     if not x_admin_bootstrap_secret or x_admin_bootstrap_secret.strip() != expected:
         raise HTTPException(status_code=403, detail="No autorizado.")
     if not settings.admin_jwt_secret.strip():
-        raise HTTPException(status_code=503, detail="Servidor sin ADMIN_JWT_SECRET; no se puede crear sesión.")
+        raise HTTPException(
+            status_code=503, detail="Servidor sin ADMIN_JWT_SECRET; no se puede crear sesión."
+        )
     cnt = await session.scalar(select(func.count()).select_from(AdminUser))
     if (cnt or 0) > 0:
         raise HTTPException(
@@ -257,7 +276,9 @@ async def admin_login(
     except AdminAuthError as e:
         msg = str(e)
         code = 503 if "ADMIN_JWT_SECRET" in msg else 401
-        raise HTTPException(status_code=code, detail=msg if code == 503 else "Usuario o contraseña incorrectos.") from e
+        raise HTTPException(
+            status_code=code, detail=msg if code == 503 else "Usuario o contraseña incorrectos."
+        ) from e
     _set_admin_session_cookie(response, token)
     return _session_after_fresh_login(username)
 
@@ -268,7 +289,10 @@ async def admin_refresh_session(
     request: Request,
     username: AdminUserDep,
 ) -> AdminSessionResponse:
-    """Renueva el JWT (misma duración que `ADMIN_TOKEN_EXPIRE_MINUTES`) para operaciones largas (p. ej. importación)."""
+    """Renueva el JWT para operaciones largas (p. ej. importación).
+
+    Misma duración que `ADMIN_TOKEN_EXPIRE_MINUTES`.
+    """
     token = create_access_token(
         secret=settings.admin_jwt_secret,
         subject=username,
@@ -289,9 +313,7 @@ async def admin_me(request: Request, username: AdminUserDep) -> AdminSessionResp
     return _session_from_request_cookie(request, username)
 
 
-async def _game_pks_for_calendar_dates(
-    session: AsyncSession, dates: list[dt.date]
-) -> list[int]:
+async def _game_pks_for_calendar_dates(session: AsyncSession, dates: list[dt.date]) -> list[int]:
     if not dates:
         return []
     r = await session.execute(select(Game.game_pk).where(Game.game_date.in_(dates)))
@@ -301,6 +323,7 @@ async def _game_pks_for_calendar_dates(
 @router.post("/pipeline/mlb-daily-snapshot", response_model=MessageResponse)
 async def admin_mlb_daily_snapshot(
     request: Request,
+    body: MlbDailySnapshotBody,
     _username: AdminUserDep,
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> MessageResponse:
@@ -308,8 +331,11 @@ async def admin_mlb_daily_snapshot(
     Ejecuta el mismo ETL que el job diario: sync API para hoy+mañana (UTC), rebuild de
     game_feature_snapshots, borra caché de predicción de esas fechas y vuelve a precalcular
     si el modelo está cargado (independiente de pipeline_auto_cache_predictions).
+
+    Por defecto procesa los snapshots en streaming (``low_memory=true``) para no agotar la RAM
+    en Render free. Manda ``low_memory=false`` solo para forzar la carga completa con .all().
     """
-    snap = await run_mlb_daily_snapshot(request.app.state.http_client)
+    snap = await run_mlb_daily_snapshot(request.app.state.http_client, low_memory=body.low_memory)
     u_today = dt.datetime.now(dt.UTC).date()
     u_tomorrow = u_today + dt.timedelta(days=1)
     pks = await _game_pks_for_calendar_dates(session, [u_today, u_tomorrow])
@@ -322,10 +348,12 @@ async def admin_mlb_daily_snapshot(
     return MessageResponse(
         message="ETL diario MLB completado; predicciones actualizadas para hoy y mañana (UTC).",
         detail=(
-            f"Fechas: {snap.today_utc} + {snap.tomorrow_utc}. Indicadores (filas): {snap.snapshot_rows}. "
+            f"Fechas: {snap.today_utc} + {snap.tomorrow_utc}. "
+            f"Indicadores (filas): {snap.snapshot_rows}. "
             f"Partidos en rango: {len(pks)}. Filas de caché eliminadas: {n_del}. "
             f"Regeneración forzada: {'sí' if ok_model else 'omitida (modelo no cargado)'}. "
-            f"Temporada: {snap.season}."
+            f"Temporada: {snap.season}. "
+            f"Modo streaming: {'sí (por defecto)' if body.low_memory else 'no (.all())'}."
         ),
     )
 
@@ -355,7 +383,9 @@ async def admin_clear_prediction_cache(
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> MessageResponse:
     n = await clear_prediction_cache(session)
-    return MessageResponse(message="Caché de estimaciones vaciada.", detail=f"Filas eliminadas: {n}")
+    return MessageResponse(
+        message="Caché de estimaciones vaciada.", detail=f"Filas eliminadas: {n}"
+    )
 
 
 @router.post("/pipeline/fix-fifty", response_model=MessageResponse)
@@ -401,8 +431,10 @@ async def admin_fix_fifty(
     return MessageResponse(
         message=f"Indicadores recalculados ({n_snap} partidos), caché vaciada y modelo recargado.",
         detail=(
-            f"Temporada: {season}. Filas de caché eliminadas: {n_cache}. Versión del modelo: {ver}. "
-            "Si algún partido sigue en ~50%, falta histórico previo: ver ml_fix_fifty_runbook.md (caso B)."
+            f"Temporada: {season}. Filas de caché eliminadas: {n_cache}. "
+            f"Versión del modelo: {ver}. "
+            "Si algún partido sigue en ~50%, falta histórico previo: "
+            "ver ml_fix_fifty_runbook.md (caso B)."
         ),
     )
 
@@ -415,13 +447,13 @@ async def evaluate_pending_predictions(
     """Evaluar todas las predicciones que tienen juegos finalizados pero aún no se han evaluado."""
     evaluated, correct = await evaluate_all_pending_predictions(session)
     await session.commit()
-    
+
     if evaluated == 0:
         return MessageResponse(
             message="No hay predicciones pendientes de evaluación.",
             detail="Todas las predicciones con juegos finalizados ya han sido evaluadas.",
         )
-    
+
     accuracy = round((correct / evaluated) * 100, 2) if evaluated > 0 else 0
     return MessageResponse(
         message=f"Se evaluaron {evaluated} predicciones.",
@@ -435,7 +467,8 @@ async def recompute_ml_evaluations(
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> MessageResponse:
     """
-    Vuelve a calcular is_correct/actual_winner de Moneyline desde home_win_probability y el marcador.
+    Vuelve a calcular is_correct/actual_winner de Moneyline desde
+    home_win_probability y el marcador.
     Útil tras corregir la lógica de evaluación; no borra filas, solo actualiza.
     """
     n, correct = await recompute_all_moneyline_evaluations(session)
@@ -573,15 +606,15 @@ async def admin_train_model(
     _username: AdminUserDep,
 ) -> TrainResultResponse:
     out_path_str = body.output or str(BACKEND_ROOT / "src/app/ml/artifacts/model.joblib")
-    out_path = Path(out_path_str).resolve()
+    # Cheap one-shot local FS resolve; no benefit from anyio offload here.
+    out_path = Path(out_path_str).resolve()  # noqa: ASYNC240
     artifacts_dir = (BACKEND_ROOT / "src/app/ml/artifacts").resolve()
-    
+
     if not out_path.is_relative_to(artifacts_dir):
         raise HTTPException(
-            status_code=400, 
-            detail="El path de output debe estar dentro de app/ml/artifacts/"
+            status_code=400, detail="El path de output debe estar dentro de app/ml/artifacts/"
         )
-        
+
     out = str(out_path)
     cmd = [
         sys.executable,
@@ -608,7 +641,8 @@ async def admin_train_model(
     if backup_path is not None:
         log.info("admin_train: backup previo en %s", backup_path)
     try:
-        proc = subprocess.run(
+        # Deliberate blocking training subprocess; runs to completion intentionally.
+        proc = subprocess.run(  # noqa: ASYNC221
             cmd,
             cwd=str(BACKEND_ROOT),
             capture_output=True,
@@ -618,7 +652,9 @@ async def admin_train_model(
             env=os.environ.copy(),
         )
     except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="Entrenamiento excedió el tiempo máximo.") from None
+        raise HTTPException(
+            status_code=504, detail="Entrenamiento excedió el tiempo máximo."
+        ) from None
     out_txt = (proc.stdout or "").strip()
     err_txt = (proc.stderr or "").strip()
     combined = "\n".join(x for x in (out_txt, err_txt) if x)
@@ -641,7 +677,10 @@ async def admin_train_model(
     except Exception:
         log.warning("No se pudo leer training_meta del joblib en %s", out, exc_info=False)
     return TrainResultResponse(
-        message="Entrenamiento completado. Usa «Recargar modelo» para activarlo sin reiniciar el API.",
+        message=(
+            "Entrenamiento completado. Usa «Recargar modelo» para "
+            "activarlo sin reiniciar el API."
+        ),
         stdout_tail=tail or None,
         training_meta=training_meta,
     )
@@ -666,7 +705,10 @@ async def admin_backfill(
     if backfill_is_busy(request.app):
         raise HTTPException(
             status_code=409,
-            detail="Ya hay una importación por fechas en curso (en cola o ejecutándose). Espera o revisa el progreso.",
+            detail=(
+                "Ya hay una importación por fechas en curso (en cola o "
+                "ejecutándose). Espera o revisa el progreso."
+            ),
         )
     start = dt.date.fromisoformat(body.start)
     end = dt.date.fromisoformat(body.end)
@@ -715,31 +757,34 @@ async def get_prediction_metrics(
         select(func.count()).select_from(GamePredictionCache)
     )
     total_predictions = total_predictions_result or 0
-    
+
     total_evaluated_result = await session.scalar(
-        select(func.count()).select_from(GamePredictionCache)
+        select(func.count())
+        .select_from(GamePredictionCache)
         .where(GamePredictionCache.evaluated_at.is_not(None))
     )
     total_evaluated = total_evaluated_result or 0
-    
+
     total_correct_result = await session.scalar(
-        select(func.count()).select_from(GamePredictionCache)
-        .where(GamePredictionCache.is_correct == True)
+        select(func.count())
+        .select_from(GamePredictionCache)
+        .where(GamePredictionCache.is_correct.is_(True))
     )
     total_correct = total_correct_result or 0
-    
+
     total_incorrect_result = await session.scalar(
-        select(func.count()).select_from(GamePredictionCache)
-        .where(GamePredictionCache.is_correct == False)
+        select(func.count())
+        .select_from(GamePredictionCache)
+        .where(GamePredictionCache.is_correct.is_(False))
     )
     total_incorrect = total_incorrect_result or 0
-    
+
     pending_evaluation = total_predictions - total_evaluated
-    
+
     accuracy_percentage = None
     if total_evaluated > 0:
         accuracy_percentage = round((total_correct / total_evaluated) * 100, 2)
-    
+
     return PredictionMetricsResponse(
         total_predictions=total_predictions,
         total_evaluated=total_evaluated,
@@ -754,12 +799,21 @@ async def get_prediction_metrics(
 async def get_predictions_backtest(
     _username: AdminUserDep,
     session: Annotated[AsyncSession, Depends(get_db)],
-    date_from: dt.date | None = Query(None, description="Inicio (inclusive) por game_date. Por defecto: 30 días antes de date_to."),
-    date_to: dt.date | None = Query(None, description="Fin (inclusive) por game_date. Por defecto: hoy."),
-    min_confidence: float = Query(0.5, ge=0.5, le=1.0, description="Mínimo de max(p_home, 1−p_home) para el lado predicho"),
+    date_from: dt.date | None = Query(
+        None, description="Inicio (inclusive) por game_date. Por defecto: 30 días antes de date_to."
+    ),
+    date_to: dt.date | None = Query(
+        None, description="Fin (inclusive) por game_date. Por defecto: hoy."
+    ),
+    min_confidence: float = Query(
+        0.5, ge=0.5, le=1.0, description="Mínimo de max(p_home, 1−p_home) para el lado predicho"
+    ),
     skip_empty_days: bool = Query(
         True,
-        description="Serie temporal: True = solo días con partidos; False = rellenar el calendario [date_from,date_to] con días vacíos",
+        description=(
+            "Serie temporal: True = solo días con partidos; "
+            "False = rellenar el calendario [date_from,date_to] con días vacíos"
+        ),
     ),
 ) -> BacktestResponse:
     """Resumen, serie diaria y filas (ML + O/U) para el dashboard de backtesting."""
@@ -868,13 +922,14 @@ async def get_prediction_evaluations(
                 evaluated_at=pred_cache.evaluated_at.isoformat() if pred_cache.evaluated_at else "",
             )
         )
-    
+
     total_result = await session.scalar(
-        select(func.count()).select_from(GamePredictionCache)
+        select(func.count())
+        .select_from(GamePredictionCache)
         .where(GamePredictionCache.evaluated_at.is_not(None))
     )
     total = total_result or 0
-    
+
     return PredictionEvaluationsResponse(items=items, total=total)
 
 
@@ -898,7 +953,8 @@ async def admin_calibrate_model(
         raise HTTPException(status_code=400, detail="No hay modelo cargado en memoria.")
 
     base_version = str(
-        getattr(svc, "_bundle", None) and svc._bundle.get("model_base_version")  # type: ignore[union-attr]
+        getattr(svc, "_bundle", None)
+        and svc._bundle.get("model_base_version")  # type: ignore[union-attr]
         or svc.model_version.split("@")[0]
     )
 
@@ -908,7 +964,13 @@ async def admin_calibrate_model(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     cal_path = save_calibration(base_version, calibrator)
-    log.info("admin calibrate: model_version=%s n=%d path=%s by=%s", base_version, n_samples, cal_path, username)
+    log.info(
+        "admin calibrate: model_version=%s n=%d path=%s by=%s",
+        base_version,
+        n_samples,
+        cal_path,
+        username,
+    )
 
     return CalibrateModelResponse(
         message="Calibración ajustada y guardada. El predictor la aplicará automáticamente.",

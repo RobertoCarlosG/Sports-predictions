@@ -1,6 +1,7 @@
 """Abreviaturas MLB por team id (statsapi.mlb.com /teams?sportId=1).
 
 Sirve de respaldo cuando el schedule sin hydrate o filas viejas en BD tienen HOME/AWAY."""
+
 from __future__ import annotations
 
 from typing import Any

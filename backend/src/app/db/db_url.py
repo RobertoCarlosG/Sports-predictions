@@ -3,6 +3,7 @@
 Por defecto en producción se usa Supabase **transaction pooler** (IPv4). `force_ipv4` es opcional
 si en el futuro usas conexión directa con IPv4 (add-on); no sustituye al pooler en free tier.
 """
+
 from __future__ import annotations
 
 import ipaddress

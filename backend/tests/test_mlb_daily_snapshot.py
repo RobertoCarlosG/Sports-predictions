@@ -68,6 +68,8 @@ async def test_run_mlb_daily_snapshot_invokes_sync_twice_and_rebuild(
     assert result.season == "2026"
     assert result.snapshot_rows == 19
     assert rebuild.await_count == 1
+    # Por defecto el ETL debe pedir el modo streaming (low_memory=True) para no agotar RAM.
+    assert rebuild.await_args.kwargs["low_memory"] is True
 
 
 @pytest.mark.asyncio

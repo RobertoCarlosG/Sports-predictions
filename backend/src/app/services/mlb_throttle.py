@@ -1,4 +1,5 @@
 """Límite global de ráfagas para peticiones a statsapi.mlb.com (compartido entre requests y CLI)."""
+
 from __future__ import annotations
 
 import asyncio

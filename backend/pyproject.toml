@@ -67,6 +67,9 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
 
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Query", "fastapi.Depends", "fastapi.Header", "fastapi.Path", "fastapi.Body"]
+
 [tool.black]
 line-length = 100
 target-version = ["py312"]

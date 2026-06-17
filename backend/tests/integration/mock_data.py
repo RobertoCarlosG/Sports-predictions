@@ -3,6 +3,7 @@
 All objects here are concrete instances — no MagicMock, no patches.
 Factory functions return ORM objects ready to be added to a real PostgreSQL session.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -13,16 +14,41 @@ from typing import Any
 # Teams
 # ---------------------------------------------------------------------------
 
+
 def make_team_la() -> dict[str, Any]:
-    return dict(id=119, name="Los Angeles Dodgers", abbreviation="LAD", venue_id=22, venue_name="Dodger Stadium", league="NL", division="NL West")
+    return dict(
+        id=119,
+        name="Los Angeles Dodgers",
+        abbreviation="LAD",
+        venue_id=22,
+        venue_name="Dodger Stadium",
+        league="NL",
+        division="NL West",
+    )
 
 
 def make_team_ny() -> dict[str, Any]:
-    return dict(id=147, name="New York Yankees", abbreviation="NYY", venue_id=3289, venue_name="Yankee Stadium", league="AL", division="AL East")
+    return dict(
+        id=147,
+        name="New York Yankees",
+        abbreviation="NYY",
+        venue_id=3289,
+        venue_name="Yankee Stadium",
+        league="AL",
+        division="AL East",
+    )
 
 
 def make_team_boston() -> dict[str, Any]:
-    return dict(id=111, name="Boston Red Sox", abbreviation="BOS", venue_id=3, venue_name="Fenway Park", league="AL", division="AL East")
+    return dict(
+        id=111,
+        name="Boston Red Sox",
+        abbreviation="BOS",
+        venue_id=3,
+        venue_name="Fenway Park",
+        league="AL",
+        division="AL East",
+    )
 
 
 ALL_TEAMS = [make_team_la(), make_team_ny(), make_team_boston()]
@@ -32,6 +58,7 @@ ALL_TEAMS = [make_team_la(), make_team_ny(), make_team_boston()]
 # Games
 # ---------------------------------------------------------------------------
 
+
 def make_game_scheduled() -> dict[str, Any]:
     """Upcoming game — no scores yet."""
     return dict(
@@ -40,14 +67,15 @@ def make_game_scheduled() -> dict[str, Any]:
         game_date=dt.date(2025, 9, 15),
         game_datetime_utc=dt.datetime(2025, 9, 15, 20, 5, tzinfo=dt.UTC),
         status="Scheduled",
-        home_team_id=119,   # LAD
-        away_team_id=147,   # NYY
+        home_team_id=119,  # LAD
+        away_team_id=147,  # NYY
         venue_id=22,
         venue_name="Dodger Stadium",
         home_score=None,
         away_score=None,
-        lineups_json=None,
-        boxscore_json=None,
+        # Con contenido: el detalle debe devolverlos; el listado debe diferirlos (null).
+        lineups_json={"home": ["a", "b"], "away": ["c", "d"]},
+        boxscore_json={"teams": {"home": {}, "away": {}}},
     )
 
 
@@ -59,8 +87,8 @@ def make_game_final_home_win() -> dict[str, Any]:
         game_date=dt.date(2025, 8, 10),
         game_datetime_utc=dt.datetime(2025, 8, 10, 22, 10, tzinfo=dt.UTC),
         status="Final",
-        home_team_id=119,   # LAD
-        away_team_id=147,   # NYY
+        home_team_id=119,  # LAD
+        away_team_id=147,  # NYY
         venue_id=22,
         venue_name="Dodger Stadium",
         home_score=7,
@@ -78,8 +106,8 @@ def make_game_final_away_win() -> dict[str, Any]:
         game_date=dt.date(2025, 8, 11),
         game_datetime_utc=dt.datetime(2025, 8, 11, 22, 10, tzinfo=dt.UTC),
         status="Final",
-        home_team_id=119,   # LAD
-        away_team_id=147,   # NYY
+        home_team_id=119,  # LAD
+        away_team_id=147,  # NYY
         venue_id=22,
         venue_name="Dodger Stadium",
         home_score=2,
@@ -96,8 +124,8 @@ def make_game_in_progress() -> dict[str, Any]:
         game_date=dt.date(2025, 9, 14),
         game_datetime_utc=dt.datetime(2025, 9, 14, 23, 0, tzinfo=dt.UTC),
         status="In Progress",
-        home_team_id=111,   # BOS
-        away_team_id=119,   # LAD
+        home_team_id=111,  # BOS
+        away_team_id=119,  # LAD
         venue_id=3,
         venue_name="Fenway Park",
         home_score=3,
@@ -114,8 +142,8 @@ def make_game_postponed() -> dict[str, Any]:
         game_date=dt.date(2025, 9, 16),
         game_datetime_utc=None,
         status="Postponed",
-        home_team_id=111,   # BOS
-        away_team_id=147,   # NYY
+        home_team_id=111,  # BOS
+        away_team_id=147,  # NYY
         venue_id=3,
         venue_name="Fenway Park",
         home_score=None,
@@ -145,6 +173,7 @@ POSTPONED_PK = 748004
 # ---------------------------------------------------------------------------
 # GameWeather
 # ---------------------------------------------------------------------------
+
 
 def make_weather_dodger_stadium() -> dict[str, Any]:
     return dict(
@@ -179,6 +208,7 @@ ALL_WEATHER = [make_weather_dodger_stadium(), make_weather_yankee_stadium()]
 # GameFeatureSnapshot
 # ---------------------------------------------------------------------------
 
+
 def make_snapshot_scheduled() -> dict[str, Any]:
     return dict(
         game_pk=748000,
@@ -190,7 +220,7 @@ def make_snapshot_scheduled() -> dict[str, Any]:
         humidity_pct=45.0,
         wind_speed_mps=3.2,
         elevation_m=52.0,
-        home_win=None,          # not played yet
+        home_win=None,  # not played yet
         total_runs=None,
         home_starter_era=3.10,
         away_starter_era=3.75,
@@ -257,6 +287,7 @@ ADMIN_JWT_SECRET = "integration_test_jwt_secret_minimum_32_chars_long"
 
 def make_admin_user_kwargs() -> dict[str, Any]:
     from app.core.admin_security import hash_password
+
     return dict(
         username=ADMIN_USERNAME,
         password_hash=hash_password(ADMIN_PASSWORD),
@@ -288,6 +319,7 @@ def make_app_user_kwargs() -> dict[str, Any]:
 # BetBank
 # ---------------------------------------------------------------------------
 
+
 def make_bet_bank_kwargs(user_id: uuid.UUID) -> dict[str, Any]:
     return dict(
         user_id=user_id,
@@ -308,7 +340,7 @@ ADMIN_HEADERS = {"X-Requested-With": "XMLHttpRequest", "Content-Type": "applicat
 
 # Bet creation
 BET_CREATE_BODY = {
-    "bank_id": 1,           # will be set dynamically in tests
+    "bank_id": 1,  # will be set dynamically in tests
     "game_pk": SCHEDULED_GAME_PK,
     "bet_type": "moneyline",
     "bet_side": "home",
@@ -326,7 +358,7 @@ BET_BANK_CREATE_BODY = {
 
 # BetPeriod creation
 BET_PERIOD_CREATE_BODY = {
-    "bank_id": 1,           # will be set dynamically in tests
+    "bank_id": 1,  # will be set dynamically in tests
     "year": 2025,
     "month": 9,
 }

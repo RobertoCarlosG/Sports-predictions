@@ -34,7 +34,7 @@ async def get_cached_era(
 async def put_cached_era(
     session: AsyncSession, kind: str, ref_id: int, season: str, era: float
 ) -> None:
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.UTC)
     row = (
         await session.execute(
             select(PitchingEraCache).where(
@@ -89,7 +89,10 @@ async def get_team_pitching_era(
     *,
     commit_before_mlb: bool = False,
 ) -> float:
-    """ERA colectivo del pitcheo del equipo (Stats API no separa solo bullpen en un solo campo fiable)."""
+    """ERA colectivo del pitcheo del equipo.
+
+    Stats API no separa solo bullpen en un solo campo fiable.
+    """
     c = await get_cached_era(session, KIND_TEAM, team_id, season)
     if c is not None:
         return c
@@ -135,10 +138,6 @@ async def game_pitching_feature_values(
         if a_s is not None
         else DEFAULT_ERA
     )
-    h_be = await get_team_pitching_era(
-        session, mlb, home_team_id, season, commit_before_mlb=c
-    )
-    a_be = await get_team_pitching_era(
-        session, mlb, away_team_id, season, commit_before_mlb=c
-    )
+    h_be = await get_team_pitching_era(session, mlb, home_team_id, season, commit_before_mlb=c)
+    a_be = await get_team_pitching_era(session, mlb, away_team_id, season, commit_before_mlb=c)
     return h_se, a_se, h_be, a_be

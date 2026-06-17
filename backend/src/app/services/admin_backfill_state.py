@@ -1,4 +1,5 @@
 """Estado de la importación MLB por fechas (backfill) ejecutada en BackgroundTasks para la UI."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -37,7 +38,10 @@ def backfill_is_busy(app: FastAPI) -> bool:
 
 
 def prepare_backfill_job(app: FastAPI, start: dt.date, end: dt.date) -> str:
-    """Registra la tarea antes de encolarla para que el cliente reciba job_id en la misma respuesta POST."""
+    """Registra la tarea antes de encolarla.
+
+    Así el cliente recibe job_id en la misma respuesta POST.
+    """
     dates = _daterange(start, end)
     jid = str(uuid.uuid4())
     app.state.backfill_job = {

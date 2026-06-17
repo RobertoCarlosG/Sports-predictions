@@ -9,23 +9,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps_rate_limit import rate_limit_public_write
+from app.api.routes.games import game_detail_response
 from app.core.config import settings
 from app.data.mlb_league_division import MLB_LEAGUE_STRUCTURE
 from app.db.session import get_db
 from app.models.mlb import Game, Team
 from app.schemas.games import GameDetailResponse, TeamOut
-from app.schemas.team_display import team_out_from_model
 from app.schemas.history import (
     HistoryGameOut,
     MlbSyncGameBody,
     MlbSyncRangeBody,
     MlbSyncRangeResponse,
 )
+from app.schemas.team_display import team_out_from_model
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_history import compute_winner_team_id, query_mlb_history
 from app.services.mlb_sync import sync_games_for_date, sync_single_game
 from app.services.pipeline_hooks import refresh_prediction_cache_for_games
-from app.api.routes.games import game_detail_response
 
 router = APIRouter(prefix="/mlb", tags=["mlb"])
 
@@ -95,7 +95,11 @@ async def list_mlb_history(
     return out
 
 
-@router.post("/sync-range", response_model=MlbSyncRangeResponse, dependencies=[Depends(rate_limit_public_write)])
+@router.post(
+    "/sync-range",
+    response_model=MlbSyncRangeResponse,
+    dependencies=[Depends(rate_limit_public_write)],
+)
 async def sync_mlb_date_range(
     body: MlbSyncRangeBody,
     request: Request,
@@ -150,7 +154,11 @@ async def sync_mlb_date_range(
     )
 
 
-@router.post("/games/{game_pk}/sync", response_model=GameDetailResponse, dependencies=[Depends(rate_limit_public_write)])
+@router.post(
+    "/games/{game_pk}/sync",
+    response_model=GameDetailResponse,
+    dependencies=[Depends(rate_limit_public_write)],
+)
 async def sync_mlb_single_game(
     game_pk: int,
     body: MlbSyncGameBody,

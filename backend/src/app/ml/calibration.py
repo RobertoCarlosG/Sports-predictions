@@ -23,8 +23,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
     from sklearn.isotonic import IsotonicRegression
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ def _calibration_path(model_version: str) -> Path:
 def fit_calibration_from_arrays(
     probs: NDArray[np.float64],
     outcomes: NDArray[np.int_],
-) -> "IsotonicRegression":
+) -> IsotonicRegression:
     """Fit an isotonic regression calibrator on (raw_prob, actual_outcome) pairs.
 
     Returns a fitted IsotonicRegression that maps [0,1] → [0,1].
@@ -56,7 +56,8 @@ def fit_calibration_from_arrays(
     cal_preds = ir.predict(probs)
     cal_acc = float(np.mean((cal_preds >= 0.5).astype(int) == outcomes))
     log.info(
-        "calibration fit: n=%d | base acc=%.4f | calibrated acc=%.4f | mean raw=%.4f | mean cal=%.4f",
+        "calibration fit: n=%d | base acc=%.4f | calibrated acc=%.4f | "
+        "mean raw=%.4f | mean cal=%.4f",
         len(probs),
         base_acc,
         cal_acc,
@@ -67,9 +68,9 @@ def fit_calibration_from_arrays(
 
 
 async def fit_calibration_from_db(
-    session: "AsyncSession",
+    session: AsyncSession,
     model_version: str,
-) -> tuple["IsotonicRegression", int]:
+) -> tuple[IsotonicRegression, int]:
     """Load evaluated predictions from DB and fit a calibrator.
 
     Returns (calibrator, n_samples).
@@ -91,14 +92,12 @@ async def fit_calibration_from_db(
         )
 
     probs = np.array([r.home_win_probability for r in rows], dtype=np.float64)
-    outcomes = np.array(
-        [1 if r.actual_winner == "home" else 0 for r in rows], dtype=np.int_
-    )
+    outcomes = np.array([1 if r.actual_winner == "home" else 0 for r in rows], dtype=np.int_)
     calibrator = fit_calibration_from_arrays(probs, outcomes)
     return calibrator, len(rows)
 
 
-def save_calibration(model_version: str, calibrator: "IsotonicRegression") -> Path:
+def save_calibration(model_version: str, calibrator: IsotonicRegression) -> Path:
     path = _calibration_path(model_version)
     path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(calibrator, path)
@@ -106,7 +105,7 @@ def save_calibration(model_version: str, calibrator: "IsotonicRegression") -> Pa
     return path
 
 
-def load_calibration(model_version: str) -> "IsotonicRegression | None":
+def load_calibration(model_version: str) -> IsotonicRegression | None:
     """Load calibrator for a model version. Returns None if not found."""
     base = model_version.split("@")[0]
     path = _calibration_path(base)
@@ -123,7 +122,7 @@ def load_calibration(model_version: str) -> "IsotonicRegression | None":
         return None
 
 
-def apply_calibration(raw_prob: float, calibrator: "IsotonicRegression | None") -> float:
+def apply_calibration(raw_prob: float, calibrator: IsotonicRegression | None) -> float:
     """Apply calibration if available; otherwise return raw probability unchanged."""
     if calibrator is None:
         return raw_prob

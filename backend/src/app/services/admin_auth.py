@@ -4,6 +4,7 @@ Autenticación del panel de operaciones (tabla admin_users).
 El JWT se entrega al cliente en una cookie HttpOnly desde la ruta HTTP de login;
 este módulo solo valida credenciales y genera el token. Ver docs/HTTPONLY_AUTH.md.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select

@@ -67,11 +67,21 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument(
         "--season",
         default=None,
-        help="Season to rebuild e.g. 2026. 'all' or omit = every season. Ignored when --start/--end are set.",
+        help=(
+            "Season to rebuild e.g. 2026. 'all' or omit = every season. "
+            "Ignored when --start/--end are set."
+        ),
     )
     p.add_argument("--window", type=int, default=10, help="Rolling games per team (default 10)")
-    p.add_argument("--start", default=None, metavar="YYYY-MM-DD", help="Start date (inclusive). Requires --end.")
-    p.add_argument("--end", default=None, metavar="YYYY-MM-DD", help="End date (inclusive). Requires --start.")
+    p.add_argument(
+        "--start",
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="Start date (inclusive). Requires --end.",
+    )
+    p.add_argument(
+        "--end", default=None, metavar="YYYY-MM-DD", help="End date (inclusive). Requires --start."
+    )
     p.add_argument(
         "--last-days",
         type=int,

@@ -48,6 +48,17 @@ class AdminAuthReadyResponse(BaseModel):
     admin_table_reachable: bool = False
 
 
+class MlbDailySnapshotBody(BaseModel):
+    low_memory: bool = Field(
+        default=True,
+        description=(
+            "Modo recomendado (por defecto): procesa los snapshots en streaming (yield_per=100) "
+            "para no retener toda la temporada en memoria a la vez. Desactívalo solo para forzar "
+            "la carga completa con .all() en entornos con RAM de sobra."
+        ),
+    )
+
+
 class RebuildSnapshotsBody(BaseModel):
     season: str | None = None
     window: int = Field(default=10, ge=1, le=50)
@@ -68,7 +79,10 @@ class TrainModelBody(BaseModel):
         default=16,
         ge=2,
         le=48,
-        description="Profundidad máxima del bosque (subir si P(home) sale casi plana y hay datos variados)",
+        description=(
+            "Profundidad máxima del bosque (subir si P(home) sale casi plana "
+            "y hay datos variados)"
+        ),
     )
     min_samples_leaf: int = Field(
         default=2,
@@ -102,18 +116,22 @@ class TrainResultResponse(BaseModel):
 
 class PredictionMetricsResponse(BaseModel):
     """Métricas de rendimiento del sistema de predicciones."""
-    
+
     total_predictions: int = Field(description="Total de predicciones hechas")
-    total_evaluated: int = Field(description="Total de predicciones evaluadas contra resultados reales")
+    total_evaluated: int = Field(
+        description="Total de predicciones evaluadas contra resultados reales"
+    )
     total_correct: int = Field(description="Total de predicciones correctas")
     total_incorrect: int = Field(description="Total de predicciones incorrectas")
-    accuracy_percentage: float | None = Field(description="Porcentaje de acierto (0-100)", default=None)
+    accuracy_percentage: float | None = Field(
+        description="Porcentaje de acierto (0-100)", default=None
+    )
     pending_evaluation: int = Field(description="Predicciones pendientes de evaluar")
 
 
 class PredictionEvaluationItem(BaseModel):
     """Item individual de evaluación de predicción."""
-    
+
     game_pk: int
     game_date: str
     home_team_name: str
@@ -129,7 +147,7 @@ class PredictionEvaluationItem(BaseModel):
 
 class PredictionEvaluationsResponse(BaseModel):
     """Lista de predicciones evaluadas con detalles."""
-    
+
     items: list[PredictionEvaluationItem]
     total: int
 
