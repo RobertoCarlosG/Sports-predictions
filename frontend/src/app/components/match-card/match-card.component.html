@@ -7,7 +7,7 @@
       <div class="row-top">
         <app-status-badge [apiStatus]="game.status" />
         <app-weather-chip [weather]="weather" />
-        @if (showEvaluatedPick) {
+        @if (showResultBadge) {
           <div class="prediction-badge" [class.correct]="predictionCorrect" [class.incorrect]="predictionIncorrect">
             <mat-icon>{{ predictionCorrect ? 'check_circle' : 'cancel' }}</mat-icon>
             <span>{{ predictionCorrect ? 'Acierto' : 'Fallo' }}</span>
@@ -64,14 +64,23 @@
             <span class="runs-ou-sep" aria-hidden="true">·</span>
             <span class="runs-ou-ou">O/U {{ ouLineDisplay }}</span>
           </div>
-          <span
-            class="runs-ou-lean"
-            [class.lean-over]="runsOuTendency === 'over'"
-            [class.lean-under]="runsOuTendency === 'under'"
-            [class.lean-push]="runsOuTendency === 'push'"
-          >
-            {{ runsOuTendencyLabel }}
-          </span>
+          <div class="runs-ou-bottom">
+            <span
+              class="runs-ou-lean"
+              [class.lean-over]="runsOuTendency === 'over'"
+              [class.lean-under]="runsOuTendency === 'under'"
+              [class.lean-push]="runsOuTendency === 'push'"
+            >
+              {{ runsOuTendencyLabel }}
+            </span>
+            @if (showOuBadge) {
+              <mat-icon
+                class="ou-result-icon"
+                [class.correct]="ouIsCorrect === true"
+                [class.incorrect]="ouIsCorrect === false"
+              >{{ ouIsCorrect ? 'check_circle' : 'cancel' }}</mat-icon>
+            }
+          </div>
         </div>
       }
     </mat-card-content>

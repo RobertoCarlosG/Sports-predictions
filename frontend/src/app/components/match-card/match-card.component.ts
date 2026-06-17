@@ -91,8 +91,8 @@ export class MatchCardComponent {
   }
 
   /**
-   * Solo mostramos acierto/fallo y bloque de evaluación si hubo pick explícito.
-   * Sin `predicted_winner` el backend puede tener `is_correct`/`home_win_probability` incoherentes.
+   * Solo mostramos el bloque de evaluación detallado si hubo pick explícito del backend.
+   * Sin `predicted_winner` el campo `is_correct` puede no estar alineado con la probabilidad.
    */
   get showEvaluatedPick(): boolean {
     const pred = this.prediction;
@@ -103,12 +103,60 @@ export class MatchCardComponent {
     );
   }
 
+  /** Ganador real inferido a partir del marcador final. */
+  private get inferredActualWinner(): 'home' | 'away' | null {
+    if (!this.hasScore()) return null;
+    const g = this.game;
+    if ((g.home_score ?? 0) > (g.away_score ?? 0)) return 'home';
+    if ((g.away_score ?? 0) > (g.home_score ?? 0)) return 'away';
+    return null; // empate: no evaluamos
+  }
+
+  /**
+   * ¿Acertamos el resultado?
+   * Usa `is_correct` del backend si está disponible; si no, lo infiere de
+   * `home_win_probability` (> 0.5 → local) comparado con el marcador final.
+   */
+  get resultIsCorrect(): boolean | null {
+    const pred = this.prediction;
+    if (!pred || this.insufficientData) return null;
+    if (pred.is_correct != null) return pred.is_correct;
+    // Fallback: inferir de probabilidad + marcador
+    const actual = this.inferredActualWinner;
+    if (!actual) return null;
+    const ph = pred.home_win_probability;
+    const predicted = ph > 0.5 ? 'home' : ph < 0.5 ? 'away' : null;
+    if (!predicted) return null;
+    return predicted === actual;
+  }
+
+  /** Mostrar badge de resultado cuando el partido acabó y podemos evaluarlo. */
+  get showResultBadge(): boolean {
+    return this.resultIsCorrect != null;
+  }
+
   get predictionCorrect(): boolean {
-    return this.prediction?.is_correct === true;
+    return this.resultIsCorrect === true;
   }
 
   get predictionIncorrect(): boolean {
-    return this.prediction?.is_correct === false;
+    return this.resultIsCorrect === false;
+  }
+
+  /** ¿Acertamos el O/U? Compara la tendencia del modelo contra el total real de carreras. */
+  get ouIsCorrect(): boolean | null {
+    if (!this.hasScore() || !this.hasRunsLine || !this.prediction) return null;
+    const predicted = this.runsOuTendency;
+    if (predicted === 'push') return null;
+    const total = (this.game.home_score ?? 0) + (this.game.away_score ?? 0);
+    const line = this.prediction.over_under_line;
+    if (total === line) return null; // push real
+    const actual = total > line ? 'over' : 'under';
+    return predicted === actual;
+  }
+
+  get showOuBadge(): boolean {
+    return this.ouIsCorrect != null;
   }
 
   get predictedWinnerLabel(): string {
