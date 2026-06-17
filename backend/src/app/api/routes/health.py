@@ -9,7 +9,10 @@ router = APIRouter()
 
 @router.get("/")
 async def root(request: Request) -> dict[str, object]:
-    """Evita 404 en probes que piden `/`; indica si el modelo ML está cargado (sin exponer secretos)."""
+    """Evita 404 en probes que piden `/`.
+
+    Indica si el modelo ML está cargado (sin exponer secretos).
+    """
     loaded = get_prediction_service_optional(request) is not None
     ver = getattr(request.app.state, "active_model_version", "") or None
     return {

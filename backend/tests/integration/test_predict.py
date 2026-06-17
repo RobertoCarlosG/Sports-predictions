@@ -3,18 +3,18 @@
 Tests both RF and XGBoost prediction paths using real model files
 and real DB data — no MagicMock.
 """
+
 from __future__ import annotations
 
-import pytest
 from httpx import AsyncClient
 
 from tests.integration.mock_data import FINAL_HOME_WIN_PK, SCHEDULED_GAME_PK
 from tests.integration.mock_data_fail import NONEXISTENT_GAME_PK
 
-
 # ---------------------------------------------------------------------------
 # GET /api/v1/predict/{game_pk} — RF model (default)
 # ---------------------------------------------------------------------------
+
 
 async def test_predict_rf_returns_valid_probability(client: AsyncClient) -> None:
     r = await client.get(f"/api/v1/predict/{SCHEDULED_GAME_PK}?model=rf")
@@ -69,6 +69,7 @@ async def test_predict_second_call_returns_cached_response(client: AsyncClient) 
 # GET /api/v1/predict/{game_pk} — XGBoost model
 # ---------------------------------------------------------------------------
 
+
 async def test_predict_xgb_returns_valid_probability(client: AsyncClient) -> None:
     r = await client.get(f"/api/v1/predict/{SCHEDULED_GAME_PK}?model=xgb")
     assert r.status_code == 200
@@ -95,6 +96,7 @@ async def test_predict_xgb_model_version_differs_from_rf(client: AsyncClient) ->
 # GET /api/v1/predict/{game_pk} — failure cases
 # ---------------------------------------------------------------------------
 
+
 async def test_predict_game_not_found_returns_404(client: AsyncClient) -> None:
     r = await client.get(f"/api/v1/predict/{NONEXISTENT_GAME_PK}?model=rf")
     assert r.status_code == 404
@@ -112,6 +114,7 @@ async def test_predict_invalid_model_param_returns_422(client: AsyncClient) -> N
 
 async def test_predict_xgb_unavailable_when_not_loaded(client: AsyncClient) -> None:
     from app.main import app
+
     orig = app.state.prediction_service_xgb
     app.state.prediction_service_xgb = None
     try:
@@ -125,6 +128,7 @@ async def test_predict_xgb_unavailable_when_not_loaded(client: AsyncClient) -> N
 # ---------------------------------------------------------------------------
 # POST /api/v1/predict/{game_pk}/refresh
 # ---------------------------------------------------------------------------
+
 
 async def test_refresh_prediction_rf_returns_200(client: AsyncClient) -> None:
     r = await client.post(f"/api/v1/predict/{SCHEDULED_GAME_PK}/refresh?model=rf")
@@ -147,6 +151,7 @@ async def test_refresh_prediction_game_not_found_returns_404(client: AsyncClient
 
 async def test_refresh_prediction_xgb_unavailable_returns_503(client: AsyncClient) -> None:
     from app.main import app
+
     orig = app.state.prediction_service_xgb
     app.state.prediction_service_xgb = None
     try:

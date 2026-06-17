@@ -3,9 +3,9 @@
 Uses real DB data seeded from mock_data.py — no MagicMock.
 MLB API sync calls are not triggered (sync=False or DB already has data).
 """
+
 from __future__ import annotations
 
-import pytest
 from httpx import AsyncClient
 
 from tests.integration.mock_data import (
@@ -14,10 +14,10 @@ from tests.integration.mock_data import (
 )
 from tests.integration.mock_data_fail import NONEXISTENT_GAME_PK
 
-
 # ---------------------------------------------------------------------------
 # GET /api/v1/games/{game_pk} — success cases
 # ---------------------------------------------------------------------------
+
 
 async def test_get_game_by_pk_returns_scheduled_game(client: AsyncClient) -> None:
     r = await client.get(f"/api/v1/games/{SCHEDULED_GAME_PK}")
@@ -72,6 +72,7 @@ async def test_get_game_response_includes_venue(client: AsyncClient) -> None:
 # GET /api/v1/games/{game_pk} — failure cases
 # ---------------------------------------------------------------------------
 
+
 async def test_get_game_not_found_returns_404(client: AsyncClient) -> None:
     r = await client.get(f"/api/v1/games/{NONEXISTENT_GAME_PK}")
     assert r.status_code == 404
@@ -86,8 +87,11 @@ async def test_get_game_invalid_pk_type_returns_422(client: AsyncClient) -> None
 # GET /api/v1/games — list (no sync, just DB data)
 # ---------------------------------------------------------------------------
 
+
 async def test_games_list_without_sync_returns_seeded_data(client: AsyncClient) -> None:
-    r = await client.get("/api/v1/games", params={"date": "2025-09-15", "sync": False, "include_predictions": False})
+    r = await client.get(
+        "/api/v1/games", params={"date": "2025-09-15", "sync": False, "include_predictions": False}
+    )
     assert r.status_code == 200
     body = r.json()
     assert "games" in body
@@ -95,6 +99,28 @@ async def test_games_list_without_sync_returns_seeded_data(client: AsyncClient) 
     # The scheduled game is on 2025-09-15
     game_pks = [g["game_pk"] for g in body["games"]]
     assert SCHEDULED_GAME_PK in game_pks
+
+
+async def test_detail_returns_lineups_and_boxscore(client: AsyncClient) -> None:
+    """El endpoint de detalle sí debe serializar lineups/boxscore completos."""
+    r = await client.get(f"/api/v1/games/{SCHEDULED_GAME_PK}")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["lineups"] == {"home": ["a", "b"], "away": ["c", "d"]}
+    assert body["boxscore"] == {"teams": {"home": {}, "away": {}}}
+
+
+async def test_list_defers_lineups_and_boxscore(client: AsyncClient) -> None:
+    """El listado debe omitir lineups/boxscore (diferidos) para aligerar el payload."""
+    r = await client.get(
+        "/api/v1/games",
+        params={"date": "2025-09-15", "sync": False, "include_predictions": False},
+    )
+    assert r.status_code == 200
+    games = {g["game_pk"]: g for g in r.json()["games"]}
+    assert SCHEDULED_GAME_PK in games
+    assert games[SCHEDULED_GAME_PK]["lineups"] is None
+    assert games[SCHEDULED_GAME_PK]["boxscore"] is None
 
 
 async def test_games_list_missing_date_returns_422(client: AsyncClient) -> None:

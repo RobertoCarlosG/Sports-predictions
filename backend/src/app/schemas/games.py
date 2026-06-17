@@ -62,7 +62,8 @@ class GameDetailResponse(GameSummaryResponse):
     lineups: dict[str, Any] | None
     boxscore: dict[str, Any] | None
     weather: dict[str, Any] | None
-    # Si ``include_predictions`` en GET /games o /games/{pk}; null = sin estimación o modelo no cargado.
+    # Si ``include_predictions`` en GET /games o /games/{pk};
+    # null = sin estimación o modelo no cargado.
     prediction: PredictionResponse | None = None
 
 

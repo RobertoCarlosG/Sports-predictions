@@ -96,12 +96,14 @@ async def _load_xy(
 
 
 def _log_feature_health(x: NDArray[np.float64]) -> None:
-    """Si casi no hay varianza en X, el modelo tenderá a ~P(victoria local) constante (p. ej. ~48 %)."""
+    """Si casi no hay varianza en X, el modelo tenderá a ~P(victoria local)
+    constante (p. ej. ~48 %)."""
     x12 = x[:, :12] if x.shape[1] > 12 else x
     std = np.std(x12, axis=0)
     nz = np.count_nonzero(std > 1e-6)
     log.info(
-        "features: rows=%d cols=%d (incl. defaults_injected) | cols 1-12: std>1e-6: %d/12 | mean std=%.4f",
+        "features: rows=%d cols=%d (incl. defaults_injected) | "
+        "cols 1-12: std>1e-6: %d/12 | mean std=%.4f",
         x.shape[0],
         x.shape[1],
         nz,
@@ -207,7 +209,8 @@ async def _async_main(args: argparse.Namespace) -> None:
     except RuntimeError as e:
         if val_from is not None:
             log.warning(
-                "No se pudo usar val_from=%s (%s). Se aplica partición 80/20 temporal (orden de fechas).",
+                "No se pudo usar val_from=%s (%s). Se aplica partición 80/20 "
+                "temporal (orden de fechas).",
                 val_from,
                 e,
             )
@@ -238,7 +241,8 @@ async def _async_main(args: argparse.Namespace) -> None:
     elif args.algorithm == "xgb":
         clf, reg = _build_xgb(args)
         log.info(
-            "XGBoost: trees=%d max_depth=%d lr=%.4f subsample=%.2f colsample=%.2f min_child_weight=%d",
+            "XGBoost: trees=%d max_depth=%d lr=%.4f subsample=%.2f "
+            "colsample=%.2f min_child_weight=%d",
             args.trees,
             args.max_depth,
             args.learning_rate,
@@ -296,7 +300,12 @@ async def _async_main(args: argparse.Namespace) -> None:
         "training_meta": json.dumps(meta),
     }
     joblib.dump(bundle, out)
-    log.info("wrote %s  [algorithm=%s version=%s]", out.resolve(), args.algorithm, args.model_version)
+    log.info(
+        "wrote %s  [algorithm=%s version=%s]",
+        out.resolve(),  # noqa: ASYNC240  # cheap one-shot local FS resolve
+        args.algorithm,
+        args.model_version,
+    )
 
     if getattr(args, "calibrate", False):
         from app.ml.calibration import fit_calibration_from_arrays, save_calibration
@@ -329,7 +338,10 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument(
         "--output",
         default=None,
-        help="Output joblib path (default: artifacts/model.joblib for rf, artifacts/model_xgb.joblib for xgb)",
+        help=(
+            "Output joblib path (default: artifacts/model.joblib for rf, "
+            "artifacts/model_xgb.joblib for xgb)"
+        ),
     )
     p.add_argument("--season", default=None, help="Restrict to season e.g. 2025")
     p.add_argument(

@@ -260,11 +260,12 @@ export class AdminApiService {
 
   /**
    * Mismo ETL que el job diario (hoy+mañana UTC): sync MLB, indicadores, regenera predicciones.
+   * @param lowMemory Usa streaming (yield_per=100) para reducir pico de RAM — recomendado en Render free.
    */
-  runMlbDailySnapshot(): Observable<MessageResponse> {
+  runMlbDailySnapshot(lowMemory = false): Observable<MessageResponse> {
     return this.http.post<MessageResponse>(
       `${this.base}/pipeline/mlb-daily-snapshot`,
-      {},
+      { low_memory: lowMemory },
       this.opts(),
     );
   }

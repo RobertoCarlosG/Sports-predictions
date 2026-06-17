@@ -115,8 +115,9 @@ async def record_model_load(
     file_mtime: dt.datetime | None = None
     file_size: int | None = None
     model_path: Path | None = getattr(svc, "_model_path", None)
-    if model_path is not None and model_path.is_file():
-        st = model_path.stat()
+    # Cheap one-shot local FS stat; anyio offload adds no value here.
+    if model_path is not None and model_path.is_file():  # noqa: ASYNC240
+        st = model_path.stat()  # noqa: ASYNC240
         file_mtime = dt.datetime.fromtimestamp(st.st_mtime, tz=dt.UTC)
         file_size = int(st.st_size)
 

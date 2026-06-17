@@ -12,7 +12,9 @@ OUUserOutcome = Literal["win", "loss", "push"]
 
 
 class BacktestSummary(BaseModel):
-    n_games: int = Field(description="Partidos en el universo filtrado (con ambos mercados o ML evaluado)")
+    n_games: int = Field(
+        description="Partidos en el universo filtrado (con ambos mercados o ML evaluado)"
+    )
 
     ml_wins: int
     ml_losses: int
@@ -29,7 +31,9 @@ class BacktestSummary(BaseModel):
         ),
     )
     total_decided_picks: int = Field(
-        description="2·n − ou_picks excl. push (cada juego: 1 pick ML + 0 o 1 pick O/U si no hubo push)"
+        description=(
+            "2·n − ou_picks excl. push (cada juego: 1 pick ML + 0 o 1 pick " "O/U si no hubo push)"
+        )
     )
     total_correct_picks: int = Field(
         description="Aciertos ML + aciertos O/U (pushes de O/U no suman al numerador)"
@@ -70,7 +74,9 @@ class BacktestGameRow(BaseModel):
     )
 
     success_count: int = Field(
-        description="0–2: aciertos de mercado (ML + O/U; push O/U no suma 1 de 2 de forma de acierto)"
+        description=(
+            "0–2: aciertos de mercado (ML + O/U; push O/U no suma 1 de 2 de " "forma de acierto)"
+        )
     )
     success_label: str = Field(
         description='Texto p. ej. "2/2 Aciertos", "1/2", "0/2", "1/1" si push en O/U'

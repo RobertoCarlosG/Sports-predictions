@@ -3,11 +3,10 @@
 All tests use the user_client fixture (pre-authenticated AppUser).
 No MagicMock — real DB objects, real JWT auth.
 """
+
 from __future__ import annotations
 
-import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.integration.mock_data import (
     APP_USER_UUID,
@@ -15,7 +14,6 @@ from tests.integration.mock_data import (
     BET_CREATE_BODY,
     BET_PERIOD_CREATE_BODY,
     SCHEDULED_GAME_PK,
-    make_bet_bank_kwargs,
 )
 from tests.integration.mock_data_fail import (
     BET_BANK_CURRENCY_TOO_LONG,
@@ -45,8 +43,11 @@ USER_HEADERS = {"X-Requested-With": "XMLHttpRequest", "Content-Type": "applicati
 # Helper: create a bank and period, return (bank_id, period_id)
 # ---------------------------------------------------------------------------
 
+
 async def _create_bank(user_client: AsyncClient) -> int:
-    r = await user_client.post("/api/v1/bets/banks", json=BET_BANK_CREATE_BODY, headers=USER_HEADERS)
+    r = await user_client.post(
+        "/api/v1/bets/banks", json=BET_BANK_CREATE_BODY, headers=USER_HEADERS
+    )
     assert r.status_code == 200, f"Bank creation failed: {r.text}"
     return r.json()["id"]
 
@@ -61,6 +62,7 @@ async def _create_period(user_client: AsyncClient, bank_id: int) -> int:
 # ---------------------------------------------------------------------------
 # GET /api/v1/bets/banks
 # ---------------------------------------------------------------------------
+
 
 async def test_get_banks_returns_empty_list_initially(user_client: AsyncClient) -> None:
     r = await user_client.get("/api/v1/bets/banks")
@@ -79,8 +81,11 @@ async def test_get_banks_unauthenticated_returns_401_or_503(client: AsyncClient)
 # POST /api/v1/bets/banks
 # ---------------------------------------------------------------------------
 
+
 async def test_create_bank_success(user_client: AsyncClient) -> None:
-    r = await user_client.post("/api/v1/bets/banks", json=BET_BANK_CREATE_BODY, headers=USER_HEADERS)
+    r = await user_client.post(
+        "/api/v1/bets/banks", json=BET_BANK_CREATE_BODY, headers=USER_HEADERS
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["name"] == BET_BANK_CREATE_BODY["name"]
@@ -98,17 +103,23 @@ async def test_create_bank_then_appears_in_list(user_client: AsyncClient) -> Non
 
 
 async def test_create_bank_zero_amount_returns_422(user_client: AsyncClient) -> None:
-    r = await user_client.post("/api/v1/bets/banks", json=BET_BANK_ZERO_AMOUNT, headers=USER_HEADERS)
+    r = await user_client.post(
+        "/api/v1/bets/banks", json=BET_BANK_ZERO_AMOUNT, headers=USER_HEADERS
+    )
     assert r.status_code == 422
 
 
 async def test_create_bank_negative_amount_returns_422(user_client: AsyncClient) -> None:
-    r = await user_client.post("/api/v1/bets/banks", json=BET_BANK_NEGATIVE_AMOUNT, headers=USER_HEADERS)
+    r = await user_client.post(
+        "/api/v1/bets/banks", json=BET_BANK_NEGATIVE_AMOUNT, headers=USER_HEADERS
+    )
     assert r.status_code == 422
 
 
 async def test_create_bank_missing_name_returns_422(user_client: AsyncClient) -> None:
-    r = await user_client.post("/api/v1/bets/banks", json=BET_BANK_MISSING_NAME, headers=USER_HEADERS)
+    r = await user_client.post(
+        "/api/v1/bets/banks", json=BET_BANK_MISSING_NAME, headers=USER_HEADERS
+    )
     assert r.status_code == 422
 
 
@@ -118,13 +129,16 @@ async def test_create_bank_empty_name_returns_422(user_client: AsyncClient) -> N
 
 
 async def test_create_bank_currency_too_long_returns_422(user_client: AsyncClient) -> None:
-    r = await user_client.post("/api/v1/bets/banks", json=BET_BANK_CURRENCY_TOO_LONG, headers=USER_HEADERS)
+    r = await user_client.post(
+        "/api/v1/bets/banks", json=BET_BANK_CURRENCY_TOO_LONG, headers=USER_HEADERS
+    )
     assert r.status_code == 422
 
 
 # ---------------------------------------------------------------------------
 # PUT /api/v1/bets/banks/{bank_id}
 # ---------------------------------------------------------------------------
+
 
 async def test_update_bank_name(user_client: AsyncClient) -> None:
     bank_id = await _create_bank(user_client)
@@ -161,6 +175,7 @@ async def test_update_bank_not_found_returns_404(user_client: AsyncClient) -> No
 # GET /api/v1/bets/periods
 # ---------------------------------------------------------------------------
 
+
 async def test_get_periods_returns_empty_initially(user_client: AsyncClient) -> None:
     r = await user_client.get("/api/v1/bets/periods")
     assert r.status_code == 200
@@ -170,6 +185,7 @@ async def test_get_periods_returns_empty_initially(user_client: AsyncClient) -> 
 # ---------------------------------------------------------------------------
 # POST /api/v1/bets/periods
 # ---------------------------------------------------------------------------
+
 
 async def test_create_period_success(user_client: AsyncClient) -> None:
     bank_id = await _create_bank(user_client)
@@ -183,33 +199,44 @@ async def test_create_period_success(user_client: AsyncClient) -> None:
 
 
 async def test_create_period_month_zero_returns_422(user_client: AsyncClient) -> None:
-    r = await user_client.post("/api/v1/bets/periods", json=BET_PERIOD_MONTH_ZERO, headers=USER_HEADERS)
+    r = await user_client.post(
+        "/api/v1/bets/periods", json=BET_PERIOD_MONTH_ZERO, headers=USER_HEADERS
+    )
     assert r.status_code == 422
 
 
 async def test_create_period_month_13_returns_422(user_client: AsyncClient) -> None:
-    r = await user_client.post("/api/v1/bets/periods", json=BET_PERIOD_MONTH_13, headers=USER_HEADERS)
+    r = await user_client.post(
+        "/api/v1/bets/periods", json=BET_PERIOD_MONTH_13, headers=USER_HEADERS
+    )
     assert r.status_code == 422
 
 
 async def test_create_period_year_too_low_returns_422(user_client: AsyncClient) -> None:
-    r = await user_client.post("/api/v1/bets/periods", json=BET_PERIOD_YEAR_TOO_LOW, headers=USER_HEADERS)
+    r = await user_client.post(
+        "/api/v1/bets/periods", json=BET_PERIOD_YEAR_TOO_LOW, headers=USER_HEADERS
+    )
     assert r.status_code == 422
 
 
 async def test_create_period_year_too_high_returns_422(user_client: AsyncClient) -> None:
-    r = await user_client.post("/api/v1/bets/periods", json=BET_PERIOD_YEAR_TOO_HIGH, headers=USER_HEADERS)
+    r = await user_client.post(
+        "/api/v1/bets/periods", json=BET_PERIOD_YEAR_TOO_HIGH, headers=USER_HEADERS
+    )
     assert r.status_code == 422
 
 
 async def test_create_period_nonexistent_bank_returns_404(user_client: AsyncClient) -> None:
-    r = await user_client.post("/api/v1/bets/periods", json=BET_PERIOD_NONEXISTENT_BANK, headers=USER_HEADERS)
+    r = await user_client.post(
+        "/api/v1/bets/periods", json=BET_PERIOD_NONEXISTENT_BANK, headers=USER_HEADERS
+    )
     assert r.status_code == 404
 
 
 # ---------------------------------------------------------------------------
 # POST /api/v1/bets/periods/{period_id}/close
 # ---------------------------------------------------------------------------
+
 
 async def test_close_period_success(user_client: AsyncClient) -> None:
     bank_id = await _create_bank(user_client)
@@ -228,6 +255,7 @@ async def test_close_period_not_found_returns_404(user_client: AsyncClient) -> N
 # GET /api/v1/bets/periods/{period_id}/stats
 # ---------------------------------------------------------------------------
 
+
 async def test_period_stats_returns_zeros_for_new_period(user_client: AsyncClient) -> None:
     bank_id = await _create_bank(user_client)
     period_id = await _create_period(user_client, bank_id)
@@ -241,6 +269,7 @@ async def test_period_stats_returns_zeros_for_new_period(user_client: AsyncClien
 # ---------------------------------------------------------------------------
 # POST /api/v1/bets — create bet
 # ---------------------------------------------------------------------------
+
 
 async def test_create_bet_success(user_client: AsyncClient) -> None:
     bank_id = await _create_bank(user_client)
@@ -297,7 +326,9 @@ async def test_create_bet_invalid_bet_side_returns_422(user_client: AsyncClient)
 
 
 async def test_create_bet_missing_fields_returns_422(user_client: AsyncClient) -> None:
-    r = await user_client.post("/api/v1/bets", json=BET_MISSING_REQUIRED_FIELDS, headers=USER_HEADERS)
+    r = await user_client.post(
+        "/api/v1/bets", json=BET_MISSING_REQUIRED_FIELDS, headers=USER_HEADERS
+    )
     assert r.status_code == 422
 
 
@@ -317,6 +348,7 @@ async def test_create_bet_nonexistent_bank_returns_404(user_client: AsyncClient)
 # ---------------------------------------------------------------------------
 # GET /api/v1/bets
 # ---------------------------------------------------------------------------
+
 
 async def test_get_bets_returns_created_bets(user_client: AsyncClient) -> None:
     bank_id = await _create_bank(user_client)
@@ -339,6 +371,7 @@ async def test_get_bets_unauthenticated_returns_401_or_503(client: AsyncClient) 
 # GET /api/v1/bets/{bet_id}
 # ---------------------------------------------------------------------------
 
+
 async def test_get_bet_by_id(user_client: AsyncClient) -> None:
     bank_id = await _create_bank(user_client)
     await _create_period(user_client, bank_id)
@@ -360,6 +393,7 @@ async def test_get_bet_not_found_returns_404(user_client: AsyncClient) -> None:
 # PATCH /api/v1/bets/{bet_id}
 # ---------------------------------------------------------------------------
 
+
 async def test_patch_bet_notes(user_client: AsyncClient) -> None:
     bank_id = await _create_bank(user_client)
     await _create_period(user_client, bank_id)
@@ -367,7 +401,9 @@ async def test_patch_bet_notes(user_client: AsyncClient) -> None:
     create_resp = await user_client.post("/api/v1/bets", json=body, headers=USER_HEADERS)
     bet_id = create_resp.json()["id"]
 
-    r = await user_client.patch(f"/api/v1/bets/{bet_id}", json={"notes": "Updated note"}, headers=USER_HEADERS)
+    r = await user_client.patch(
+        f"/api/v1/bets/{bet_id}", json={"notes": "Updated note"}, headers=USER_HEADERS
+    )
     assert r.status_code == 200
     assert r.json()["notes"] == "Updated note"
 
@@ -379,7 +415,9 @@ async def test_patch_bet_cancel(user_client: AsyncClient) -> None:
     create_resp = await user_client.post("/api/v1/bets", json=body, headers=USER_HEADERS)
     bet_id = create_resp.json()["id"]
 
-    r = await user_client.patch(f"/api/v1/bets/{bet_id}", json={"status": "cancelled"}, headers=USER_HEADERS)
+    r = await user_client.patch(
+        f"/api/v1/bets/{bet_id}", json={"status": "cancelled"}, headers=USER_HEADERS
+    )
     assert r.status_code == 200
     assert r.json()["status"] == "cancelled"
 
@@ -387,6 +425,7 @@ async def test_patch_bet_cancel(user_client: AsyncClient) -> None:
 # ---------------------------------------------------------------------------
 # GET /api/v1/bets/stats
 # ---------------------------------------------------------------------------
+
 
 async def test_get_bets_stats_returns_structure(user_client: AsyncClient) -> None:
     r = await user_client.get("/api/v1/bets/stats")
@@ -400,6 +439,7 @@ async def test_get_bets_stats_returns_structure(user_client: AsyncClient) -> Non
 # ---------------------------------------------------------------------------
 # User auth — /api/v1/auth/*
 # ---------------------------------------------------------------------------
+
 
 async def test_auth_ready_returns_200(client: AsyncClient) -> None:
     r = await client.get("/api/v1/auth/ready")

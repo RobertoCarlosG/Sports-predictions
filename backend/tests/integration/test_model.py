@@ -1,7 +1,7 @@
 """Integration tests for /api/v1/model/info endpoint."""
+
 from __future__ import annotations
 
-import pytest
 from httpx import AsyncClient
 
 

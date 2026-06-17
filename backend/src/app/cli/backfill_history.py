@@ -4,7 +4,8 @@ Uso (desde el directorio `backend/`):
 
   uv run python -m app.cli.backfill_history --start 2025-03-20 --end 2025-04-20
 
-Opcional: `--sleep 0.5` entre días para no presionar la API; `--no-fetch-details` más rápido pero sin boxscore/lineups.
+Opcional: `--sleep 0.5` entre días para no presionar la API;
+`--no-fetch-details` más rápido pero sin boxscore/lineups.
 """
 
 from __future__ import annotations
@@ -13,7 +14,6 @@ import argparse
 import asyncio
 import datetime as dt
 import logging
-import sys
 from collections.abc import Awaitable, Callable
 from typing import Any
 

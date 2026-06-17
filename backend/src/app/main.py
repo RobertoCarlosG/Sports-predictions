@@ -1,7 +1,8 @@
 import asyncio
+import contextlib
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-import logging
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -29,7 +30,8 @@ log = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # Límites explícitos evitan abrir demasiados sockets simultáneos (en macOS puede aparecer Errno 49).
+    # Límites explícitos evitan abrir demasiados sockets simultáneos
+    # (en macOS puede aparecer Errno 49).
     app.state.http_client = httpx.AsyncClient(
         timeout=30.0,
         limits=httpx.Limits(max_connections=40, max_keepalive_connections=20),
@@ -39,14 +41,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.backfill_job = initial_backfill_job_state()
     model_path = resolve_model_path(settings.ml_model_path)
     if not model_path.is_file() and settings.ml_auto_synthetic_on_missing:
-        log.warning("ML model missing; training synthetic placeholder (ml_auto_synthetic_on_missing=true).")
+        log.warning(
+            "ML model missing; training synthetic placeholder (ml_auto_synthetic_on_missing=true)."
+        )
         ensure_model_exists(model_path)
 
     if settings.admin_jwt_secret.strip():
-        log.info("Panel Operaciones: ADMIN_JWT_SECRET está definido (longitud=%s).", len(settings.admin_jwt_secret))
+        log.info(
+            "Panel Operaciones: ADMIN_JWT_SECRET está definido (longitud=%s).",
+            len(settings.admin_jwt_secret),
+        )
     else:
         log.warning(
-            "Panel Operaciones: ADMIN_JWT_SECRET vacío — /api/v1/admin/auth/login responderá 503 hasta configurarlo.",
+            "Panel Operaciones: ADMIN_JWT_SECRET vacío — "
+            "/api/v1/admin/auth/login responderá 503 hasta configurarlo.",
         )
 
     app.state.prediction_service = None
@@ -98,7 +106,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
     else:
         log.warning(
-            "No primary ML model (%s) loaded — predict/games return 503 until you deploy artifacts.",
+            "No primary ML model (%s) loaded — predict/games return 503 "
+            "until you deploy artifacts.",
             DEFAULT_ML_MODEL,
         )
 
@@ -117,10 +126,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     t = getattr(app.state, "mlb_daily_snapshot_task", None)
     if t is not None:
         t.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await t
-        except asyncio.CancelledError:
-            pass
     await app.state.http_client.aclose()
     await engine.dispose()
 

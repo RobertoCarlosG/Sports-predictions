@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import datetime as dt
-import calendar
 from collections import defaultdict
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -23,8 +22,8 @@ from app.schemas.bets_api import (
     BetPeriodCreate,
     BetPeriodOut,
     BetPeriodStatsOut,
-    BetUpdate,
     BetsStatsOut,
+    BetUpdate,
 )
 
 _MONTHS_ES = (
@@ -60,10 +59,16 @@ def bet_realized_profit(stake: float, odds: float, status: str) -> float:
 async def _period_settled_pnl(session: AsyncSession, period_id: int) -> float:
     r = await session.execute(select(Bet).where(Bet.period_id == period_id))
     rows = r.scalars().all()
-    return sum(bet_realized_profit(b.stake, b.odds, b.status) for b in rows if b.status in ("won", "lost", "push"))
+    return sum(
+        bet_realized_profit(b.stake, b.odds, b.status)
+        for b in rows
+        if b.status in ("won", "lost", "push")
+    )
 
 
-async def _effective_period_starting_balance(session: AsyncSession, bank: BetBank, period: BetPeriod | None) -> float:
+async def _effective_period_starting_balance(
+    session: AsyncSession, bank: BetBank, period: BetPeriod | None
+) -> float:
     if period is None:
         return float(bank.initial_amount)
     if period.status == "closed" and period.closing_balance is not None:
@@ -136,7 +141,9 @@ async def create_bank(session: AsyncSession, user_id: Any, body: BetBankCreate) 
     return BetBankOut.model_validate(b)
 
 
-async def update_bank(session: AsyncSession, user_id: Any, bank_id: int, body: BetBankUpdate) -> BetBankOut:
+async def update_bank(
+    session: AsyncSession, user_id: Any, bank_id: int, body: BetBankUpdate
+) -> BetBankOut:
     b = await session.get(BetBank, bank_id)
     if b is None or b.user_id != user_id:
         raise HTTPException(status_code=404, detail="Banco no encontrado.")
@@ -165,7 +172,9 @@ async def list_periods(
     return [BetPeriodOut.model_validate(p) for p in r.scalars().all()]
 
 
-async def create_period_manual(session: AsyncSession, user_id: Any, body: BetPeriodCreate) -> BetPeriodOut:
+async def create_period_manual(
+    session: AsyncSession, user_id: Any, body: BetPeriodCreate
+) -> BetPeriodOut:
     bank = await session.get(BetBank, body.bank_id)
     if bank is None or bank.user_id != user_id:
         raise HTTPException(status_code=404, detail="Banco no encontrado.")
@@ -273,11 +282,7 @@ async def list_bets(
     date_from: dt.date | None,
     date_to: dt.date | None,
 ) -> list[BetOut]:
-    q = (
-        select(Bet)
-        .options(selectinload(Bet.period))
-        .where(Bet.user_id == user_id)
-    )
+    q = select(Bet).options(selectinload(Bet.period)).where(Bet.user_id == user_id)
     if bank_id is not None:
         q = q.where(Bet.bank_id == bank_id)
     if period_id is not None:
@@ -296,7 +301,11 @@ async def list_bets(
     r = await session.execute(q)
     out: list[BetOut] = []
     for b in r.scalars().unique().all():
-        rp = bet_realized_profit(b.stake, b.odds, b.status) if b.status in ("won", "lost", "push") else None
+        rp = (
+            bet_realized_profit(b.stake, b.odds, b.status)
+            if b.status in ("won", "lost", "push")
+            else None
+        )
         bo = BetOut.model_validate(b)
         out.append(bo.model_copy(update={"realized_profit": rp}))
     return out
@@ -344,7 +353,11 @@ async def get_bet(session: AsyncSession, user_id: Any, bet_id: int) -> BetOut:
     b = await session.get(Bet, bet_id)
     if b is None or b.user_id != user_id:
         raise HTTPException(status_code=404, detail="Apuesta no encontrada.")
-    rp = bet_realized_profit(b.stake, b.odds, b.status) if b.status in ("won", "lost", "push") else None
+    rp = (
+        bet_realized_profit(b.stake, b.odds, b.status)
+        if b.status in ("won", "lost", "push")
+        else None
+    )
     return BetOut.model_validate(b).model_copy(update={"realized_profit": rp})
 
 
@@ -356,10 +369,16 @@ async def patch_bet(session: AsyncSession, user_id: Any, bet_id: int, body: BetU
         b.notes = body.notes
     if body.status == "cancelled":
         if b.status != "pending":
-            raise HTTPException(status_code=400, detail="Solo se pueden cancelar apuestas pendientes.")
+            raise HTTPException(
+                status_code=400, detail="Solo se pueden cancelar apuestas pendientes."
+            )
         b.status = "cancelled"
     await session.flush()
-    rp = bet_realized_profit(b.stake, b.odds, b.status) if b.status in ("won", "lost", "push") else None
+    rp = (
+        bet_realized_profit(b.stake, b.odds, b.status)
+        if b.status in ("won", "lost", "push")
+        else None
+    )
     return BetOut.model_validate(b).model_copy(update={"realized_profit": rp})
 
 
@@ -418,7 +437,9 @@ async def global_stats(
     )
 
 
-async def bets_for_period_export(session: AsyncSession, user_id: Any, period_id: int) -> tuple[BetPeriod, list[Bet]]:
+async def bets_for_period_export(
+    session: AsyncSession, user_id: Any, period_id: int
+) -> tuple[BetPeriod, list[Bet]]:
     p = await session.get(BetPeriod, period_id)
     if p is None or p.user_id != user_id:
         raise HTTPException(status_code=404, detail="Periodo no encontrado.")

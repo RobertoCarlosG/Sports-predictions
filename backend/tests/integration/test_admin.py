@@ -3,17 +3,15 @@
 admin_client uses Bearer token auth (more reliable than cookie persistence with
 ASGITransport). Unit tests in test_routes_admin_auth.py cover cookie auth specifically.
 """
+
 from __future__ import annotations
 
-import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.integration.mock_data import (
     ADMIN_HEADERS,
-    ADMIN_JWT_SECRET,
     ADMIN_LOGIN_BODY,
-    ADMIN_PASSWORD,
     ADMIN_USERNAME,
     make_admin_user_kwargs,
 )
@@ -28,7 +26,6 @@ from tests.integration.mock_data_fail import (
     REBUILD_SNAPSHOTS_WINDOW_ZERO,
     WRONG_PASSWORD_LOGIN_BODY,
 )
-
 
 # ---------------------------------------------------------------------------
 # GET /api/v1/admin/auth/ready (no auth required)
@@ -70,32 +67,44 @@ async def test_admin_login_success(client: AsyncClient, db_session: AsyncSession
     assert "token_expires_at" in body
 
 
-async def test_admin_login_wrong_password_returns_401(client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_admin_login_wrong_password_returns_401(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
     from app.models.mlb import AdminUser
 
     db_session.add(AdminUser(**make_admin_user_kwargs()))
     await db_session.flush()
 
-    r = await client.post("/api/v1/admin/auth/login", json=WRONG_PASSWORD_LOGIN_BODY, headers=ADMIN_HEADERS)
+    r = await client.post(
+        "/api/v1/admin/auth/login", json=WRONG_PASSWORD_LOGIN_BODY, headers=ADMIN_HEADERS
+    )
     assert r.status_code == 401
 
 
 async def test_admin_login_nonexistent_user_returns_401(client: AsyncClient) -> None:
-    r = await client.post("/api/v1/admin/auth/login", json=NONEXISTENT_USER_LOGIN_BODY, headers=ADMIN_HEADERS)
+    r = await client.post(
+        "/api/v1/admin/auth/login", json=NONEXISTENT_USER_LOGIN_BODY, headers=ADMIN_HEADERS
+    )
     assert r.status_code == 401
 
 
 async def test_admin_login_missing_password_returns_422(client: AsyncClient) -> None:
-    r = await client.post("/api/v1/admin/auth/login", json=MISSING_PASSWORD_LOGIN_BODY, headers=ADMIN_HEADERS)
+    r = await client.post(
+        "/api/v1/admin/auth/login", json=MISSING_PASSWORD_LOGIN_BODY, headers=ADMIN_HEADERS
+    )
     assert r.status_code == 422
 
 
 async def test_admin_login_missing_username_returns_422(client: AsyncClient) -> None:
-    r = await client.post("/api/v1/admin/auth/login", json=MISSING_USERNAME_LOGIN_BODY, headers=ADMIN_HEADERS)
+    r = await client.post(
+        "/api/v1/admin/auth/login", json=MISSING_USERNAME_LOGIN_BODY, headers=ADMIN_HEADERS
+    )
     assert r.status_code == 422
 
 
-async def test_admin_login_without_csrf_header_returns_rate_limit_or_auth_error(client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_admin_login_without_csrf_header_returns_rate_limit_or_auth_error(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
     """The login endpoint does not check CSRF (only protected endpoints do).
     Without any admin user in DB → 401 (not 403).
     """
@@ -195,7 +204,9 @@ async def test_admin_status_unauthenticated_returns_401(client: AsyncClient) -> 
 
 
 async def test_clear_prediction_cache_returns_success(admin_client: AsyncClient) -> None:
-    r = await admin_client.post("/api/v1/admin/pipeline/clear-prediction-cache", headers=ADMIN_HEADERS)
+    r = await admin_client.post(
+        "/api/v1/admin/pipeline/clear-prediction-cache", headers=ADMIN_HEADERS
+    )
     assert r.status_code == 200
     body = r.json()
     assert "vaciada" in body["message"].lower() or "eliminadas" in body.get("detail", "").lower()
@@ -397,7 +408,9 @@ async def test_evaluate_pending_returns_200(admin_client: AsyncClient) -> None:
 
 
 async def test_recompute_evaluations_returns_200(admin_client: AsyncClient) -> None:
-    r = await admin_client.post("/api/v1/admin/predictions/recompute-ml-evaluations", headers=ADMIN_HEADERS)
+    r = await admin_client.post(
+        "/api/v1/admin/predictions/recompute-ml-evaluations", headers=ADMIN_HEADERS
+    )
     assert r.status_code == 200
     assert "message" in r.json()
 

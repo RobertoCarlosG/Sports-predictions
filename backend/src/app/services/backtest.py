@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Literal
 
 from app.schemas.backtest import (
     BacktestGameRow,
-    BacktestResponse,
     BacktestSummary,
     BacktestTimePoint,
     OUUserOutcome,
@@ -37,7 +36,9 @@ def actual_winner_from_scores(home_score: int, away_score: int) -> WinnerSide:
     return "tie"
 
 
-def predicted_ou_from_estimates(total_runs_estimate: float, over_under_line: float) -> Literal["over", "under"]:
+def predicted_ou_from_estimates(
+    total_runs_estimate: float, over_under_line: float
+) -> Literal["over", "under"]:
     return "over" if total_runs_estimate > over_under_line else "under"
 
 

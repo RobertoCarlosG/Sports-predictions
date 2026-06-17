@@ -8,10 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps_rate_limit import rate_limit_public_read, rate_limit_public_write
 from app.db.session import get_db
-from app.ml.model_routing import DEFAULT_ML_MODEL, get_prediction_service, sync_primary_model_version
-from app.services.prediction_cache import get_cached_prediction, upsert_prediction_cache
-from app.services.prediction_infer import attach_asian_handicap_if_missing, compute_prediction_response
+from app.ml.model_routing import (
+    DEFAULT_ML_MODEL,
+    get_prediction_service,
+    sync_primary_model_version,
+)
 from app.schemas.games import PredictionResponse
+from app.services.prediction_cache import get_cached_prediction, upsert_prediction_cache
+from app.services.prediction_infer import (
+    attach_asian_handicap_if_missing,
+    compute_prediction_response,
+)
 
 router = APIRouter()
 log = logging.getLogger(__name__)

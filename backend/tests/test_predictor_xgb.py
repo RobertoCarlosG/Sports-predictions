@@ -1,8 +1,8 @@
 """Tests for XGBoost-specific paths in app.ml.predictor."""
+
 from __future__ import annotations
 
 import datetime as dt
-import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -16,16 +16,16 @@ from app.ml.features import FEATURE_NAMES
 from app.ml.predictor import (
     MAX_MODEL_VERSION_LEN,
     MlbPredictionService,
-    _ModelSignature,
     _align_feature_vector,
     _model_version_with_signature,
+    _ModelSignature,
 )
 from app.models.mlb import Game, GameWeather
-
 
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
+
 
 def _write_xgb_bundle(
     path: Path,
@@ -83,6 +83,7 @@ def _make_weather() -> GameWeather:
 # _align_feature_vector
 # ---------------------------------------------------------------------------
 
+
 def _clf_with_n_features(n: int) -> Any:
     return SimpleNamespace(n_features_in_=n)
 
@@ -133,6 +134,7 @@ def test_align_both_none_uses_x_shape() -> None:
 # _model_version_with_signature
 # ---------------------------------------------------------------------------
 
+
 def _sig(mtime_ns: int = 0xABCDEF) -> _ModelSignature:
     return _ModelSignature(mtime_ns=mtime_ns, size=100)
 
@@ -163,9 +165,8 @@ def test_version_signature_empty_base_uses_default() -> None:
 # MlbPredictionService._load() — XGBoost path
 # ---------------------------------------------------------------------------
 
-def test_load_xgb_no_rf_log(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+
+def test_load_xgb_no_rf_log(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     mp = tmp_path / "m.joblib"
     _write_xgb_bundle(mp)
     svc = MlbPredictionService(mp)
@@ -193,6 +194,7 @@ def test_load_raises_file_not_found(tmp_path: Path) -> None:
 # MlbPredictionService.predict() with XGBoost
 # ---------------------------------------------------------------------------
 
+
 def test_predict_xgb_roundtrip(tmp_path: Path) -> None:
     mp = tmp_path / "m.joblib"
     _write_xgb_bundle(mp)
@@ -216,6 +218,7 @@ def test_predict_xgb_with_feature_trim(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # MlbPredictionService.reload()
 # ---------------------------------------------------------------------------
+
 
 def test_reload_clears_and_reloads(tmp_path: Path) -> None:
     mp = tmp_path / "m.joblib"

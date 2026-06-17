@@ -9,6 +9,7 @@ import asyncio
 import datetime as dt
 import logging
 from dataclasses import dataclass
+
 import httpx
 
 from app.core.config import settings
@@ -36,7 +37,11 @@ def _seconds_until_next_utc_run(hour: int, minute: int) -> float:
     return max(1.0, (target - now).total_seconds())
 
 
-async def run_mlb_daily_snapshot(http_client: httpx.AsyncClient) -> MlbDailySnapshotResult:
+async def run_mlb_daily_snapshot(
+    http_client: httpx.AsyncClient,
+    *,
+    low_memory: bool = True,
+) -> MlbDailySnapshotResult:
     """
     Lógica principal: importa partidos hoy y mañana (UTC) y recalcula game_feature_snapshots
     de la temporada actual. Reutilizable desde el crono y desde el API admin bajo demanda.
@@ -53,7 +58,9 @@ async def run_mlb_daily_snapshot(http_client: httpx.AsyncClient) -> MlbDailySnap
 
     async with async_session_factory() as session:
         mlb = MlbApiClient(settings.mlb_api_base_url, http_client)
-        n = await rebuild_game_feature_snapshots(session, season=season, mlb=mlb)
+        n = await rebuild_game_feature_snapshots(
+            session, season=season, mlb=mlb, low_memory=low_memory
+        )
         await session.commit()
     log.info(
         "MLB daily snapshot: synced %s + %s, rebuild wrote %s snapshot rows (season=%s)",
@@ -71,7 +78,8 @@ async def run_mlb_daily_snapshot(http_client: httpx.AsyncClient) -> MlbDailySnap
 
 
 async def run_mlb_daily_snapshot_job(http_client: httpx.AsyncClient) -> None:
-    """Misma lógica que :func:`run_mlb_daily_snapshot` para tareas en segundo plano (solo efectos, sin retorno)."""
+    """Misma lógica que :func:`run_mlb_daily_snapshot` para tareas en segundo
+    plano (solo efectos, sin retorno)."""
     await run_mlb_daily_snapshot(http_client)
 
 

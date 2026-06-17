@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import defer, selectinload
 
 from app.api.deps_rate_limit import rate_limit_public_read, rate_limit_public_write
 from app.core.config import settings
@@ -20,7 +20,12 @@ from app.ml.model_routing import (
     sync_primary_model_version,
 )
 from app.models.mlb import Game, GameFeatureSnapshot, GamePredictionCache, GameWeather
-from app.schemas.games import GameDetailResponse, GamesListMeta, GamesListResponse, PredictionResponse
+from app.schemas.games import (
+    GameDetailResponse,
+    GamesListMeta,
+    GamesListResponse,
+    PredictionResponse,
+)
 from app.schemas.team_display import team_out_from_model
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_sync import sync_games_for_date
@@ -30,7 +35,10 @@ from app.services.prediction_cache import (
     get_cached_prediction,
     upsert_prediction_cache,
 )
-from app.services.prediction_infer import attach_asian_handicap_if_missing, prediction_response_from_result
+from app.services.prediction_infer import (
+    attach_asian_handicap_if_missing,
+    prediction_response_from_result,
+)
 from app.services.weather_open_meteo import upsert_weather_for_game
 
 log = logging.getLogger(__name__)
@@ -41,7 +49,12 @@ def game_detail_response(
     game: Game,
     weather: GameWeather | None,
     prediction: PredictionResponse | None = None,
+    *,
+    include_payload: bool = True,
 ) -> GameDetailResponse:
+    # ``include_payload=False`` (listado) evita leer lineups_json/boxscore_json: en el listado
+    # están diferidos y tocarlos dispararía un lazy-load fuera del greenlet async.
+    # El cortocircuito del condicional garantiza que el atributo nunca se accede.
     w_dict: dict[str, object] | None = None
     if weather is not None:
         w_dict = {
@@ -63,8 +76,8 @@ def game_detail_response(
         away_score=game.away_score,
         venue_id=game.venue_id,
         venue_name=game.venue_name,
-        lineups=game.lineups_json,
-        boxscore=game.boxscore_json,
+        lineups=game.lineups_json if include_payload else None,
+        boxscore=game.boxscore_json if include_payload else None,
         weather=w_dict,
         prediction=prediction,
     )
@@ -97,15 +110,15 @@ async def _compute_or_cache_prediction(
                 predicted_winner=pred_cache_row.predicted_winner,
                 actual_winner=pred_cache_row.actual_winner,
                 is_correct=pred_cache_row.is_correct,
-                evaluated_at=pred_cache_row.evaluated_at.isoformat()
-                if pred_cache_row.evaluated_at
-                else None,
+                evaluated_at=(
+                    pred_cache_row.evaluated_at.isoformat() if pred_cache_row.evaluated_at else None
+                ),
             )
             return await attach_asian_handicap_if_missing(session, base)
         cached = await get_cached_prediction(session, game.game_pk, model_version)
         if cached is not None:
             return await attach_asian_handicap_if_missing(session, cached)
-    
+
     try:
         pr = svc.predict(game, game.weather, snapshot)
         if game.home_team is None or game.away_team is None:
@@ -150,6 +163,10 @@ async def _list_games_impl(
             selectinload(Game.home_team),
             selectinload(Game.away_team),
             selectinload(Game.weather),
+            # El listado no muestra lineups/boxscore (solo la vista de detalle: GET /games/{pk}).
+            # Diferirlos evita serializar cientos de KB por juego y acelera la carga del día.
+            defer(Game.lineups_json),
+            defer(Game.boxscore_json),
         )
     )
     rows = result.scalars().unique().all()
@@ -184,7 +201,8 @@ async def _list_games_impl(
             more = f" (+{len(missing_snapshots) - 5} más)" if len(missing_snapshots) > 5 else ""
             log.warning(
                 "list_games date=%s: %d partido(s) sin fila en game_feature_snapshots (ej. %s%s). "
-                "La inferencia usa valores por defecto (0.5/4.5/ERA default) → P(home) casi igual en todos. "
+                "La inferencia usa valores por defecto (0.5/4.5/ERA default) → "
+                "P(home) casi igual en todos. "
                 "Operaciones → Recalcular indicadores.",
                 game_date,
                 len(missing_snapshots),
@@ -192,15 +210,18 @@ async def _list_games_impl(
                 more,
             )
             meta_warnings.append(
-                f"{len(missing_snapshots)} partido(s) sin indicadores en BD (game_feature_snapshots) para el "
-                f"{game_date.isoformat()}: las estimaciones usan valores por defecto y pueden parecer casi "
+                f"{len(missing_snapshots)} partido(s) sin indicadores en BD "
+                f"(game_feature_snapshots) para el "
+                f"{game_date.isoformat()}: las estimaciones usan valores por "
+                f"defecto y pueden parecer casi "
                 f"iguales. Ejemplos game_pk: {sample}{more}. "
                 f"En Operaciones → «Recalcular indicadores»."
             )
     if include_predictions and get_prediction_service_optional(request) is None:
         meta_info.append(
             "Modelo ML no cargado en el API: no hay predicciones nuevas hasta desplegar "
-            f"artifacts/model_{DEFAULT_ML_MODEL}.joblib (o el path en ML_MODEL_PATH_XGB) y recargar."
+            f"artifacts/model_{DEFAULT_ML_MODEL}.joblib "
+            f"(o el path en ML_MODEL_PATH_XGB) y recargar."
         )
 
     out: list[GameDetailResponse] = []
@@ -215,7 +236,7 @@ async def _list_games_impl(
                 "list_games",
                 pred_cache_row=pred_by_pk.get(g.game_pk),
             )
-        out.append(game_detail_response(g, g.weather, pred))
+        out.append(game_detail_response(g, g.weather, pred, include_payload=False))
     if sync and rows and settings.pipeline_auto_cache_predictions:
         background_tasks.add_task(
             refresh_prediction_cache_for_games,
@@ -231,7 +252,9 @@ async def _list_games_impl(
     return GamesListResponse(games=out, meta=meta)
 
 
-@router.get("/games", response_model=GamesListResponse, dependencies=[Depends(rate_limit_public_read)])
+@router.get(
+    "/games", response_model=GamesListResponse, dependencies=[Depends(rate_limit_public_read)]
+)
 async def list_games(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -242,7 +265,8 @@ async def list_games(
     include_predictions: Annotated[
         bool,
         Query(
-            description="Incluir estimación ML por partido (misma lógica que GET /predict/{game_pk})."
+            description="Incluir estimación ML por partido "
+            "(misma lógica que GET /predict/{game_pk})."
         ),
     ] = True,
     league: Annotated[
@@ -296,9 +320,7 @@ def _filter_games_by_segment(
         sides = (game.home_team, game.away_team)
         if league and not any(t.league == league for t in sides):
             return False
-        if division and not any(t.division == division for t in sides):
-            return False
-        return True
+        return not (division and not any(t.division == division for t in sides))
 
     filtered = [g for g in result.games if matches(g)]
     return GamesListResponse(games=filtered, meta=result.meta)
@@ -340,7 +362,8 @@ async def get_game(
         snap = snap_row.scalar_one_or_none()
         if snap is None:
             log.warning(
-                "get_game game_pk=%s sin game_feature_snapshots: predicción con features por defecto. "
+                "get_game game_pk=%s sin game_feature_snapshots: "
+                "predicción con features por defecto. "
                 "Recalcular indicadores en Operaciones.",
                 game_pk,
             )

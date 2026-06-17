@@ -3,12 +3,12 @@
 Sync endpoints (POST) require MLB API access — those tests skip gracefully
 if the network is unavailable. Read endpoints (GET) use seeded DB data.
 """
+
 from __future__ import annotations
 
-import pytest
 from httpx import AsyncClient
 
-from tests.integration.mock_data import FINAL_HOME_WIN_PK, SCHEDULED_GAME_PK
+from tests.integration.mock_data import FINAL_HOME_WIN_PK
 from tests.integration.mock_data_fail import (
     MLB_SYNC_END_BEFORE_START,
     MLB_SYNC_INVALID_DATE,
@@ -17,10 +17,10 @@ from tests.integration.mock_data_fail import (
     NONEXISTENT_GAME_PK,
 )
 
-
 # ---------------------------------------------------------------------------
 # GET /api/v1/mlb/teams
 # ---------------------------------------------------------------------------
+
 
 async def test_get_teams_returns_seeded_teams(client: AsyncClient) -> None:
     r = await client.get("/api/v1/mlb/teams")
@@ -46,12 +46,13 @@ async def test_get_teams_structure(client: AsyncClient) -> None:
 # GET /api/v1/mlb/history/games
 # ---------------------------------------------------------------------------
 
+
 async def test_history_games_returns_seeded_games(client: AsyncClient) -> None:
     r = await client.get("/api/v1/mlb/history/games", params={"season": "2025"})
     assert r.status_code == 200
     games = r.json()
     assert isinstance(games, list)
-    assert len(games) >= 2   # at least final home win + final away win
+    assert len(games) >= 2  # at least final home win + final away win
 
 
 async def test_history_games_only_final_filter(client: AsyncClient) -> None:
@@ -101,6 +102,7 @@ async def test_history_games_by_team_filter(client: AsyncClient) -> None:
 # GET /api/v1/mlb/history/games/{game_pk}
 # ---------------------------------------------------------------------------
 
+
 async def test_history_game_by_pk_returns_game(client: AsyncClient) -> None:
     r = await client.get(f"/api/v1/mlb/history/games/{FINAL_HOME_WIN_PK}")
     assert r.status_code == 200
@@ -124,6 +126,7 @@ async def test_history_game_invalid_pk_returns_422(client: AsyncClient) -> None:
 # ---------------------------------------------------------------------------
 # POST /api/v1/mlb/sync-range — validation failure cases (no network needed)
 # ---------------------------------------------------------------------------
+
 
 async def test_sync_range_end_before_start_returns_422(client: AsyncClient) -> None:
     r = await client.post("/api/v1/mlb/sync-range", json=MLB_SYNC_END_BEFORE_START)

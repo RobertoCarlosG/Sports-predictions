@@ -21,7 +21,6 @@ def test_cli_unknown_flag_exits_with_error() -> None:
 
 def test_cli_valid_args_parse_without_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify argparse accepts --season and --show-missing without connecting to DB."""
-    import asyncio
 
     async def _noop(**_: object) -> None:
         return None

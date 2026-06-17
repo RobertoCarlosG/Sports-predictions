@@ -3,7 +3,18 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -165,9 +176,7 @@ class ModelVersion(Base):
         nullable=False,
         server_default=func.now(),
     )
-    file_mtime: Mapped[dt.datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    file_mtime: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     file_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     trained_on_games: Mapped[int | None] = mapped_column(Integer, nullable=True)

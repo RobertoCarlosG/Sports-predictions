@@ -13,7 +13,7 @@ from app.services.prediction_cache import upsert_prediction_cache
 from app.services.prediction_infer import compute_prediction_response
 
 if TYPE_CHECKING:
-    from app.ml.predictor import MlbPredictionService
+    pass
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +25,10 @@ async def refresh_prediction_cache_for_games(
     *,
     force: bool = False,
 ) -> None:
-    """Precalcula y guarda estimaciones. Con ``force`` ignora ``pipeline_auto_cache_predictions`` (p. ej. ETL admin)."""
+    """Precalcula y guarda estimaciones.
+
+    Con ``force`` ignora ``pipeline_auto_cache_predictions`` (p. ej. ETL admin).
+    """
     if not force and not settings.pipeline_auto_cache_predictions:
         return
     await asyncio.sleep(0.08)

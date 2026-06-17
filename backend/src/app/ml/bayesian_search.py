@@ -133,11 +133,11 @@ def run_study(
     """Run Bayesian hyperparameter search. Returns best hyperparameters dict."""
     try:
         import optuna
-    except ImportError:
+    except ImportError as err:
         raise ImportError(
             "optuna is required for --bayesian mode. "
             "Install it: uv add optuna  (or pip install optuna)"
-        )
+        ) from err
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
 

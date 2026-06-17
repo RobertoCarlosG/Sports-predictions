@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime as dt
 import json
 from typing import Any
@@ -9,9 +10,9 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.models.mlb import Game, Team
 from app.data.mlb_league_division import league_division_for
 from app.data.mlb_team_abbreviations import team_abbr_for_display
+from app.models.mlb import Game, Team
 from app.services.mlb_client import (
     MlbApiClient,
     parse_schedule_games,
@@ -30,7 +31,10 @@ def _mlb_write_statement_timeout_seconds() -> int:
 
 
 async def _set_local_statement_timeout_for_mlb_write(session: AsyncSession) -> None:
-    """Evita `QueryCanceled` en UPDATE con JSON grande o espera a locks, sin subir el límite global de todo el proceso."""
+    """Evita `QueryCanceled` en UPDATE con JSON grande o espera a locks.
+
+    No sube el límite global de todo el proceso.
+    """
     sec = _mlb_write_statement_timeout_seconds()
     await session.execute(text(f"SET LOCAL statement_timeout = '{sec}s'"))
 
@@ -147,19 +151,18 @@ def lineups_from_boxscore(box: dict[str, Any]) -> dict[str, Any] | None:
 def _home_away_team_specs(
     item: dict[str, Any],
 ) -> list[tuple[int, str, str, int | None, str | None]]:
-    """Pares (team_id, …) del partido, ordenados por id (misma convención que en upsert de juego)."""
+    """Pares (team_id, …) del partido, ordenados por id.
+
+    Misma convención que en upsert de juego.
+    """
     hid = item.get("home_team_id")
     aid = item.get("away_team_id")
     if hid is None or aid is None:
         return []
     home_name = str(item.get("home_team_name") or "Home")
     away_name = str(item.get("away_team_name") or "Away")
-    h_abbr = team_abbr_for_display(
-        int(hid), str(item.get("home_team_abbr") or ""), home_name
-    )
-    a_abbr = team_abbr_for_display(
-        int(aid), str(item.get("away_team_abbr") or ""), away_name
-    )
+    h_abbr = team_abbr_for_display(int(hid), str(item.get("home_team_abbr") or ""), home_name)
+    a_abbr = team_abbr_for_display(int(aid), str(item.get("away_team_abbr") or ""), away_name)
     venue_id = item.get("venue_id")
     venue_name = item.get("venue_name")
     specs = [
@@ -289,7 +292,7 @@ async def _upsert_game_from_schedule_item(
                 boxscore_json = await client.boxscore(item["game_pk"])
             except Exception:
                 boxscore_json = None
-                
+
         lineups_json = None
         if prefetched_live_feed is not None:
             lineups_json = {"liveFeed": prefetched_live_feed}
@@ -316,7 +319,11 @@ async def _upsert_game_from_schedule_item(
             away_score = ba
     if home_score is None or away_score is None:
         try:
-            ls = prefetched_linescore if prefetched_linescore is not None else await client.linescore(item["game_pk"])
+            ls = (
+                prefetched_linescore
+                if prefetched_linescore is not None
+                else await client.linescore(item["game_pk"])
+            )
             lh, la = scores_from_linescore_payload(ls)
             if home_score is None:
                 home_score = lh
@@ -366,16 +373,16 @@ async def _upsert_game_from_schedule_item(
             game.home_score = home_score
         if away_score is not None:
             game.away_score = away_score
-        if lineups_json is not None:
-            if game.lineups_json is None or _json_repr_for_compare(
-                game.lineups_json
-            ) != _json_repr_for_compare(lineups_json):
-                game.lineups_json = lineups_json
-        if boxscore_json is not None:
-            if game.boxscore_json is None or _json_repr_for_compare(
-                game.boxscore_json
-            ) != _json_repr_for_compare(boxscore_json):
-                game.boxscore_json = boxscore_json
+        if lineups_json is not None and (
+            game.lineups_json is None
+            or _json_repr_for_compare(game.lineups_json) != _json_repr_for_compare(lineups_json)
+        ):
+            game.lineups_json = lineups_json
+        if boxscore_json is not None and (
+            game.boxscore_json is None
+            or _json_repr_for_compare(game.boxscore_json) != _json_repr_for_compare(boxscore_json)
+        ):
+            game.boxscore_json = boxscore_json
         if home_starter is not None:
             game.home_starter_id = home_starter
         if away_starter is not None:
@@ -398,7 +405,11 @@ async def sync_games_for_date(
     await _upsert_teams_for_full_schedule(session, parsed)
     await session.flush()
 
-    valid_items = [item for item in parsed if item.get("home_team_id") is not None and item.get("away_team_id") is not None]
+    valid_items = [
+        item
+        for item in parsed
+        if item.get("home_team_id") is not None and item.get("away_team_id") is not None
+    ]
 
     existing_by_pk: dict[int, Game] = {}
     if valid_items:
@@ -426,19 +437,13 @@ async def sync_games_for_date(
 
             box = live = ls = None
             if is_final:
-                try:
+                with contextlib.suppress(Exception):
                     box = await client.boxscore(pk)
-                except Exception:
-                    pass
             else:
-                try:
+                with contextlib.suppress(Exception):
                     box = await client.boxscore(pk)
-                except Exception:
-                    pass
-                try:
+                with contextlib.suppress(Exception):
                     live = await client.live_feed(pk)
-                except Exception:
-                    pass
 
             hs, aws = item.get("home_score"), item.get("away_score")
             if hs is None or aws is None:
@@ -448,16 +453,14 @@ async def sync_games_for_date(
                     if (hs is not None or bh is not None) and (aws is not None or ba is not None):
                         needs_ls = False
                 if needs_ls:
-                    try:
+                    with contextlib.suppress(Exception):
                         ls = await client.linescore(pk)
-                    except Exception:
-                        pass
             return pk, box, live, ls
 
         results = await asyncio.gather(*(_fetch_all(it) for it in valid_items))
         for pk, box, live, ls in results:
             prefetched_data[pk] = (box, live, ls)
-            
+
     games: list[Game] = []
     for item in valid_items:
         pk = item["game_pk"]
@@ -489,6 +492,4 @@ async def sync_single_game(
     item = next((x for x in parsed if x["game_pk"] == game_pk), None)
     if item is None:
         return None
-    return await _upsert_game_from_schedule_item(
-        session, client, item, fetch_details=fetch_details
-    )
+    return await _upsert_game_from_schedule_item(session, client, item, fetch_details=fetch_details)

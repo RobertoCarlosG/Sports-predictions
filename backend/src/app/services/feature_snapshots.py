@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import logging
 from collections import defaultdict
@@ -8,7 +9,7 @@ from itertools import groupby
 
 from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import defer, selectinload
 
 from app.models.mlb import Game, GameFeatureSnapshot
 from app.services.mlb_client import MlbApiClient
@@ -22,12 +23,7 @@ UPCOMING_SNAPSHOT_DAYS = 1
 
 def is_final_game_status(status: str) -> bool:
     s = status.lower()
-    return (
-        "final" in s
-        or "completed" in s
-        or "game over" in s
-        or s in {"final", "completed"}
-    )
+    return "final" in s or "completed" in s or "game over" in s or s in {"final", "completed"}
 
 
 def game_has_final_scores(game: Game) -> bool:
@@ -83,6 +79,93 @@ def _should_persist_snapshot(
     return today <= game.game_date <= upcoming_end
 
 
+async def _process_day(
+    session: AsyncSession,
+    day_games: list[Game],
+    team_history: dict[int, list[tuple[bool, int]]],
+    *,
+    season: str | None,
+    today: dt.date,
+    rolling_window: int,
+    mlb: MlbApiClient | None,
+    upcoming_snapshot_days: int,
+    start_date: dt.date | None,
+    end_date: dt.date | None,
+) -> int:
+    count = 0
+    for g in day_games:
+        if not _should_persist_snapshot(
+            g,
+            season=season,
+            today=today,
+            upcoming_snapshot_days=upcoming_snapshot_days,
+            start_date=start_date,
+            end_date=end_date,
+        ):
+            continue
+
+        home_hist = team_history[g.home_team_id]
+        away_hist = team_history[g.away_team_id]
+        hw_roll, hra_roll = _rolling_win_rate_and_runs(home_hist, rolling_window)
+        aw_roll, ara_roll = _rolling_win_rate_and_runs(away_hist, rolling_window)
+
+        w = g.weather
+        temp = float(w.temperature_c) if w and w.temperature_c is not None else None
+        hum = float(w.humidity_pct) if w and w.humidity_pct is not None else None
+        wind = float(w.wind_speed_mps) if w and w.wind_speed_mps is not None else None
+        elev = float(w.elevation_m) if w and w.elevation_m is not None else None
+
+        home_win: int | None = None
+        total_runs: float | None = None
+        if game_has_final_scores(g):
+            assert g.home_score is not None and g.away_score is not None
+            home_win = 1 if g.home_score > g.away_score else 0
+            total_runs = float(g.home_score + g.away_score)
+
+        h_sid, a_sid = _game_starter_ids(g)
+        hse, ase, hbe, abe = await game_pitching_feature_values(
+            session,
+            mlb,
+            season=str(g.season),
+            home_team_id=g.home_team_id,
+            away_team_id=g.away_team_id,
+            home_starter_id=h_sid,
+            away_starter_id=a_sid,
+            commit_before_mlb=True,
+        )
+
+        session.add(
+            GameFeatureSnapshot(
+                game_pk=g.game_pk,
+                home_wins_roll=hw_roll,
+                away_wins_roll=aw_roll,
+                home_runs_avg_roll=hra_roll,
+                away_runs_avg_roll=ara_roll,
+                temperature_c=temp,
+                humidity_pct=hum,
+                wind_speed_mps=wind,
+                elevation_m=elev,
+                home_starter_era=hse,
+                away_starter_era=ase,
+                home_bullpen_era=hbe,
+                away_bullpen_era=abe,
+                home_win=home_win,
+                total_runs=total_runs,
+                feature_vector_json=None,
+            )
+        )
+        count += 1
+
+    for g in day_games:
+        if game_has_final_scores(g):
+            assert g.home_score is not None and g.away_score is not None
+            home_won = g.home_score > g.away_score
+            team_history[g.home_team_id].append((home_won, g.home_score))
+            team_history[g.away_team_id].append((not home_won, g.away_score))
+
+    return count
+
+
 async def rebuild_game_feature_snapshots(
     session: AsyncSession,
     *,
@@ -92,6 +175,7 @@ async def rebuild_game_feature_snapshots(
     end_date: dt.date | None = None,
     mlb: MlbApiClient | None = None,
     upcoming_snapshot_days: int = UPCOMING_SNAPSHOT_DAYS,
+    low_memory: bool = True,
 ) -> int:
     """Recalcula filas en `game_feature_snapshots`.
 
@@ -106,13 +190,21 @@ async def rebuild_game_feature_snapshots(
     - `home_win` / `total_runs` solo para partidos finalizados con marcador.
     - ERA de abridores y del staff (proxy «bullpen») si ``mlb`` está disponible; si no, se
       usan valores por defecto (ver ``pitching_stats``).
+
+    ``low_memory`` (por defecto ``True``) recorre los partidos en streaming (``yield_per``) para no
+    retener toda la temporada en memoria a la vez — clave en entornos con poca RAM (Render free).
+    El costo de CPU es despreciable a esta escala. ``low_memory=False`` carga todo con ``.all()``.
+
     Devuelve el número de filas escritas.
     """
     use_date_range = start_date is not None and end_date is not None
 
     stmt = (
         select(Game)
-        .options(selectinload(Game.weather))
+        .options(
+            selectinload(Game.weather),
+            defer(Game.lineups_json),  # never used for snapshot computation; skip to save memory
+        )
         .order_by(Game.game_date, Game.game_pk)
     )
     if use_date_range:
@@ -120,8 +212,6 @@ async def rebuild_game_feature_snapshots(
         stmt = stmt.where(Game.game_date <= end_date)
     elif season is not None and season != "all":
         stmt = stmt.where(Game.season == season)
-    result = await session.execute(stmt)
-    games = result.scalars().unique().all()
 
     team_history: dict[int, list[tuple[bool, int]]] = defaultdict(list)
 
@@ -131,9 +221,7 @@ async def rebuild_game_feature_snapshots(
         await session.execute(
             delete(GameFeatureSnapshot).where(
                 GameFeatureSnapshot.game_pk.in_(
-                    select(Game.game_pk).where(
-                        Game.game_date.between(start_date, end_date)
-                    )
+                    select(Game.game_pk).where(Game.game_date.between(start_date, end_date))
                 )
             )
         )
@@ -154,87 +242,57 @@ async def rebuild_game_feature_snapshots(
     else:
         await session.execute(delete(GameFeatureSnapshot))
 
-    total_games = len(games)
-    log.info("rebuild_feature_snapshots: %d games loaded, processing...", total_games)
+    _day_kwargs: dict = dict(
+        season=season,
+        today=today,
+        rolling_window=rolling_window,
+        mlb=mlb,
+        upcoming_snapshot_days=upcoming_snapshot_days,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
     count = 0
     processed = 0
-    for _game_date, day_games_iter in groupby(games, key=lambda game: game.game_date):
-        day_games = list(day_games_iter)
-        processed += len(day_games)
-        if processed % 50 == 0 or processed == total_games:
-            log.info("  %d / %d games processed, %d snapshots written so far", processed, total_games, count)
 
-        # Snapshot features for every game on this date are computed from history
-        # available before this date. Today's games never see today's earlier finals.
-        for g in day_games:
-            if not _should_persist_snapshot(
-                g,
-                season=season,
-                today=today,
-                upcoming_snapshot_days=upcoming_snapshot_days,
-                start_date=start_date,
-                end_date=end_date,
-            ):
-                continue
+    if low_memory:
+        # Stream games in chunks so Python never holds the full season in memory.
+        # Games arrive in chronological order (ORDER BY game_date, game_pk) so
+        # team_history stays correct as we accumulate date by date.
+        current_date: dt.date | None = None
+        pending_day: list[Game] = []
 
-            home_hist = team_history[g.home_team_id]
-            away_hist = team_history[g.away_team_id]
-            hw_roll, hra_roll = _rolling_win_rate_and_runs(home_hist, rolling_window)
-            aw_roll, ara_roll = _rolling_win_rate_and_runs(away_hist, rolling_window)
+        log.info("rebuild_feature_snapshots: streaming in low-memory mode (yield_per=100)")
+        async for g in await session.stream_scalars(stmt.execution_options(yield_per=100)):
+            if current_date is not None and g.game_date != current_date:
+                count += await _process_day(session, pending_day, team_history, **_day_kwargs)
+                processed += len(pending_day)
+                log.info("  %d games processed, %d snapshots written so far", processed, count)
+                pending_day = []
+                await asyncio.sleep(0)  # yield event loop between dates
+            current_date = g.game_date
+            pending_day.append(g)
 
-            w = g.weather
-            temp = float(w.temperature_c) if w and w.temperature_c is not None else None
-            hum = float(w.humidity_pct) if w and w.humidity_pct is not None else None
-            wind = float(w.wind_speed_mps) if w and w.wind_speed_mps is not None else None
-            elev = float(w.elevation_m) if w and w.elevation_m is not None else None
+        if pending_day:
+            count += await _process_day(session, pending_day, team_history, **_day_kwargs)
+            processed += len(pending_day)
+    else:
+        result = await session.execute(stmt)
+        games = result.scalars().unique().all()
+        total_games = len(games)
+        log.info("rebuild_feature_snapshots: %d games loaded, processing...", total_games)
 
-            home_win: int | None = None
-            total_runs: float | None = None
-            if game_has_final_scores(g):
-                assert g.home_score is not None and g.away_score is not None
-                home_win = 1 if g.home_score > g.away_score else 0
-                total_runs = float(g.home_score + g.away_score)
-
-            h_sid, a_sid = _game_starter_ids(g)
-            hse, ase, hbe, abe = await game_pitching_feature_values(
-                session,
-                mlb,
-                season=str(g.season),
-                home_team_id=g.home_team_id,
-                away_team_id=g.away_team_id,
-                home_starter_id=h_sid,
-                away_starter_id=a_sid,
-                commit_before_mlb=True,
-            )
-
-            row = GameFeatureSnapshot(
-                game_pk=g.game_pk,
-                home_wins_roll=hw_roll,
-                away_wins_roll=aw_roll,
-                home_runs_avg_roll=hra_roll,
-                away_runs_avg_roll=ara_roll,
-                temperature_c=temp,
-                humidity_pct=hum,
-                wind_speed_mps=wind,
-                elevation_m=elev,
-                home_starter_era=hse,
-                away_starter_era=ase,
-                home_bullpen_era=hbe,
-                away_bullpen_era=abe,
-                home_win=home_win,
-                total_runs=total_runs,
-                feature_vector_json=None,
-            )
-            session.add(row)
-            count += 1
-
-        for g in day_games:
-            if game_has_final_scores(g):
-                assert g.home_score is not None and g.away_score is not None
-                home_won = g.home_score > g.away_score
-                team_history[g.home_team_id].append((home_won, g.home_score))
-                team_history[g.away_team_id].append((not home_won, g.away_score))
+        for _game_date, day_games_iter in groupby(games, key=lambda game: game.game_date):
+            day_games = list(day_games_iter)
+            processed += len(day_games)
+            if processed % 50 == 0 or processed == total_games:
+                log.info(
+                    "  %d / %d games processed, %d snapshots written so far",
+                    processed,
+                    total_games,
+                    count,
+                )
+            count += await _process_day(session, day_games, team_history, **_day_kwargs)
 
     await session.flush()
     return count
