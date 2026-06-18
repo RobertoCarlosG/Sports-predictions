@@ -71,6 +71,11 @@ export class MatchCardComponent {
     return typeof g.away_score === 'number' && typeof g.home_score === 'number';
   }
 
+  isGameFinal(): boolean {
+    const s = (this.game.status ?? '').toLowerCase();
+    return s.includes('final') || s.includes('completed') || s.includes('game over');
+  }
+
   get weather(): Record<string, unknown> | null | undefined {
     const g = this.game as GameDetail;
     return g.weather ?? undefined;
@@ -105,7 +110,7 @@ export class MatchCardComponent {
 
   /** Ganador real inferido a partir del marcador final. */
   private get inferredActualWinner(): 'home' | 'away' | null {
-    if (!this.hasScore()) return null;
+    if (!this.hasScore() || !this.isGameFinal()) return null;
     const g = this.game;
     if ((g.home_score ?? 0) > (g.away_score ?? 0)) return 'home';
     if ((g.away_score ?? 0) > (g.home_score ?? 0)) return 'away';
@@ -145,7 +150,7 @@ export class MatchCardComponent {
 
   /** ¿Acertamos el O/U? Compara la tendencia del modelo contra el total real de carreras. */
   get ouIsCorrect(): boolean | null {
-    if (!this.hasScore() || !this.hasRunsLine || !this.prediction) return null;
+    if (!this.hasScore() || !this.isGameFinal() || !this.hasRunsLine || !this.prediction) return null;
     const predicted = this.runsOuTendency;
     if (predicted === 'push') return null;
     const total = (this.game.home_score ?? 0) + (this.game.away_score ?? 0);
