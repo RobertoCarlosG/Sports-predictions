@@ -31,6 +31,17 @@ class Settings(BaseSettings):
     # Defaults más permisivos: statsapi no publica cupo; el lock ya no serializa el sleep.
     mlb_api_rate_limit_burst_size: int = 20
     mlb_api_rate_limit_cooldown_seconds: float = 1.0
+    nba_api_base_url: str = "https://stats.nba.com/stats"
+    # Límite global NBA: stats.nba.com es más estricto; ráfaga pequeña + pausa mayor
+    # (0 = desactivado).
+    nba_api_rate_limit_burst_size: int = 6
+    nba_api_rate_limit_cooldown_seconds: float = 1.5
+    # Feature flag NBA: False → todas las rutas /nba devuelven 503; frontend muestra "pronto".
+    nba_enabled: bool = True
+    # Paths a modelos NBA (joblib); vacío = defaults bajo app/ml/artifacts/.
+    ml_model_path_nba_xgb: str = ""
+    ml_model_path_nba_lgbm: str = ""
+    ml_model_path_nba_catboost: str = ""
     # Rate limit HTTP propio (por IP, en memoria por proceso). Lectura vs escritura costosa.
     api_rate_limit_read_max_requests: int = 120
     api_rate_limit_write_max_requests: int = 30
