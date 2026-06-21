@@ -37,7 +37,7 @@ describe('SidebarComponent', () => {
 
   it('exposes the title and sport options', () => {
     expect(component.title).toBe('Sports Predictions');
-    expect(component.sports).toBe(SPORT_OPTIONS);
+    expect(component.sports()).toEqual([...SPORT_OPTIONS]);
   });
 
   it('toggles the collapsed flag', () => {

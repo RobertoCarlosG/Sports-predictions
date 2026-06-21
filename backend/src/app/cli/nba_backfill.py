@@ -15,6 +15,8 @@ import argparse
 import asyncio
 import logging
 
+from sqlalchemy import text
+
 from app.db.session import async_session_factory
 from app.services.nba_client import NbaApiClient, parse_league_game_log
 from app.services.nba_sync import upsert_parsed_games
@@ -33,9 +35,13 @@ async def _run(seasons: list[str], season_type: str) -> None:
         parsed = parse_league_game_log(rows)
         log.info("season %s: %d game records received, writing to DB …", season, len(parsed))
 
-        # 2. Abrir sesión solo para los INSERTs (operación rápida).
+        # 2. Abrir sesión solo para los INSERTs.
+        #    statement_timeout = 0 deshabilita el límite por sentencia para esta
+        #    sesión; el backfill puede insertar miles de filas sin que el servidor
+        #    cancele por timeout.
         async with async_session_factory() as session:
             try:
+                await session.execute(text("SET LOCAL statement_timeout = 0"))
                 games = await upsert_parsed_games(session, parsed, season)
                 await session.commit()
                 log.info("season %s: %d games upserted", season, len(games))

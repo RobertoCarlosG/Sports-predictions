@@ -25,6 +25,7 @@ from app.schemas.nba import (
     NbaPredictionResponse,
     NbaTeamOut,
 )
+from app.core.config import settings
 from app.services.nba_client import NbaApiClient
 from app.services.nba_prediction_cache import (
     evaluate_nba_predictions_for_final_games,
@@ -32,7 +33,6 @@ from app.services.nba_prediction_cache import (
     prediction_response_from_result,
     upsert_nba_prediction_cache,
 )
-from app.core.config import settings
 from app.services.nba_sync import sync_games_for_date, sync_season
 
 log = logging.getLogger(__name__)

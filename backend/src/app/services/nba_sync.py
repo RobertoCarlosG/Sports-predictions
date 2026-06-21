@@ -72,7 +72,13 @@ def _parse_game_date(value: str) -> dt.date | None:
         return None
 
 
-async def _upsert_game(session: AsyncSession, item: dict[str, Any]) -> NbaGame | None:
+async def _upsert_game(
+    session: AsyncSession,
+    item: dict[str, Any],
+    *,
+    flush: bool = True,
+    skip_team_upsert: bool = False,
+) -> NbaGame | None:
     hid = item.get("home_team_id")
     aid = item.get("away_team_id")
     gid = item.get("game_id")
@@ -82,19 +88,21 @@ async def _upsert_game(session: AsyncSession, item: dict[str, Any]) -> NbaGame |
     if gd is None:
         return None
 
-    await upsert_nba_team(
-        session,
-        int(hid),
-        str(item.get("home_team_name") or ""),
-        str(item.get("home_team_abbr") or ""),
-    )
-    await upsert_nba_team(
-        session,
-        int(aid),
-        str(item.get("away_team_name") or ""),
-        str(item.get("away_team_abbr") or ""),
-    )
-    await session.flush()
+    if not skip_team_upsert:
+        await upsert_nba_team(
+            session,
+            int(hid),
+            str(item.get("home_team_name") or ""),
+            str(item.get("home_team_abbr") or ""),
+        )
+        await upsert_nba_team(
+            session,
+            int(aid),
+            str(item.get("away_team_name") or ""),
+            str(item.get("away_team_abbr") or ""),
+        )
+        if flush:
+            await session.flush()
 
     home_stats = item.get("home_stats")
     away_stats = item.get("away_stats")
@@ -132,7 +140,8 @@ async def _upsert_game(session: AsyncSession, item: dict[str, Any]) -> NbaGame |
             game.away_score = away_score
         if boxscore_json is not None:
             game.boxscore_json = boxscore_json
-    await session.flush()
+    if flush:
+        await session.flush()
     return game
 
 
@@ -140,20 +149,53 @@ async def upsert_parsed_games(
     session: AsyncSession,
     parsed: list[dict[str, Any]],
     season: str | None = None,
+    *,
+    chunk_size: int = 100,
 ) -> list[NbaGame]:
     """Inserta/actualiza partidos a partir de items ya parseados (sin red).
 
     Separado de sync_season para poder hacer el fetch de la API ANTES de abrir
     la sesión DB y evitar que un statement_timeout cancele el INSERT mientras
     la red está activa.
+
+    Estrategia de batching para minimizar round-trips al DB:
+    1. Pre-upsert los ≤30 equipos únicos → 1 flush.
+    2. Upsert juegos en chunks de `chunk_size` → flush cada chunk.
+    Reduce ~2450 flushes (para 1225 juegos) a ~13.
     """
-    games: list[NbaGame] = []
+    # 1. Pre-upsert todos los equipos únicos en un solo flush.
+    seen_team_ids: set[int] = set()
     for item in parsed:
+        for tid_key, name_key, abbr_key in (
+            ("home_team_id", "home_team_name", "home_team_abbr"),
+            ("away_team_id", "away_team_name", "away_team_abbr"),
+        ):
+            raw_tid = item.get(tid_key)
+            if raw_tid is None:
+                continue
+            tid = int(raw_tid)
+            if tid in seen_team_ids:
+                continue
+            seen_team_ids.add(tid)
+            await upsert_nba_team(
+                session,
+                tid,
+                str(item.get(name_key) or ""),
+                str(item.get(abbr_key) or ""),
+            )
+    await session.flush()
+
+    # 2. Upsert juegos en chunks; skip_team_upsert=True porque ya están en DB.
+    games: list[NbaGame] = []
+    for idx, item in enumerate(parsed):
         if season is not None and not item.get("season"):
             item = {**item, "season": season}
-        g = await _upsert_game(session, item)
+        g = await _upsert_game(session, item, flush=False, skip_team_upsert=True)
         if g is not None:
             games.append(g)
+        if (idx + 1) % chunk_size == 0:
+            await session.flush()
+    await session.flush()
     return games
 
 
