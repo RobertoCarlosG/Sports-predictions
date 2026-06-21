@@ -1,0 +1,160 @@
+@use 'glass' as *;
+
+.card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+
+.card {
+  border-radius: var(--radius-lg) !important;
+  transition:
+    box-shadow var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out) !important;
+}
+
+.card-link:hover .card {
+  @include glass-raised;
+  transform: translateY(-2px);
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4) !important;
+}
+
+.row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.teams {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.team.away {
+  color: var(--accent-text);
+}
+
+.team.home {
+  color: var(--text-primary);
+}
+
+.at {
+  color: var(--text-tertiary);
+  margin: 0 0.2rem;
+  font-weight: 400;
+}
+
+.score {
+  margin-left: 0.4rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.meta {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  letter-spacing: 0.01em;
+}
+
+.pred-bar-wrap {
+  position: relative;
+  padding-right: 20px;
+}
+
+.data-hint-icon {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+  cursor: help;
+  line-height: 1;
+}
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: rgba(59, 130, 246, 0.07);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.totals-primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  color: var(--text-secondary);
+}
+
+.totals-title {
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.totals-est {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.totals-sep {
+  opacity: 0.3;
+  user-select: none;
+}
+
+.totals-ou {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.totals-bottom {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.totals-lean {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lean-over { color: var(--success); }
+.lean-under { color: var(--danger); }
+.lean-push {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.spread {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  font-weight: 600;
+}

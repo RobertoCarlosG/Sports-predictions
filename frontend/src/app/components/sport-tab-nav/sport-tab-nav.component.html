@@ -1,6 +1,6 @@
 <nav class="tabs" aria-label="Deportes">
   <div class="scroll">
-    @for (s of sports; track s.id) {
+    @for (s of sports(); track s.id) {
       <a
         mat-button
         class="tab"

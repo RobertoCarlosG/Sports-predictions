@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from starlette.responses import Response
 
-from app.api.routes import admin, bets, games, health, mlb, model, predict, user_auth
+from app.api.routes import admin, bets, features, games, health, mlb, model, nba, predict, user_auth
 from app.core.config import settings
 from app.core.cors_utils import cors_headers_for_request
 from app.core.exception_handlers import (
@@ -20,6 +20,7 @@ from app.core.exception_handlers import (
 )
 from app.db.session import async_session_factory, engine
 from app.ml.model_routing import DEFAULT_ML_MODEL, get_prediction_service_optional
+from app.ml.nba_predictor import NbaPredictionService
 from app.ml.predictor import MlbPredictionService, ensure_model_exists, resolve_model_path
 from app.services.admin_backfill_state import initial_backfill_job_state
 from app.services.mlb_daily_snapshot import daily_snapshot_loop_forever
@@ -81,6 +82,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     else:
         log.info("No XGBoost model at %s — default predict/games need this file.", xgb_path)
+
+    # --- Modelos NBA (xgb / lgbm / catboost) ---
+    app.state.nba_prediction_service_xgb = None
+    app.state.nba_prediction_service_lgbm = None
+    app.state.nba_prediction_service_catboost = None
+    _nba_specs = [
+        ("nba_prediction_service_xgb", settings.ml_model_path_nba_xgb, "model_nba_xgb.joblib"),
+        ("nba_prediction_service_lgbm", settings.ml_model_path_nba_lgbm, "model_nba_lgbm.joblib"),
+        (
+            "nba_prediction_service_catboost",
+            settings.ml_model_path_nba_catboost,
+            "model_nba_catboost.joblib",
+        ),
+    ]
+    for attr, env_path, default_name in _nba_specs:
+        path = resolve_model_path(env_path, default_name=default_name)
+        if path.is_file():
+            svc = NbaPredictionService(path)
+            setattr(app.state, attr, svc)
+            log.info("NBA model loaded from %s version=%s", path, svc.model_version)
+        else:
+            log.info("No NBA model at %s — /nba/predict para ese algoritmo dará 503.", path)
 
     primary_svc = get_prediction_service_optional(app)
     if primary_svc is not None:
@@ -147,8 +170,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     application.include_router(health.router, tags=["health"])
+    application.include_router(features.router, prefix="/api/v1", tags=["features"])
     application.include_router(games.router, prefix="/api/v1", tags=["games"])
     application.include_router(mlb.router, prefix="/api/v1", tags=["mlb"])
+    application.include_router(nba.router, prefix="/api/v1", tags=["nba"])
     application.include_router(predict.router, prefix="/api/v1", tags=["predict"])
     application.include_router(model.router, prefix="/api/v1", tags=["model"])
     application.include_router(admin.router, prefix="/api/v1", tags=["admin"])

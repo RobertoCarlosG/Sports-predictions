@@ -6,6 +6,13 @@ import { tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import type { GameDetail, GamesListResponse, PredictionOut, TeamOut } from '../models/game';
 import type { HistoryGame, MlbSyncRangeResult } from '../models/history';
+import type {
+  NbaGameDetail,
+  NbaGamesListResponse,
+  NbaModelKind,
+  NbaPredictionOut,
+  NbaTeamOut,
+} from '../models/nba';
 import { RequestCache } from './request-cache';
 
 /** Filtros de `listMlbHistory`. Aceptados también por la clave de caché. */
@@ -38,6 +45,11 @@ export class GamesApiService {
   private readonly predictCache = new RequestCache<PredictionOut>({ ttlMs: 60_000 });
   private readonly teamsCache = new RequestCache<TeamOut[]>({ ttlMs: 3_600_000 });
   private readonly historyCache = new RequestCache<HistoryGame[]>({ ttlMs: 300_000 });
+  // --- NBA ---
+  private readonly nbaListCache = new RequestCache<NbaGamesListResponse>({ ttlMs: 60_000 });
+  private readonly nbaGameCache = new RequestCache<NbaGameDetail>({ ttlMs: 60_000 });
+  private readonly nbaPredictCache = new RequestCache<NbaPredictionOut>({ ttlMs: 60_000 });
+  private readonly nbaTeamsCache = new RequestCache<NbaTeamOut[]>({ ttlMs: 3_600_000 });
 
   listGames(
     date: string,
@@ -206,6 +218,74 @@ export class GamesApiService {
     this.predictCache.clear();
     this.teamsCache.clear();
     this.historyCache.clear();
+    this.nbaListCache.clear();
+    this.nbaGameCache.clear();
+    this.nbaPredictCache.clear();
+    this.nbaTeamsCache.clear();
+  }
+
+  // ---------------------------------------------------------------------------
+  // NBA
+  // ---------------------------------------------------------------------------
+
+  listNbaGames(
+    date: string,
+    sync = false,
+    options?: { includePredictions?: boolean; force?: boolean },
+  ): Observable<NbaGamesListResponse> {
+    const includePredictions = options?.includePredictions !== false;
+    const key = `${date}|sync=${sync}|p=${includePredictions}`;
+    return this.nbaListCache.get(
+      key,
+      () => {
+        const params = new HttpParams()
+          .set('date', date)
+          .set('sync', String(sync))
+          .set('include_predictions', String(includePredictions));
+        return this.http.get<NbaGamesListResponse>(`${this.base}/nba/games`, { params });
+      },
+      options?.force === true,
+    );
+  }
+
+  getNbaGame(
+    gameId: string,
+    options?: { includePredictions?: boolean; force?: boolean },
+  ): Observable<NbaGameDetail> {
+    const include = options?.includePredictions !== false;
+    const key = `${gameId}|p=${include}`;
+    return this.nbaGameCache.get(
+      key,
+      () =>
+        this.http.get<NbaGameDetail>(`${this.base}/nba/games/${gameId}`, {
+          params: new HttpParams().set('include_predictions', String(include)),
+        }),
+      options?.force === true,
+    );
+  }
+
+  predictNba(
+    gameId: string,
+    options?: { force?: boolean; model?: NbaModelKind },
+  ): Observable<NbaPredictionOut> {
+    const model = options?.model ?? 'xgb';
+    const key = `${gameId}|${model}`;
+    return this.nbaPredictCache.get(
+      key,
+      () => {
+        const params = model === 'xgb' ? new HttpParams() : new HttpParams().set('model', model);
+        return this.http.get<NbaPredictionOut>(`${this.base}/nba/predict/${gameId}`, { params });
+      },
+      options?.force === true,
+    );
+  }
+
+  listNbaTeams(options?: { force?: boolean }): Observable<NbaTeamOut[]> {
+    return this.nbaTeamsCache.get(
+      'all',
+      () => this.http.get<NbaTeamOut[]>(`${this.base}/nba/teams`),
+      options?.force === true,
+    );
   }
 
   private buildHistoryKey(p: ListMlbHistoryParams): string {

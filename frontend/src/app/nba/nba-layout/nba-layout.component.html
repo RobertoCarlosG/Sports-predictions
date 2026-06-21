@@ -1,0 +1,11 @@
+<div class="nba-layout">
+  <nav class="nba-subnav" aria-label="Vistas NBA">
+    <div class="seg-track" [style.--active-index]="activeIndex()">
+      <div class="seg-pill" aria-hidden="true"></div>
+      <a routerLink="/nba/today"    [class.seg-on]="activeIndex() === 0">Hoy</a>
+      <a routerLink="/nba/tomorrow" [class.seg-on]="activeIndex() === 1">Mañana</a>
+      <a routerLink="/nba/week"     [class.seg-on]="activeIndex() === 2">Semana</a>
+    </div>
+  </nav>
+  <router-outlet />
+</div>

@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './guards/auth.guard';
+import { nbaFeatureGuard } from './guards/nba-feature.guard';
 
 export const routes: Routes = [
   {
@@ -61,13 +62,53 @@ export const routes: Routes = [
         },
       },
       {
-        path: 'nba',
+        path: 'nba-coming-soon',
         loadComponent: () =>
           import('./coming-soon/coming-soon.component').then((m) => m.ComingSoonComponent),
         data: {
           title: 'NBA',
-          subtitle: 'Baloncesto — en construcción',
+          subtitle: 'NBA — stats.nba.com (XGBoost / LightGBM / CatBoost) — en construcción',
         },
+      },
+      {
+        path: 'nba',
+        canActivate: [nbaFeatureGuard],
+        loadComponent: () =>
+          import('./nba/nba-layout/nba-layout.component').then((m) => m.NbaLayoutComponent),
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'today' },
+          {
+            path: 'today',
+            loadComponent: () =>
+              import('./nba/nba-game-list/nba-game-list.component').then(
+                (m) => m.NbaGameListComponent,
+              ),
+            data: { datePreset: 'today' as const },
+          },
+          {
+            path: 'tomorrow',
+            loadComponent: () =>
+              import('./nba/nba-game-list/nba-game-list.component').then(
+                (m) => m.NbaGameListComponent,
+              ),
+            data: { datePreset: 'tomorrow' as const },
+          },
+          {
+            path: 'week',
+            loadComponent: () =>
+              import('./nba/nba-game-list/nba-game-list.component').then(
+                (m) => m.NbaGameListComponent,
+              ),
+            data: { datePreset: 'week' as const },
+          },
+          {
+            path: 'game/:gameId',
+            loadComponent: () =>
+              import('./nba/nba-game-detail/nba-game-detail.component').then(
+                (m) => m.NbaGameDetailComponent,
+              ),
+          },
+        ],
       },
       {
         path: 'operations',

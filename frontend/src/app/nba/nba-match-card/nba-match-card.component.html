@@ -1,0 +1,55 @@
+<a class="card-link" [routerLink]="['/nba/game', game.game_id]">
+  <mat-card class="card" appearance="outlined">
+    <mat-card-content class="inner">
+      <div class="row-top">
+        <app-status-badge [apiStatus]="game.status" />
+      </div>
+      <div class="teams">
+        <span class="team away">{{ game.away_team.abbreviation }}</span>
+        <span class="at">&#64;</span>
+        <span class="team home">{{ game.home_team.abbreviation }}</span>
+        @if (hasScore()) {
+          <span class="score">{{ game.away_score }} – {{ game.home_score }}</span>
+        }
+      </div>
+      <p class="meta">{{ game.game_date }}</p>
+
+      <div class="pred-bar-wrap">
+        <app-probability-bar
+          [label]="favoriteVictoryLabel"
+          [probability]="favoriteBarProbability"
+        />
+        @if (insufficientData) {
+          <mat-icon
+            class="data-hint-icon"
+            matTooltip="Estimación con datos históricos insuficientes"
+            matTooltipPosition="above"
+            aria-label="Datos insuficientes"
+          >info</mat-icon>
+        }
+      </div>
+
+      @if (hasTotals) {
+        <div class="totals" role="group" aria-label="Puntos totales y O/U">
+          <div class="totals-primary">
+            <span class="totals-title">Puntos tot.</span>
+            <span class="totals-est">~{{ totalEstimateDisplay }}</span>
+            <span class="totals-sep" aria-hidden="true">·</span>
+            <span class="totals-ou">O/U {{ ouLineDisplay }}</span>
+          </div>
+          <div class="totals-bottom">
+            <span
+              class="totals-lean"
+              [class.lean-over]="ouTendency === 'over'"
+              [class.lean-under]="ouTendency === 'under'"
+              [class.lean-push]="ouTendency === 'push'"
+            >{{ ouTendencyLabel }}</span>
+            @if (spreadDisplay) {
+              <span class="spread">{{ spreadDisplay }}</span>
+            }
+          </div>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+</a>

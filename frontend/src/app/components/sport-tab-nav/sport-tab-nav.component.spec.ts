@@ -38,7 +38,7 @@ describe('SportTabNavComponent', () => {
   it('renders a tab per sport option', () => {
     fixture.detectChanges();
     const tabs = fixture.nativeElement.querySelectorAll('a.tab');
-    expect(tabs.length).toBe(component.sports.length);
+    expect(tabs.length).toBe(component.sports().length);
   });
 
   it('marks the active sport tab', () => {
