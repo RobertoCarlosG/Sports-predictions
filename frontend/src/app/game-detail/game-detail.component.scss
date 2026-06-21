@@ -3,7 +3,13 @@
 .page {
   max-width: 1040px;
   margin: 0 auto;
-  padding: 1rem 1rem 2.5rem;
+  padding: var(--sp-3) var(--sp-3) var(--sp-10);
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: 1rem 1rem 2.5rem;
+  }
 }
 
 .back-row {
@@ -271,7 +277,7 @@
   margin-bottom: 1.25rem;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1024px) {
   .grid-cards {
     grid-template-columns: 1fr 1fr;
   }

@@ -48,6 +48,54 @@
   background: transparent;
 }
 
+// ─── Mobile overlay ───────────────────────────────────────────────────────────
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: var(--z-overlay);
+}
+
+// ─── Mobile top bar ───────────────────────────────────────────────────────────
+.mobile-topbar {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 var(--sp-2);
+  flex-shrink: 0;
+  background: var(--glass-bg-raised);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-sm);
+
+  @supports (backdrop-filter: blur(1px)) {
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+  }
+}
+
+.mobile-topbar-title {
+  flex: 1;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, var(--text-primary) 0%, var(--accent-text) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  pointer-events: none;
+}
+
+.topbar-btn {
+  flex-shrink: 0;
+  color: var(--text-secondary) !important;
+  width: var(--touch-target) !important;
+  height: var(--touch-target) !important;
+}
+
 // ─── Panel de notificaciones ──────────────────────────────────────────────────
 .notif-panel {
   height: 100%;

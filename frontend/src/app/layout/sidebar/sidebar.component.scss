@@ -229,3 +229,48 @@
   top: 0;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
+
+// Touch targets: mínimo 44px (WCAG 2.5.5)
+.nav-item {
+  min-height: var(--touch-target);
+}
+
+// ─── Mobile overlay (≤767px) ──────────────────────────────────────────────────
+@media (max-width: 767px) {
+  :host {
+    // Sin espacio en el flex layout del shell
+    flex: 0 0 0 !important;
+    width: 0 !important;
+    overflow: visible;
+    transition: none;
+
+    // Panel fijo que desliza desde la izquierda
+    .sidebar {
+      @include glass-mobile;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 280px;
+      transform: translateX(-100%);
+      transition: transform var(--duration-base) var(--ease-out);
+      border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+      border-right: none;
+      box-shadow: var(--shadow-lg);
+      z-index: var(--z-sidebar);
+      overflow-y: auto;
+
+      @media (prefers-reduced-motion: reduce) {
+        transition: none;
+      }
+
+      &::after {
+        display: none;
+      }
+    }
+  }
+
+  :host.mobile-open .sidebar {
+    transform: translateX(0);
+  }
+}

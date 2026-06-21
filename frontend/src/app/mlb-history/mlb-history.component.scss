@@ -1,7 +1,20 @@
 .main-wrap {
   max-width: 1120px;
   margin: 0 auto;
-  padding: var(--sp-5) var(--sp-4) var(--sp-10);
+  padding: var(--sp-4) var(--sp-3) var(--sp-10);
+}
+
+@media (min-width: 768px) {
+  .main-wrap {
+    padding: var(--sp-5) var(--sp-4) var(--sp-10);
+  }
+}
+
+// Scroll horizontal si hay tablas o contenido ancho
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
 }
 
 .back-row {

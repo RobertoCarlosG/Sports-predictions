@@ -1,7 +1,13 @@
 .page {
   max-width: 1120px;
   margin: 0 auto;
-  padding: var(--sp-5) var(--sp-4) var(--sp-10);
+  padding: var(--sp-4) var(--sp-3) var(--sp-10);
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: var(--sp-5) var(--sp-4) var(--sp-10);
+  }
 }
 
 .page-head {
@@ -11,7 +17,7 @@
   margin-bottom: var(--sp-5);
 }
 
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .page-head {
     flex-direction: row;
     align-items: flex-start;

@@ -1,13 +1,20 @@
-<aside class="sidebar" [class.collapsed]="collapsed" aria-label="Navegación principal">
+<aside class="sidebar" [class.collapsed]="collapsed && !isMobile" aria-label="Navegación principal">
   <div class="sidebar-header">
-    @if (!collapsed) {
+    @if (!collapsed || isMobile) {
       <div class="sidebar-brand">
         <a routerLink="/mlb" class="brand-link" aria-label="Inicio, MLB">{{ title }}</a>
       </div>
     }
-    <button mat-icon-button class="collapse-btn" (click)="toggleCollapse()" [attr.aria-label]="collapsed ? 'Expandir menú' : 'Contraer menú'">
-      <mat-icon>{{ collapsed ? 'menu' : 'menu_open' }}</mat-icon>
-    </button>
+    @if (!isMobile) {
+      <button mat-icon-button class="collapse-btn" (click)="toggleCollapse()" [attr.aria-label]="collapsed ? 'Expandir menú' : 'Contraer menú'">
+        <mat-icon>{{ collapsed ? 'menu' : 'menu_open' }}</mat-icon>
+      </button>
+    }
+    @if (isMobile) {
+      <button mat-icon-button class="collapse-btn" (click)="closeRequest.emit()" aria-label="Cerrar menú">
+        <mat-icon>close</mat-icon>
+      </button>
+    }
   </div>
 
   <div class="nav-block">
