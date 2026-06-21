@@ -16,6 +16,7 @@ import { BreakpointObserver } from '@angular/cdk/layout';
 
 import { SPORT_OPTIONS, type SportId, type SportOption } from '../../models/sport';
 import { NotificationService } from '../../services/notification.service';
+import { ThemeService } from '../../services/theme.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -30,6 +31,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly breakpoint = inject(BreakpointObserver);
   protected readonly notif = inject(NotificationService);
+  protected readonly themeSvc = inject(ThemeService);
   private sub: Subscription | null = null;
   private bpSub: Subscription | null = null;
 

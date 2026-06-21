@@ -19,6 +19,14 @@
           <button
             mat-icon-button
             class="topbar-btn"
+            (click)="themeSvc.toggle()"
+            [attr.aria-label]="themeSvc.theme() === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+          >
+            <mat-icon>{{ themeSvc.theme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            class="topbar-btn"
             (click)="notif.togglePanel()"
             aria-label="Notificaciones"
             [matBadge]="notif.unreadCount()"

@@ -42,6 +42,18 @@
       <button
         class="nav-item nav-item--icon"
         type="button"
+        (click)="themeSvc.toggle()"
+        [attr.title]="collapsed ? (themeSvc.theme() === 'dark' ? 'Modo claro' : 'Modo oscuro') : null"
+        [attr.aria-label]="themeSvc.theme() === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+      >
+        <mat-icon class="nav-ico" aria-hidden="true">{{ themeSvc.theme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+        @if (!collapsed) {
+          <span class="nav-text">{{ themeSvc.theme() === 'dark' ? 'Modo claro' : 'Modo oscuro' }}</span>
+        }
+      </button>
+      <button
+        class="nav-item nav-item--icon"
+        type="button"
         (click)="notif.togglePanel()"
         [attr.title]="collapsed ? 'Notificaciones' : null"
         aria-label="Notificaciones"

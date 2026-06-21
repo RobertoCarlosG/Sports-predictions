@@ -145,6 +145,18 @@
   font-size: var(--font-size-sm);
   font-weight: 500;
   letter-spacing: 0.01em;
+
+  // Reset para los <button> del bloque Sistema (sin esto heredan el fondo
+  // gris y la tipografía por defecto del navegador, perdiendo contraste).
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+
   transition:
     background var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);

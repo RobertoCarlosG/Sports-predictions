@@ -2,10 +2,10 @@
   <nav class="mlb-subnav" aria-label="Vistas MLB">
     <div class="seg-track" [style.--active-index]="activeIndex()">
       <div class="seg-pill" aria-hidden="true"></div>
-      <a routerLink="/mlb/today"    routerLinkActive="seg-on" [routerLinkActiveOptions]="{exact:true}">Hoy</a>
-      <a routerLink="/mlb/tomorrow" routerLinkActive="seg-on" [routerLinkActiveOptions]="{exact:true}">Mañana</a>
-      <a routerLink="/mlb/week"     routerLinkActive="seg-on" [routerLinkActiveOptions]="{exact:true}">Semana</a>
-      <a routerLink="/mlb/history"  routerLinkActive="seg-on" [routerLinkActiveOptions]="{exact:true}">Historial</a>
+      <a routerLink="/mlb/today"    [class.seg-on]="activeIndex() === 0">Hoy</a>
+      <a routerLink="/mlb/tomorrow" [class.seg-on]="activeIndex() === 1">Mañana</a>
+      <a routerLink="/mlb/week"     [class.seg-on]="activeIndex() === 2">Semana</a>
+      <a routerLink="/mlb/history"  [class.seg-on]="activeIndex() === 3">Historial</a>
     </div>
   </nav>
   <router-outlet />

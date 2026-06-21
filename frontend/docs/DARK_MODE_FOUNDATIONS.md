@@ -1,7 +1,7 @@
 # Dark Mode — Bases y Plan de Implementación
 
-> **Estado:** Documentado, no implementado.  
-> El modo oscuro requiere una sesión de trabajo separada. Este documento define la estrategia y los tokens necesarios para implementarlo cuando se decida avanzar.
+> **Estado:** ✅ Implementado (2026-06-21).
+> Se implementó con el mecanismo `data-theme` descrito abajo, pero **usando la paleta Slate + Azul original** (la que el usuario prefería) en lugar de los valores de tablas de este documento. Archivos: `_tokens.scss` (`[data-theme="dark"]`), `styles.scss` (overrides Material dark + blobs), `services/theme.service.ts`, script anti-FOUC en `index.html`, toggle en sidebar y topbar móvil. Este documento se conserva como referencia histórica del plan.
 
 ---
 
