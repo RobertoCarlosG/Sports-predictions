@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps_rate_limit import rate_limit_public_read, rate_limit_public_write
+from app.core.config import settings
 from app.db.session import get_db
 from app.ml.model_routing import (
     DEFAULT_NBA_MODEL,
@@ -25,7 +26,6 @@ from app.schemas.nba import (
     NbaPredictionResponse,
     NbaTeamOut,
 )
-from app.core.config import settings
 from app.services.nba_client import NbaApiClient
 from app.services.nba_prediction_cache import (
     evaluate_nba_predictions_for_final_games,
