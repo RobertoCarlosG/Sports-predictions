@@ -12,6 +12,7 @@ import { ModelInfoService } from '../../services/model-info.service';
 import { NotificationService, type NotifType } from '../../services/notification.service';
 import { ModelFooterComponent } from '../model-footer/model-footer.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
+import { ThemeService } from '../../services/theme.service';
 
 /**
  * El shell usa detección por defecto: con OnPush, las actualizaciones asíncronas (p. ej. HttpClient) en
@@ -39,6 +40,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   private readonly breakpoint = inject(BreakpointObserver);
   private bpSub: Subscription | null = null;
   protected readonly notif = inject(NotificationService);
+  protected readonly themeSvc = inject(ThemeService);
 
   protected readonly notifOpen = this.notif.panelOpen;
   protected readonly notifications = this.notif.notifications;

@@ -49,9 +49,50 @@ html {
   ));
 }
 
+// ─── Material M3 — modo oscuro (Slate + Azul) ────────────────────────────────
+html[data-theme="dark"] {
+  @include mat.theme-overrides((
+    // Colores primarios (azul eléctrico)
+    primary:                      #3B82F6,
+    on-primary:                   #06101F,
+    primary-container:            #1E3A8A,
+    on-primary-container:         #93C5FD,
+
+    // Secundario (slate)
+    secondary:                    #94A3B8,
+    on-secondary:                 #06101F,
+    secondary-container:          #1E293B,
+    on-secondary-container:       #ECEFF4,
+
+    // Superficies oscuras
+    surface:                      #0F141C,
+    surface-dim:                  #0A0E14,
+    surface-bright:               #141A23,
+    surface-container-lowest:     #0A0E14,
+    surface-container-low:        #0F141C,
+    surface-container:            #141A23,
+    surface-container-high:       #1A2230,
+    surface-container-highest:    #222E40,
+
+    on-surface:                   #ECEFF4,
+    on-surface-variant:           rgba(236,239,244,.66),
+
+    outline:                      rgba(150,180,230,.22),
+    outline-variant:              rgba(150,180,230,.12),
+
+    // Fondo global
+    background:                   #0A0E14,
+    on-background:                #ECEFF4,
+  ));
+}
+
 html {
   color-scheme: light;
   height: 100%;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 body {
@@ -101,6 +142,14 @@ body::after {
   right: 5%;
 }
 
+// Blobs más presentes sobre fondo oscuro (azul marino)
+[data-theme="dark"] body::before {
+  background: radial-gradient(circle at 25% 20%, rgba(30, 58, 138, 0.28) 0%, transparent 55%);
+}
+[data-theme="dark"] body::after {
+  background: radial-gradient(circle at 80% 85%, rgba(12, 42, 82, 0.22) 0%, transparent 50%);
+}
+
 app-root {
   position: relative;
   z-index: 1;
@@ -109,8 +158,8 @@ app-root {
 // ─── Scrollbar global (light) ─────────────────────────────────────────────────
 ::-webkit-scrollbar            { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track      { background: transparent; }
-::-webkit-scrollbar-thumb      { background: rgba(15,23,42,.18); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover{ background: rgba(15,23,42,.32); }
+::-webkit-scrollbar-thumb      { background: var(--scrollbar-thumb); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover{ background: var(--scrollbar-thumb-hover); }
 
 // ─── Material overrides generales ────────────────────────────────────────────
 
@@ -135,7 +184,7 @@ app-root {
   color: var(--text-primary);
 
   @supports not (backdrop-filter: blur(1px)) {
-    background: rgba(255, 255, 255, 0.92) !important;
+    background: var(--glass-fallback) !important;
   }
 }
 
@@ -202,13 +251,13 @@ app-root {
 
   // Fondo glass del campo
   .mat-mdc-text-field-wrapper {
-    background: rgba(255, 255, 255, 0.65) !important;
+    background: var(--field-bg) !important;
     border-radius: var(--radius-md) !important;
     transition: background var(--duration-fast) var(--ease-out);
   }
 
   &:hover .mat-mdc-text-field-wrapper {
-    background: rgba(255, 255, 255, 0.85) !important;
+    background: var(--field-bg-hover) !important;
   }
 
   // Borde (notched outline) en reposo
@@ -293,7 +342,7 @@ app-root {
   overflow: hidden;
 
   .mdc-linear-progress__buffer-bar {
-    background: rgba(15, 23, 42, 0.08) !important;
+    background: var(--progress-buffer) !important;
   }
   .mdc-linear-progress__bar-inner {
     border-color: var(--accent) !important;

@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 
@@ -8,7 +8,7 @@ const TABS = ['/mlb/today', '/mlb/tomorrow', '/mlb/week', '/mlb/history'] as con
 @Component({
   selector: 'app-mlb-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink],
   templateUrl: './mlb-layout.component.html',
   styleUrl: './mlb-layout.component.scss',
 })
@@ -27,6 +27,10 @@ export class MlbLayoutComponent {
 
   private updateIndex(url: string): void {
     const idx = TABS.findIndex(t => url.startsWith(t));
-    this.activeIndex.set(idx >= 0 ? idx : 0);
+    // En rutas sin tab propio (p. ej. detalle de partido /mlb/game/:id) mantenemos
+    // el tab anterior, para que la píldora y el texto en blanco no se desincronicen.
+    if (idx >= 0) {
+      this.activeIndex.set(idx);
+    }
   }
 }

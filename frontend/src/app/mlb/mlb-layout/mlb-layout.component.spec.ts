@@ -50,7 +50,9 @@ describe('MlbLayoutComponent', () => {
     update('/mlb/tomorrow');
     expect(component.activeIndex()).toBe(1);
 
-    update('/mlb/unknown');
-    expect(component.activeIndex()).toBe(0);
+    // Rutas sin tab propio (p. ej. el detalle de partido) mantienen el tab anterior,
+    // para que la píldora y el texto en blanco no se desincronicen.
+    update('/mlb/game/12345');
+    expect(component.activeIndex()).toBe(1);
   });
 });
