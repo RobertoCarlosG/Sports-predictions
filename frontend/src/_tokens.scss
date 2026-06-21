@@ -74,4 +74,20 @@
   --duration-fast:  120ms;
   --duration-base:  220ms;
   --duration-slow:  360ms;
+
+  // Breakpoints (mobile-first, usar en JS como strings o en SCSS via env/custom)
+  --bp-sm:  480px;
+  --bp-md:  768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+
+  // Z-index system
+  --z-overlay:    199;
+  --z-sidebar:    200;
+  --z-dropdown:   300;
+  --z-modal:      400;
+  --z-toast:      500;
+
+  // Touch targets (WCAG 2.5.5)
+  --touch-target: 44px;
 }

@@ -1,7 +1,35 @@
 <div class="shell">
-  <app-sidebar />
+  @if (isMobile() && mobileSidebarOpen()) {
+    <div class="mobile-overlay" (click)="closeMobileSidebar()" aria-hidden="true"></div>
+  }
+
+  <app-sidebar
+    [class.mobile-open]="mobileSidebarOpen()"
+    (closeRequest)="closeMobileSidebar()"
+  />
+
   <mat-sidenav-container class="main-column">
     <mat-sidenav-content>
+      @if (isMobile()) {
+        <header class="mobile-topbar">
+          <button mat-icon-button class="topbar-btn" (click)="openMobileSidebar()" aria-label="Abrir menú">
+            <mat-icon>menu</mat-icon>
+          </button>
+          <span class="mobile-topbar-title">Sports Predictions</span>
+          <button
+            mat-icon-button
+            class="topbar-btn"
+            (click)="notif.togglePanel()"
+            aria-label="Notificaciones"
+            [matBadge]="notif.unreadCount()"
+            [matBadgeHidden]="notif.unreadCount() === 0"
+            matBadgeSize="small"
+            matBadgeColor="warn"
+          >
+            <mat-icon>notifications</mat-icon>
+          </button>
+        </header>
+      }
       <main class="main-shell">
         <router-outlet />
       </main>

@@ -5,12 +5,14 @@ import {
   OnDestroy,
   OnInit,
   inject,
+  output,
 } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatIconModule } from '@angular/material/icon';
 import { filter, Subscription } from 'rxjs';
 import { MatIconButton } from '@angular/material/button';
+import { BreakpointObserver } from '@angular/cdk/layout';
 
 import { SPORT_OPTIONS, type SportId, type SportOption } from '../../models/sport';
 import { NotificationService } from '../../services/notification.service';
@@ -26,13 +28,18 @@ import { NotificationService } from '../../services/notification.service';
 export class SidebarComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly breakpoint = inject(BreakpointObserver);
   protected readonly notif = inject(NotificationService);
   private sub: Subscription | null = null;
+  private bpSub: Subscription | null = null;
+
+  readonly closeRequest = output<void>();
 
   readonly title = 'Sports Predictions';
   readonly sports = SPORT_OPTIONS;
   private url = '';
   collapsed = false;
+  isMobile = false;
 
   toggleCollapse() {
     this.collapsed = !this.collapsed;
@@ -44,12 +51,19 @@ export class SidebarComponent implements OnInit, OnDestroy {
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe(() => {
         this.url = this.stripQuery(this.router.url);
+        if (this.isMobile) this.closeRequest.emit();
         this.cdr.markForCheck();
       });
+
+    this.bpSub = this.breakpoint.observe('(max-width: 767px)').subscribe(state => {
+      this.isMobile = state.matches;
+      this.cdr.markForCheck();
+    });
   }
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    this.bpSub?.unsubscribe();
   }
 
   pathFor(id: SportId): string {

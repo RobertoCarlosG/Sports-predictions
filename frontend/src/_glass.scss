@@ -29,3 +29,15 @@
     @include glass($bg);
   }
 }
+
+// Glass reducido para touch devices (menor blur = mejor rendimiento en móvil)
+@mixin glass-mobile($bg: var(--glass-bg-raised)) {
+  background: $bg;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md), var(--shadow-inset-top);
+
+  @supports (backdrop-filter: blur(1px)) {
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+  }
+}

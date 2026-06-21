@@ -16,10 +16,23 @@
   position: sticky;
   top: 0;
   z-index: 5;
-  padding: var(--sp-3) var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--glass-border);
   box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; // hide scrollbar on Firefox
+
+  &::-webkit-scrollbar {
+    display: none; // hide scrollbar on Chrome/Safari
+  }
+}
+
+@media (min-width: 768px) {
+  .mlb-subnav {
+    padding: var(--sp-3) var(--sp-4);
+  }
 }
 
 // ─── Segmented control ────────────────────────────────────────────────────────
@@ -32,6 +45,8 @@
   border-radius: var(--radius-pill);
   padding: 3px;
   max-width: 440px;
+  // On small screens allow track to fill width so tabs don't shrink too much
+  min-width: min(100%, 320px);
 
   @supports (backdrop-filter: blur(1px)) {
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
