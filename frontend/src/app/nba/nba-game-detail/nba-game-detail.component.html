@@ -1,0 +1,62 @@
+<section class="page">
+  <a routerLink="/nba/today" class="back"><mat-icon>arrow_back</mat-icon> Volver</a>
+
+  @if (loading()) {
+    <div class="center"><mat-spinner diameter="36" /></div>
+  } @else if (loadError() || game() === null) {
+    <div class="empty">
+      <mat-icon>error_outline</mat-icon>
+      <p>No se encontró el partido.</p>
+    </div>
+  } @else {
+    @let g = game()!;
+    <header class="head">
+      <app-status-badge [apiStatus]="g.status" />
+      <h1>{{ g.away_team.abbreviation }} &#64; {{ g.home_team.abbreviation }}</h1>
+      <p class="meta">{{ g.game_date }}@if (g.arena) { · {{ g.arena }} }</p>
+      @if (g.home_score != null && g.away_score != null) {
+        <p class="score">{{ g.away_score }} – {{ g.home_score }}</p>
+      }
+    </header>
+
+    <div class="model-switch" role="group" aria-label="Modelo de predicción">
+      @for (m of models; track m) {
+        <button
+          type="button"
+          [class.active]="selectedModel() === m"
+          (click)="selectModel(m)"
+        >{{ m }}</button>
+      }
+    </div>
+
+    @if (prediction(); as p) {
+      <div class="pred-card" [class.dim]="predLoading()">
+        <app-probability-bar [label]="favoriteLabel()" [probability]="favoriteProb()" />
+        @if (p.defaults_injected) {
+          <p class="warn"><mat-icon>info</mat-icon> Estimación con datos históricos insuficientes.</p>
+        }
+        <dl class="markets">
+          <div>
+            <dt>Moneyline (local)</dt>
+            <dd>{{ pct(p.home_win_probability) }}</dd>
+          </div>
+          <div>
+            <dt>Spread proyectado</dt>
+            <dd>{{ fmt(p.spread_line) }} (margen ~{{ fmt(p.margin_estimate) }})</dd>
+          </div>
+          <div>
+            <dt>Total proyectado</dt>
+            <dd>~{{ fmt(p.total_points_estimate) }} · O/U {{ fmt(p.over_under_line) }}</dd>
+          </div>
+          <div>
+            <dt>P(Over)</dt>
+            <dd>{{ pct(p.over_probability) }}</dd>
+          </div>
+        </dl>
+        <p class="model-version">Modelo: {{ p.model_version }}</p>
+      </div>
+    } @else {
+      <p class="empty-pred">Sin predicción disponible para este partido.</p>
+    }
+  }
+</section>

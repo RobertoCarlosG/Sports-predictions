@@ -1,0 +1,37 @@
+<section class="page">
+  <header class="page-head">
+    <h1>{{ pageTitle() }}</h1>
+    <p class="lede">{{ pageLede() }}</p>
+  </header>
+
+  @if (loading()) {
+    <div class="grid">
+      @for (s of skeletonItems; track s) {
+        <div class="skeleton-card"></div>
+      }
+    </div>
+  } @else if (loadError()) {
+    <div class="empty">
+      <mat-icon>cloud_off</mat-icon>
+      <p>No se pudieron cargar los partidos.</p>
+      <button type="button" (click)="retry()">Reintentar</button>
+    </div>
+  } @else if (games().length === 0) {
+    <div class="empty">
+      <mat-icon>sports_basketball</mat-icon>
+      <p>No hay partidos para este rango. Sincroniza la temporada en el backend
+        (<code>POST /api/v1/nba/sync-season</code>) o revisa la fecha.</p>
+    </div>
+  } @else {
+    @for (day of dayKeys(); track day) {
+      <div class="day-group">
+        <h2 class="day-title">{{ day }}</h2>
+        <div class="grid">
+          @for (g of gamesForDate(day); track g.game_id) {
+            <app-nba-match-card [game]="g" [homeWinProbability]="probFor(g)" />
+          }
+        </div>
+      </div>
+    }
+  }
+</section>

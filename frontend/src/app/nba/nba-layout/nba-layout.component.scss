@@ -1,0 +1,93 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+.nba-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: min-content;
+}
+
+.nba-subnav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .nba-subnav {
+    padding: var(--sp-3) var(--sp-4);
+  }
+}
+
+.seg-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  max-width: 360px;
+  min-width: min(100%, 260px);
+
+  @supports (backdrop-filter: blur(1px)) {
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  }
+}
+
+.seg-pill {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 3);
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  transform: translateX(calc(var(--active-index, 0) * 100%));
+  transition: transform var(--duration-base) var(--ease-out);
+  pointer-events: none;
+}
+
+.seg-track a {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 var(--sp-2);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.01em;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    font-weight var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
+
+  &.seg-on {
+    color: #fff;
+    font-weight: 600;
+  }
+
+  &:hover:not(.seg-on) {
+    color: var(--text-primary);
+  }
+}

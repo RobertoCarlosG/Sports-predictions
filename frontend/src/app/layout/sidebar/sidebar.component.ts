@@ -4,6 +4,7 @@ import {
   Component,
   OnDestroy,
   OnInit,
+  computed,
   inject,
   output,
 } from '@angular/core';
@@ -15,6 +16,7 @@ import { MatIconButton } from '@angular/material/button';
 import { BreakpointObserver } from '@angular/cdk/layout';
 
 import { SPORT_OPTIONS, type SportId, type SportOption } from '../../models/sport';
+import { FeaturesService } from '../../services/features.service';
 import { NotificationService } from '../../services/notification.service';
 import { ThemeService } from '../../services/theme.service';
 
@@ -32,13 +34,18 @@ export class SidebarComponent implements OnInit, OnDestroy {
   private readonly breakpoint = inject(BreakpointObserver);
   protected readonly notif = inject(NotificationService);
   protected readonly themeSvc = inject(ThemeService);
+  private readonly featuresSvc = inject(FeaturesService);
   private sub: Subscription | null = null;
   private bpSub: Subscription | null = null;
 
   readonly closeRequest = output<void>();
 
   readonly title = 'Sports Predictions';
-  readonly sports = SPORT_OPTIONS;
+  readonly sports = computed(() =>
+    SPORT_OPTIONS.map((s) =>
+      s.id === 'nba' ? { ...s, implemented: this.featuresSvc.nbaEnabled() } : s,
+    ),
+  );
   private url = '';
   collapsed = false;
   isMobile = false;

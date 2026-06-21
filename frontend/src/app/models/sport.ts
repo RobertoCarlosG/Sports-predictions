@@ -30,8 +30,8 @@ export const SPORT_OPTIONS: readonly SportOption[] = [
   {
     id: 'nba',
     label: 'NBA',
-    description: 'NBA — API-Sports (planificado)',
-    implemented: false,
+    description: 'NBA — stats.nba.com (XGBoost / LightGBM / CatBoost)',
+    implemented: true,
     icon: 'sports_basketball',
   },
 ] as const;
