@@ -65,20 +65,50 @@
 
   @if (!loading()) {
     @if (games().length > 0) {
-      <p class="range-label">{{ games().length }} partido(s) · {{ dateSummary() }}</p>
+      <div class="sort-bar">
+        <span class="sort-label">Ordenar</span>
+        <mat-button-toggle-group
+          [value]="sortMode()"
+          (change)="sortMode.set($event.value)"
+          aria-label="Ordenar partidos"
+          hideSingleSelectionIndicator
+        >
+          <mat-button-toggle value="date-asc" matTooltip="Fecha más antigua primero">
+            <mat-icon aria-hidden="true">arrow_upward</mat-icon>
+            Fecha
+          </mat-button-toggle>
+          <mat-button-toggle value="date-desc" matTooltip="Fecha más reciente primero">
+            <mat-icon aria-hidden="true">arrow_downward</mat-icon>
+            Fecha
+          </mat-button-toggle>
+          <mat-button-toggle value="prob-desc" matTooltip="Mayor probabilidad de victoria primero">
+            <mat-icon aria-hidden="true">percent</mat-icon>
+            % Victoria
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+        <p class="range-label">{{ games().length }} partido(s) · {{ dateSummary() }}</p>
+      </div>
     }
 
-    @for (day of dayKeys(); track day) {
-      <section class="day-block" [attr.aria-label]="'Partidos del ' + day">
-        @if (dayKeys().length > 1) {
-          <h2 class="day-title">{{ day }}</h2>
+    @if (sortMode() === 'prob-desc') {
+      <div class="card-grid">
+        @for (g of gamesSortedByProb(); track g.game_pk) {
+          <app-match-card [game]="g" [homeWinProbability]="probFor(g)" />
         }
-        <div class="card-grid">
-          @for (g of gamesForDate(day); track g.game_pk) {
-            <app-match-card [game]="g" [homeWinProbability]="probFor(g)" />
+      </div>
+    } @else {
+      @for (day of dayKeys(); track day) {
+        <section class="day-block" [attr.aria-label]="'Partidos del ' + day">
+          @if (dayKeys().length > 1) {
+            <h2 class="day-title">{{ day }}</h2>
           }
-        </div>
-      </section>
+          <div class="card-grid">
+            @for (g of gamesForDate(day); track g.game_pk) {
+              <app-match-card [game]="g" [homeWinProbability]="probFor(g)" />
+            }
+          </div>
+        </section>
+      }
     }
 
     @if (games().length === 0 && !loadError()) {
