@@ -293,6 +293,7 @@ async def rebuild_game_feature_snapshots(
                     count,
                 )
             count += await _process_day(session, day_games, team_history, **_day_kwargs)
+            await session.commit()  # release connection between days; prevents Supabase idle timeout
 
     await session.flush()
     return count
