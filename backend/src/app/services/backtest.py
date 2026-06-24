@@ -100,10 +100,7 @@ def build_backtest_game_row(r: BacktestRowInputs) -> BacktestGameRow:
     else:
         act_w = actual_winner_from_scores(r.home_score, r.away_score)
 
-    if r.is_correct is not None:
-        ml_correct = bool(r.is_correct)
-    else:
-        ml_correct = pred_w == act_w and act_w != "tie"
+    ml_correct = bool(r.is_correct) if r.is_correct is not None else pred_w == act_w and act_w != "tie"
 
     pred_ou = predicted_ou_from_estimates(r.total_runs_estimate, r.over_under_line)
     total = r.home_score + r.away_score
