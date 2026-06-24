@@ -42,9 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.backfill_job = initial_backfill_job_state()
     model_path = resolve_model_path(settings.ml_model_path)
     if not model_path.is_file() and settings.ml_auto_synthetic_on_missing:
-        log.warning(
-            "ML model missing; training synthetic placeholder (ml_auto_synthetic_on_missing=true)."
-        )
+        log.warning("ML model missing; training synthetic placeholder (ml_auto_synthetic_on_missing=true).")
         ensure_model_exists(model_path)
 
     if settings.admin_jwt_secret.strip():
@@ -129,8 +127,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
     else:
         log.warning(
-            "No primary ML model (%s) loaded — predict/games return 503 "
-            "until you deploy artifacts.",
+            "No primary ML model (%s) loaded — predict/games return 503 " "until you deploy artifacts.",
             DEFAULT_ML_MODEL,
         )
 

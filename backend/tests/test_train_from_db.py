@@ -327,9 +327,7 @@ def _patch_db(monkeypatch: pytest.MonkeyPatch, n: int = 40) -> None:
 def test_async_main_xgb_writes_bundle(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _patch_db(monkeypatch)
     out = tmp_path / "m.joblib"
-    args = _make_args(
-        algorithm="xgb", output=str(out), model_version="xgb-db-v1", trees=4, max_depth=3
-    )
+    args = _make_args(algorithm="xgb", output=str(out), model_version="xgb-db-v1", trees=4, max_depth=3)
     asyncio.run(_async_main(args))
     assert out.exists()
     bundle = joblib.load(out)
@@ -342,9 +340,7 @@ def test_async_main_xgb_writes_bundle(monkeypatch: pytest.MonkeyPatch, tmp_path:
 def test_async_main_rf_writes_bundle(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _patch_db(monkeypatch)
     out = tmp_path / "m.joblib"
-    args = _make_args(
-        algorithm="rf", output=str(out), model_version="rf-db-v1", trees=4, max_depth=4
-    )
+    args = _make_args(algorithm="rf", output=str(out), model_version="rf-db-v1", trees=4, max_depth=4)
     asyncio.run(_async_main(args))
     bundle = joblib.load(out)
     assert isinstance(bundle["clf"], RandomForestClassifier)
@@ -397,9 +393,7 @@ def test_async_main_bad_val_from_falls_back(
     assert any("No se pudo usar val_from" in r.message for r in warnings)
 
 
-def test_async_main_bad_val_from_none_reraises(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_async_main_bad_val_from_none_reraises(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # 12 rows, val_from=None → 80/20 cut: 9 train < 10 → RuntimeError raised
     _patch_db(monkeypatch, n=12)
     out = tmp_path / "m.joblib"
@@ -415,14 +409,10 @@ def test_async_main_bad_val_from_none_reraises(
         asyncio.run(_async_main(args))
 
 
-def test_async_main_creates_nested_output_dir(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_async_main_creates_nested_output_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _patch_db(monkeypatch)
     out = tmp_path / "nested" / "dir" / "m.joblib"
-    args = _make_args(
-        algorithm="rf", output=str(out), model_version="rf-db-v1", trees=4, max_depth=4
-    )
+    args = _make_args(algorithm="rf", output=str(out), model_version="rf-db-v1", trees=4, max_depth=4)
     asyncio.run(_async_main(args))
     assert out.exists()
 

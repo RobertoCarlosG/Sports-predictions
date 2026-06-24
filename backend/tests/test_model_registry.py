@@ -89,9 +89,7 @@ async def test_record_model_load_inserts_active_row(tmp_path: Path, session: Asy
     assert json.loads(row.feature_names_json) == ["f0", "f1", "f2", "f3"]
 
 
-async def test_synthetic_flag_detected_from_base_version(
-    tmp_path: Path, session: AsyncSession
-) -> None:
+async def test_synthetic_flag_detected_from_base_version(tmp_path: Path, session: AsyncSession) -> None:
     p = tmp_path / "syn.joblib"
     _write_min_bundle(p, base_version="rf-synthetic-v0", with_meta=False)
     svc = MlbPredictionService(p)
@@ -114,11 +112,7 @@ async def test_only_one_active_row_after_two_loads(tmp_path: Path, session: Asyn
     row2 = await record_model_load(session, svc2, loaded_by="bob")
 
     assert row1.id != row2.id
-    actives = (
-        (await session.execute(select(ModelVersion).where(ModelVersion.is_active.is_(True))))
-        .scalars()
-        .all()
-    )
+    actives = (await session.execute(select(ModelVersion).where(ModelVersion.is_active.is_(True)))).scalars().all()
     assert len(actives) == 1
     assert actives[0].id == row2.id
 
@@ -126,9 +120,7 @@ async def test_only_one_active_row_after_two_loads(tmp_path: Path, session: Asyn
     assert fetched is not None and fetched.id == row2.id
 
 
-async def test_record_model_load_is_idempotent_for_same_version(
-    tmp_path: Path, session: AsyncSession
-) -> None:
+async def test_record_model_load_is_idempotent_for_same_version(tmp_path: Path, session: AsyncSession) -> None:
     p = tmp_path / "m.joblib"
     _write_min_bundle(p, base_version="rf-db-v1")
     svc = MlbPredictionService(p)
@@ -143,9 +135,7 @@ async def test_record_model_load_is_idempotent_for_same_version(
     assert len(rows) == 1
 
 
-async def test_list_model_versions_orders_by_loaded_at_desc(
-    tmp_path: Path, session: AsyncSession
-) -> None:
+async def test_list_model_versions_orders_by_loaded_at_desc(tmp_path: Path, session: AsyncSession) -> None:
     p1 = tmp_path / "a.joblib"
     p2 = tmp_path / "b.joblib"
     _write_min_bundle(p1, base_version="rf-db-v1")

@@ -28,11 +28,7 @@ def is_final_game_status(status: str) -> bool:
 
 
 def game_has_final_scores(game: NbaGame) -> bool:
-    return (
-        game.home_score is not None
-        and game.away_score is not None
-        and is_final_game_status(game.status)
-    )
+    return game.home_score is not None and game.away_score is not None and is_final_game_status(game.status)
 
 
 @dataclass
@@ -143,9 +139,7 @@ async def rebuild_nba_game_feature_snapshots(
     if season is not None and season != "all":
         await session.execute(
             delete(NbaGameFeatureSnapshot).where(
-                NbaGameFeatureSnapshot.game_id.in_(
-                    select(NbaGame.game_id).where(NbaGame.season == season)
-                )
+                NbaGameFeatureSnapshot.game_id.in_(select(NbaGame.game_id).where(NbaGame.season == season))
             )
         )
     else:
@@ -213,12 +207,8 @@ async def rebuild_nba_game_feature_snapshots(
             box = g.boxscore_json or {}
             home_stats = box.get("home") if isinstance(box, dict) else None
             away_stats = box.get("away") if isinstance(box, dict) else None
-            h_net, h_pace, h_efg = _advanced_for_side(
-                home_stats, away_stats, float(g.home_score), float(g.away_score)
-            )
-            a_net, a_pace, a_efg = _advanced_for_side(
-                away_stats, home_stats, float(g.away_score), float(g.home_score)
-            )
+            h_net, h_pace, h_efg = _advanced_for_side(home_stats, away_stats, float(g.home_score), float(g.away_score))
+            a_net, a_pace, a_efg = _advanced_for_side(away_stats, home_stats, float(g.away_score), float(g.home_score))
             team_history[g.home_team_id].append(
                 _TeamGame(
                     home_won,

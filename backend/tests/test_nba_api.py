@@ -16,9 +16,7 @@ from app.models.nba import NbaGame, NbaGameFeatureSnapshot, NbaTeam
 
 
 def _make_model(path):
-    ns = argparse.Namespace(
-        trees=20, max_depth=3, learning_rate=0.1, subsample=0.9, colsample_bytree=0.9
-    )
+    ns = argparse.Namespace(trees=20, max_depth=3, learning_rate=0.1, subsample=0.9, colsample_bytree=0.9)
     rng = np.random.default_rng(0)
     x = rng.random((80, 18))
     yh = (x[:, 6] > x[:, 7]).astype(int)
@@ -46,9 +44,7 @@ async def nba_model(tmp_path, monkeypatch):
 
     path = tmp_path / "model_nba_xgb.joblib"
     _make_model(path)
-    monkeypatch.setattr(
-        app.state, "nba_prediction_service_xgb", NbaPredictionService(path), raising=False
-    )
+    monkeypatch.setattr(app.state, "nba_prediction_service_xgb", NbaPredictionService(path), raising=False)
     monkeypatch.setattr(app.state, "nba_prediction_service_lgbm", None, raising=False)
     monkeypatch.setattr(app.state, "nba_prediction_service_catboost", None, raising=False)
     yield

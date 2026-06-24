@@ -121,10 +121,7 @@ def _log_feature_health(x: NDArray[np.float64]) -> None:
         float(np.mean(std)),
     )
     if nz < 4:
-        log.warning(
-            "Las features están muy planas: revisa sync_season + "
-            "rebuild_nba_game_feature_snapshots."
-        )
+        log.warning("Las features están muy planas: revisa sync_season + " "rebuild_nba_game_feature_snapshots.")
 
 
 def _split_temporal(
@@ -145,8 +142,7 @@ def _split_temporal(
     nv = int((~mask_train).sum())
     if nt < 10 or nv < 5:
         raise RuntimeError(
-            f"Partición inválida: train={nt}, val={nv} (se requiere train>=10 y val>=5). "
-            f"val_from={val_from!s}."
+            f"Partición inválida: train={nt}, val={nv} (se requiere train>=10 y val>=5). " f"val_from={val_from!s}."
         )
     return mask_train, split_label
 

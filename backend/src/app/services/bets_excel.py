@@ -93,11 +93,7 @@ async def build_period_workbook_bytes(
         ws.cell(row=row_idx, column=6, value=float(b.stake))
         ws.cell(row=row_idx, column=7, value=float(b.odds))
         ws.cell(row=row_idx, column=8, value=_result_label(b.status))
-        pnl = (
-            bet_realized_profit(b.stake, b.odds, b.status)
-            if b.status in ("won", "lost", "push")
-            else None
-        )
+        pnl = bet_realized_profit(b.stake, b.odds, b.status) if b.status in ("won", "lost", "push") else None
         ws.cell(row=row_idx, column=9, value=pnl if pnl is not None else "")
         row_idx += 1
 
@@ -125,9 +121,7 @@ async def build_period_workbook_bytes(
     return buf.getvalue()
 
 
-async def load_game_labels(
-    session: AsyncSession, game_pks: list[int]
-) -> tuple[dict[int, str], dict[int, dt.date]]:
+async def load_game_labels(session: AsyncSession, game_pks: list[int]) -> tuple[dict[int, str], dict[int, dt.date]]:
     if not game_pks:
         return {}, {}
     r = await session.execute(

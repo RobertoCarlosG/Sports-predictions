@@ -106,12 +106,7 @@ def lineups_from_boxscore(box: dict[str, Any]) -> dict[str, Any] | None:
             continue
         team_info = t.get("team")
         team_info = team_info if isinstance(team_info, dict) else {}
-        label = str(
-            team_info.get("abbreviation")
-            or team_info.get("teamName")
-            or team_info.get("name")
-            or side
-        )
+        label = str(team_info.get("abbreviation") or team_info.get("teamName") or team_info.get("name") or side)
         players = t.get("players")
         if not isinstance(players, dict):
             players = {}
@@ -319,11 +314,7 @@ async def _upsert_game_from_schedule_item(
             away_score = ba
     if home_score is None or away_score is None:
         try:
-            ls = (
-                prefetched_linescore
-                if prefetched_linescore is not None
-                else await client.linescore(item["game_pk"])
-            )
+            ls = prefetched_linescore if prefetched_linescore is not None else await client.linescore(item["game_pk"])
             lh, la = scores_from_linescore_payload(ls)
             if home_score is None:
                 home_score = lh
@@ -406,9 +397,7 @@ async def sync_games_for_date(
     await session.flush()
 
     valid_items = [
-        item
-        for item in parsed
-        if item.get("home_team_id") is not None and item.get("away_team_id") is not None
+        item for item in parsed if item.get("home_team_id") is not None and item.get("away_team_id") is not None
     ]
 
     existing_by_pk: dict[int, Game] = {}

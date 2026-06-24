@@ -149,9 +149,7 @@ async def truncate_between_tests() -> AsyncIterator[None]:
     engine = _make_engine()
     try:
         async with engine.begin() as conn:
-            await conn.execute(
-                text(f"TRUNCATE TABLE {_get_table_names()} RESTART IDENTITY CASCADE")
-            )
+            await conn.execute(text(f"TRUNCATE TABLE {_get_table_names()} RESTART IDENTITY CASCADE"))
     finally:
         await engine.dispose()
     yield
@@ -166,9 +164,7 @@ async def truncate_between_tests() -> AsyncIterator[None]:
 async def db_session() -> AsyncIterator[AsyncSession]:
     """Yield a session using a freshly created engine (no cross-loop contamination)."""
     engine = _make_engine()
-    factory = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
-    )
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
     try:
         async with factory() as session:
             yield session

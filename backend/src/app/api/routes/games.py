@@ -110,9 +110,7 @@ async def _compute_or_cache_prediction(
                 predicted_winner=pred_cache_row.predicted_winner,
                 actual_winner=pred_cache_row.actual_winner,
                 is_correct=pred_cache_row.is_correct,
-                evaluated_at=(
-                    pred_cache_row.evaluated_at.isoformat() if pred_cache_row.evaluated_at else None
-                ),
+                evaluated_at=(pred_cache_row.evaluated_at.isoformat() if pred_cache_row.evaluated_at else None),
             )
             return await attach_asian_handicap_if_missing(session, base)
         cached = await get_cached_prediction(session, game.game_pk, model_version)
@@ -185,14 +183,10 @@ async def _list_games_impl(
     missing_snapshots: list[int] = []
     if include_predictions and rows:
         pks = [g.game_pk for g in rows]
-        res_pc = await session.execute(
-            select(GamePredictionCache).where(GamePredictionCache.game_pk.in_(pks))
-        )
+        res_pc = await session.execute(select(GamePredictionCache).where(GamePredictionCache.game_pk.in_(pks)))
         for row_pc in res_pc.scalars().all():
             pred_by_pk[row_pc.game_pk] = row_pc
-        res_sn = await session.execute(
-            select(GameFeatureSnapshot).where(GameFeatureSnapshot.game_pk.in_(pks))
-        )
+        res_sn = await session.execute(select(GameFeatureSnapshot).where(GameFeatureSnapshot.game_pk.in_(pks)))
         for s in res_sn.scalars().all():
             snap_by_pk[s.game_pk] = s
         missing_snapshots = [g.game_pk for g in rows if g.game_pk not in snap_by_pk]
@@ -252,9 +246,7 @@ async def _list_games_impl(
     return GamesListResponse(games=out, meta=meta)
 
 
-@router.get(
-    "/games", response_model=GamesListResponse, dependencies=[Depends(rate_limit_public_read)]
-)
+@router.get("/games", response_model=GamesListResponse, dependencies=[Depends(rate_limit_public_read)])
 async def list_games(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -264,10 +256,7 @@ async def list_games(
     fetch_details: Annotated[bool, Query(description="Fetch boxscore and live feed")] = True,
     include_predictions: Annotated[
         bool,
-        Query(
-            description="Incluir estimación ML por partido "
-            "(misma lógica que GET /predict/{game_pk})."
-        ),
+        Query(description="Incluir estimación ML por partido " "(misma lógica que GET /predict/{game_pk})."),
     ] = True,
     league: Annotated[
         str | None,
@@ -281,9 +270,7 @@ async def list_games(
     key = (game_date.isoformat(), sync, fetch_details, include_predictions)
     if not hasattr(request.app.state, "games_list_inflight"):
         request.app.state.games_list_inflight = {}
-    inflight: dict[tuple[object, ...], asyncio.Task[GamesListResponse]] = (
-        request.app.state.games_list_inflight
-    )
+    inflight: dict[tuple[object, ...], asyncio.Task[GamesListResponse]] = request.app.state.games_list_inflight
     if key in inflight:
         return _filter_games_by_segment(await inflight[key], league, division)
 
@@ -356,9 +343,7 @@ async def get_game(
         raise HTTPException(status_code=404, detail="Game not found")
     pred: PredictionResponse | None = None
     if include_predictions:
-        snap_row = await session.execute(
-            select(GameFeatureSnapshot).where(GameFeatureSnapshot.game_pk == game_pk)
-        )
+        snap_row = await session.execute(select(GameFeatureSnapshot).where(GameFeatureSnapshot.game_pk == game_pk))
         snap = snap_row.scalar_one_or_none()
         if snap is None:
             log.warning(

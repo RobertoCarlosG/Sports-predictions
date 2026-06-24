@@ -41,12 +41,8 @@ class AppUser(Base):
     display_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     picture_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-    last_login_at: Mapped[dt.datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    last_login_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     banks: Mapped[list[BetBank]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
@@ -62,27 +58,19 @@ class BetBank(Base):
     initial_amount: Mapped[float] = mapped_column(Float, nullable=False)
     currency: Mapped[str] = mapped_column(String(8), nullable=False, server_default="USD")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     user: Mapped[AppUser] = relationship(back_populates="banks")
-    periods: Mapped[list[BetPeriod]] = relationship(
-        back_populates="bank", cascade="all, delete-orphan"
-    )
+    periods: Mapped[list[BetPeriod]] = relationship(back_populates="bank", cascade="all, delete-orphan")
     bets: Mapped[list[Bet]] = relationship(back_populates="bank")
 
 
 class BetPeriod(Base):
     __tablename__ = "bet_periods"
-    __table_args__ = (
-        UniqueConstraint("bank_id", "year", "month", name="ux_bet_periods_bank_year_month"),
-    )
+    __table_args__ = (UniqueConstraint("bank_id", "year", "month", name="ux_bet_periods_bank_year_month"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    bank_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("bet_banks.id", ondelete="CASCADE"), nullable=False
-    )
+    bank_id: Mapped[int] = mapped_column(Integer, ForeignKey("bet_banks.id", ondelete="CASCADE"), nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("app_users.id", ondelete="CASCADE"), nullable=False
     )
@@ -93,9 +81,7 @@ class BetPeriod(Base):
     closing_balance: Mapped[float | None] = mapped_column(Float, nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="open")
     closed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     bank: Mapped[BetBank] = relationship(back_populates="periods")
     bets: Mapped[list[Bet]] = relationship(back_populates="period")
@@ -108,15 +94,9 @@ class Bet(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("app_users.id", ondelete="CASCADE"), nullable=False
     )
-    bank_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("bet_banks.id", ondelete="CASCADE"), nullable=False
-    )
-    period_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("bet_periods.id", ondelete="RESTRICT"), nullable=False
-    )
-    game_pk: Mapped[int] = mapped_column(
-        Integer, ForeignKey("games.game_pk", ondelete="RESTRICT"), nullable=False
-    )
+    bank_id: Mapped[int] = mapped_column(Integer, ForeignKey("bet_banks.id", ondelete="CASCADE"), nullable=False)
+    period_id: Mapped[int] = mapped_column(Integer, ForeignKey("bet_periods.id", ondelete="RESTRICT"), nullable=False)
+    game_pk: Mapped[int] = mapped_column(Integer, ForeignKey("games.game_pk", ondelete="RESTRICT"), nullable=False)
     bet_type: Mapped[str] = mapped_column(String(16), nullable=False)
     bet_side: Mapped[str] = mapped_column(String(16), nullable=False)
     stake: Mapped[float] = mapped_column(Float, nullable=False)
@@ -124,13 +104,9 @@ class Bet(Base):
     ou_line: Mapped[float | None] = mapped_column(Float, nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="pending")
     result_source: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    result_checked_at: Mapped[dt.datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    result_checked_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     bank: Mapped[BetBank] = relationship(back_populates="bets")
     period: Mapped[BetPeriod] = relationship(back_populates="bets")

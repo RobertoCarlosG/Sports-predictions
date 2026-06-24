@@ -79,10 +79,7 @@ class TrainModelBody(BaseModel):
         default=16,
         ge=2,
         le=48,
-        description=(
-            "Profundidad máxima del bosque (subir si P(home) sale casi plana "
-            "y hay datos variados)"
-        ),
+        description=("Profundidad máxima del bosque (subir si P(home) sale casi plana " "y hay datos variados)"),
     )
     min_samples_leaf: int = Field(
         default=2,
@@ -118,14 +115,10 @@ class PredictionMetricsResponse(BaseModel):
     """Métricas de rendimiento del sistema de predicciones."""
 
     total_predictions: int = Field(description="Total de predicciones hechas")
-    total_evaluated: int = Field(
-        description="Total de predicciones evaluadas contra resultados reales"
-    )
+    total_evaluated: int = Field(description="Total de predicciones evaluadas contra resultados reales")
     total_correct: int = Field(description="Total de predicciones correctas")
     total_incorrect: int = Field(description="Total de predicciones incorrectas")
-    accuracy_percentage: float | None = Field(
-        description="Porcentaje de acierto (0-100)", default=None
-    )
+    accuracy_percentage: float | None = Field(description="Porcentaje de acierto (0-100)", default=None)
     pending_evaluation: int = Field(description="Predicciones pendientes de evaluar")
 
 
@@ -163,9 +156,7 @@ class PublicModelInfoResponse(BaseModel):
     model_version: str | None = None
     base_version: str | None = None
     is_synthetic: bool = False
-    loaded_at: str | None = Field(
-        default=None, description="ISO-8601 UTC: cuándo se cargó este modelo en memoria."
-    )
+    loaded_at: str | None = Field(default=None, description="ISO-8601 UTC: cuándo se cargó este modelo en memoria.")
 
 
 class AdminModelVersionItem(BaseModel):

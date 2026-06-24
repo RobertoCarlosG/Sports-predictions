@@ -103,9 +103,7 @@ class NbaPredictionService:
 
         proba = clf.predict_proba(x)
         p_home_raw = float(proba[0][1]) if proba.shape[1] > 1 else float(proba[0][0])
-        base_version = str(
-            bundle.get("model_base_version") or bundle.get("model_version") or "nba-v0"
-        )
+        base_version = str(bundle.get("model_base_version") or bundle.get("model_version") or "nba-v0")
         calibrator = load_calibration(base_version)
         p_home = apply_calibration(p_home_raw, calibrator)
 
@@ -138,8 +136,7 @@ class EnsembleNbaPredictionService:
     @property
     def model_version(self) -> str:
         return "nba-ensemble@" + "+".join(
-            s.model_version.split("@")[0].replace("nba-", "").replace("-db-v1", "")
-            for s in self._services
+            s.model_version.split("@")[0].replace("nba-", "").replace("-db-v1", "") for s in self._services
         )
 
     def predict(

@@ -41,9 +41,7 @@ def prediction_response_from_result(
     )
 
 
-async def attach_asian_handicap_if_missing(
-    session: AsyncSession, out: PredictionResponse
-) -> PredictionResponse:
+async def attach_asian_handicap_if_missing(session: AsyncSession, out: PredictionResponse) -> PredictionResponse:
     """Añade handicap asiático cuando la respuesta viene de caché sin equipos."""
     if out.asian_handicap is not None:
         return out
@@ -76,18 +74,14 @@ async def compute_prediction_response(
     result = await session.execute(
         select(Game)
         .where(Game.game_pk == game_pk)
-        .options(
-            selectinload(Game.weather), selectinload(Game.home_team), selectinload(Game.away_team)
-        ),
+        .options(selectinload(Game.weather), selectinload(Game.home_team), selectinload(Game.away_team)),
     )
     game = result.scalar_one_or_none()
     if game is None:
         raise HTTPException(status_code=404, detail="Game not found")
     if game.home_team is None or game.away_team is None:
         raise HTTPException(status_code=500, detail="Partido sin datos de equipos.")
-    snap_row = await session.execute(
-        select(GameFeatureSnapshot).where(GameFeatureSnapshot.game_pk == game_pk)
-    )
+    snap_row = await session.execute(select(GameFeatureSnapshot).where(GameFeatureSnapshot.game_pk == game_pk))
     snapshot = snap_row.scalar_one_or_none()
     pr = svc.predict(game, game.weather, snapshot)
     return prediction_response_from_result(

@@ -17,9 +17,7 @@ from app.models.nba import NbaGameFeatureSnapshot
 
 
 def _train_bundle(algorithm: str, path) -> None:
-    ns = argparse.Namespace(
-        trees=30, max_depth=4, learning_rate=0.1, subsample=0.9, colsample_bytree=0.9
-    )
+    ns = argparse.Namespace(trees=30, max_depth=4, learning_rate=0.1, subsample=0.9, colsample_bytree=0.9)
     rng = np.random.default_rng(0)
     x = rng.random((120, 18))
     y_home = (x[:, 6] > x[:, 7]).astype(int)

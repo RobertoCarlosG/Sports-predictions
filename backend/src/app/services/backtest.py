@@ -36,9 +36,7 @@ def actual_winner_from_scores(home_score: int, away_score: int) -> WinnerSide:
     return "tie"
 
 
-def predicted_ou_from_estimates(
-    total_runs_estimate: float, over_under_line: float
-) -> Literal["over", "under"]:
+def predicted_ou_from_estimates(total_runs_estimate: float, over_under_line: float) -> Literal["over", "under"]:
     return "over" if total_runs_estimate > over_under_line else "under"
 
 

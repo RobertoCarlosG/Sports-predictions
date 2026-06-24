@@ -16,9 +16,7 @@ DEFAULT_ERA = 4.5
 DEFAULT_STAFF_ERA = 4.2
 
 
-async def get_cached_era(
-    session: AsyncSession, kind: str, ref_id: int, season: str
-) -> float | None:
+async def get_cached_era(session: AsyncSession, kind: str, ref_id: int, season: str) -> float | None:
     row = (
         await session.execute(
             select(PitchingEraCache.era).where(
@@ -31,9 +29,7 @@ async def get_cached_era(
     return float(row) if row is not None else None
 
 
-async def put_cached_era(
-    session: AsyncSession, kind: str, ref_id: int, season: str, era: float
-) -> None:
+async def put_cached_era(session: AsyncSession, kind: str, ref_id: int, season: str, era: float) -> None:
     now = dt.datetime.now(dt.UTC)
     row = (
         await session.execute(
@@ -128,16 +124,8 @@ async def game_pitching_feature_values(
     hs = home_starter_id
     a_s = away_starter_id
     c = commit_before_mlb
-    h_se = (
-        await get_pitcher_era(session, mlb, hs, season, commit_before_mlb=c)
-        if hs is not None
-        else DEFAULT_ERA
-    )
-    a_se = (
-        await get_pitcher_era(session, mlb, a_s, season, commit_before_mlb=c)
-        if a_s is not None
-        else DEFAULT_ERA
-    )
+    h_se = await get_pitcher_era(session, mlb, hs, season, commit_before_mlb=c) if hs is not None else DEFAULT_ERA
+    a_se = await get_pitcher_era(session, mlb, a_s, season, commit_before_mlb=c) if a_s is not None else DEFAULT_ERA
     h_be = await get_team_pitching_era(session, mlb, home_team_id, season, commit_before_mlb=c)
     a_be = await get_team_pitching_era(session, mlb, away_team_id, season, commit_before_mlb=c)
     return h_se, a_se, h_be, a_be

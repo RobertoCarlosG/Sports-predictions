@@ -67,38 +67,28 @@ async def test_admin_login_success(client: AsyncClient, db_session: AsyncSession
     assert "token_expires_at" in body
 
 
-async def test_admin_login_wrong_password_returns_401(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_admin_login_wrong_password_returns_401(client: AsyncClient, db_session: AsyncSession) -> None:
     from app.models.mlb import AdminUser
 
     db_session.add(AdminUser(**make_admin_user_kwargs()))
     await db_session.flush()
 
-    r = await client.post(
-        "/api/v1/admin/auth/login", json=WRONG_PASSWORD_LOGIN_BODY, headers=ADMIN_HEADERS
-    )
+    r = await client.post("/api/v1/admin/auth/login", json=WRONG_PASSWORD_LOGIN_BODY, headers=ADMIN_HEADERS)
     assert r.status_code == 401
 
 
 async def test_admin_login_nonexistent_user_returns_401(client: AsyncClient) -> None:
-    r = await client.post(
-        "/api/v1/admin/auth/login", json=NONEXISTENT_USER_LOGIN_BODY, headers=ADMIN_HEADERS
-    )
+    r = await client.post("/api/v1/admin/auth/login", json=NONEXISTENT_USER_LOGIN_BODY, headers=ADMIN_HEADERS)
     assert r.status_code == 401
 
 
 async def test_admin_login_missing_password_returns_422(client: AsyncClient) -> None:
-    r = await client.post(
-        "/api/v1/admin/auth/login", json=MISSING_PASSWORD_LOGIN_BODY, headers=ADMIN_HEADERS
-    )
+    r = await client.post("/api/v1/admin/auth/login", json=MISSING_PASSWORD_LOGIN_BODY, headers=ADMIN_HEADERS)
     assert r.status_code == 422
 
 
 async def test_admin_login_missing_username_returns_422(client: AsyncClient) -> None:
-    r = await client.post(
-        "/api/v1/admin/auth/login", json=MISSING_USERNAME_LOGIN_BODY, headers=ADMIN_HEADERS
-    )
+    r = await client.post("/api/v1/admin/auth/login", json=MISSING_USERNAME_LOGIN_BODY, headers=ADMIN_HEADERS)
     assert r.status_code == 422
 
 
@@ -204,9 +194,7 @@ async def test_admin_status_unauthenticated_returns_401(client: AsyncClient) -> 
 
 
 async def test_clear_prediction_cache_returns_success(admin_client: AsyncClient) -> None:
-    r = await admin_client.post(
-        "/api/v1/admin/pipeline/clear-prediction-cache", headers=ADMIN_HEADERS
-    )
+    r = await admin_client.post("/api/v1/admin/pipeline/clear-prediction-cache", headers=ADMIN_HEADERS)
     assert r.status_code == 200
     body = r.json()
     assert "vaciada" in body["message"].lower() or "eliminadas" in body.get("detail", "").lower()
@@ -408,9 +396,7 @@ async def test_evaluate_pending_returns_200(admin_client: AsyncClient) -> None:
 
 
 async def test_recompute_evaluations_returns_200(admin_client: AsyncClient) -> None:
-    r = await admin_client.post(
-        "/api/v1/admin/predictions/recompute-ml-evaluations", headers=ADMIN_HEADERS
-    )
+    r = await admin_client.post("/api/v1/admin/predictions/recompute-ml-evaluations", headers=ADMIN_HEADERS)
     assert r.status_code == 200
     assert "message" in r.json()
 

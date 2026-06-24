@@ -167,9 +167,7 @@ class MlbPredictionService:
         x = _align_feature_vector(x, clf, reg)
         proba = clf.predict_proba(x)
         p_home_raw = float(proba[0][1]) if proba.shape[1] > 1 else float(proba[0][0])
-        base_version = str(
-            bundle.get("model_base_version") or bundle.get("model_version") or "rf-v0"
-        )
+        base_version = str(bundle.get("model_base_version") or bundle.get("model_version") or "rf-v0")
         calibrator = load_calibration(base_version)
         p_home = apply_calibration(p_home_raw, calibrator)
         if calibrator is not None:

@@ -205,9 +205,7 @@ async def get_mlb_history_one(
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> HistoryGameOut:
     result = await session.execute(
-        select(Game)
-        .where(Game.game_pk == game_pk)
-        .options(selectinload(Game.home_team), selectinload(Game.away_team))
+        select(Game).where(Game.game_pk == game_pk).options(selectinload(Game.home_team), selectinload(Game.away_team))
     )
     g = result.scalar_one_or_none()
     if g is None:
@@ -222,7 +220,5 @@ async def get_mlb_history_one(
         away_team=team_out_from_model(g.away_team),
         home_score=g.home_score,
         away_score=g.away_score,
-        winner_team_id=compute_winner_team_id(
-            g.home_team_id, g.away_team_id, g.home_score, g.away_score
-        ),
+        winner_team_id=compute_winner_team_id(g.home_team_id, g.away_team_id, g.home_score, g.away_score),
     )

@@ -40,11 +40,7 @@ async def fetch_scores_for_game(
     if game is None:
         return None, None, None
 
-    if (
-        game.home_score is not None
-        and game.away_score is not None
-        and is_final_game_status(game.status)
-    ):
+    if game.home_score is not None and game.away_score is not None and is_final_game_status(game.status):
         return int(game.home_score), int(game.away_score), "local"
 
     from app.core.config import settings

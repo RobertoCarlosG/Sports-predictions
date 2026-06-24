@@ -92,11 +92,7 @@ def get_nba_prediction_service(
 
     state = _app_state(holder)
     if model == "ensemble":
-        services = [
-            svc
-            for attr in _NBA_STATE_ATTR.values()
-            if (svc := getattr(state, attr, None)) is not None
-        ]
+        services = [svc for attr in _NBA_STATE_ATTR.values() if (svc := getattr(state, attr, None)) is not None]
         if not services:
             raise HTTPException(
                 status_code=503,

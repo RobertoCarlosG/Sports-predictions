@@ -6,9 +6,7 @@ from app.services.mlb_client import parse_schedule_games, team_abbreviation
 
 
 def test_parse_schedule_games_extracts_game() -> None:
-    raw = json.loads(
-        (Path(__file__).parent / "fixtures" / "schedule_sample.json").read_text(encoding="utf-8")
-    )
+    raw = json.loads((Path(__file__).parent / "fixtures" / "schedule_sample.json").read_text(encoding="utf-8"))
     games = parse_schedule_games(raw)
     assert len(games) == 1
     g = games[0]

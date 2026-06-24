@@ -44,9 +44,7 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="Temporada a recalcular, p. ej. 2023-24. 'all' u omitir = todas.",
     )
-    p.add_argument(
-        "--window", type=int, default=10, help="Partidos rolling por equipo (default 10)"
-    )
+    p.add_argument("--window", type=int, default=10, help="Partidos rolling por equipo (default 10)")
     args = p.parse_args(argv)
     season: str | None = None if args.season in (None, "all") else args.season
     asyncio.run(_run(season=season, window=args.window))
