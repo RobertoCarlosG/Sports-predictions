@@ -103,6 +103,7 @@ def create_schema() -> Iterator[None]:
     """Create all ORM tables once per session."""
     import app.models.bets  # noqa: F401 — registers metadata
     import app.models.mlb  # noqa: F401
+    import app.models.nba  # noqa: F401
 
     async def _setup() -> None:
         engine = _make_engine()
@@ -138,6 +139,7 @@ def _get_table_names() -> str:
     if _TABLE_NAMES is None:
         import app.models.bets  # noqa
         import app.models.mlb  # noqa
+        import app.models.nba  # noqa
 
         _TABLE_NAMES = ", ".join(f'"{t.name}"' for t in reversed(Base.metadata.sorted_tables))
     return _TABLE_NAMES

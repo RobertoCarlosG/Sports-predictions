@@ -411,3 +411,48 @@ async def test_model_reload_returns_success(admin_client: AsyncClient) -> None:
     assert r.status_code == 200
     body = r.json()
     assert "recargado" in body["message"].lower()
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/admin/model/reload-nba  (Fase C1 — MVP2)
+# ---------------------------------------------------------------------------
+
+
+async def test_reload_nba_requires_auth(client: AsyncClient) -> None:
+    r = await client.post("/api/v1/admin/model/reload-nba", headers=ADMIN_HEADERS)
+    assert r.status_code == 401
+
+
+async def test_reload_nba_authenticated(admin_client: AsyncClient) -> None:
+    # 200 si hay artefactos NBA en disco; 400 si aún no se han entrenado.
+    r = await admin_client.post("/api/v1/admin/model/reload-nba", headers=ADMIN_HEADERS)
+    assert r.status_code in (200, 400)
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/admin/pipeline/nba-rebuild-snapshots  (Fase C1 — MVP2)
+# ---------------------------------------------------------------------------
+
+
+async def test_nba_rebuild_snapshots_requires_auth(client: AsyncClient) -> None:
+    r = await client.post("/api/v1/admin/pipeline/nba-rebuild-snapshots", json={}, headers=ADMIN_HEADERS)
+    assert r.status_code == 401
+
+
+async def test_nba_rebuild_snapshots_returns_success(admin_client: AsyncClient) -> None:
+    r = await admin_client.post(
+        "/api/v1/admin/pipeline/nba-rebuild-snapshots",
+        json={"window": 10},
+        headers=ADMIN_HEADERS,
+    )
+    assert r.status_code == 200
+    assert "recalculados" in r.json()["message"].lower()
+
+
+async def test_nba_rebuild_snapshots_window_zero_returns_422(admin_client: AsyncClient) -> None:
+    r = await admin_client.post(
+        "/api/v1/admin/pipeline/nba-rebuild-snapshots",
+        json={"window": 0},
+        headers=ADMIN_HEADERS,
+    )
+    assert r.status_code == 422

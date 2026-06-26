@@ -80,6 +80,8 @@ describe('OperationsComponent', () => {
       'fixFifty',
       'reloadModel',
       'reloadModelXgb',
+      'reloadNbaModels',
+      'nbaRebuildSnapshots',
       'calibrateModel',
       'trainModel',
       'backfill',
@@ -99,6 +101,8 @@ describe('OperationsComponent', () => {
     admin.fixFifty.and.returnValue(of(message));
     admin.reloadModel.and.returnValue(of(message));
     admin.reloadModelXgb.and.returnValue(of(message));
+    admin.reloadNbaModels.and.returnValue(of(message));
+    admin.nbaRebuildSnapshots.and.returnValue(of(message));
     admin.calibrateModel.and.returnValue(of(message));
     admin.trainModel.and.returnValue(of({ message: 'trained', stdout_tail: 'tail' }));
     admin.backfill.and.returnValue(of({ ...message, job_id: 'job-1' }));
@@ -214,6 +218,21 @@ describe('OperationsComponent', () => {
     expect(component.busy).toBe(false);
     expect(dialog.open).toHaveBeenCalled();
     expect(notif.push).toHaveBeenCalled();
+  });
+
+  it('rebuildNbaSnapshots forwards trimmed season and window', () => {
+    component.nbaSeasonFilter = ' 2023-24 ';
+    component.nbaSnapshotWindow = 8;
+    component.rebuildNbaSnapshots();
+    expect(admin.nbaRebuildSnapshots).toHaveBeenCalledWith('2023-24', 8);
+    expect(component.busy).toBe(false);
+    expect(dialog.open).toHaveBeenCalled();
+  });
+
+  it('reloadNbaModels runs the op and refreshes model info', () => {
+    component.reloadNbaModels();
+    expect(admin.reloadNbaModels).toHaveBeenCalled();
+    expect(modelInfo.refreshOnce).toHaveBeenCalled();
   });
 
   it('fixFifty refreshes model info on success', () => {

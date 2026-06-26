@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     mlb_daily_snapshot_enabled: bool = False
     mlb_daily_snapshot_utc_hour: int = 3
     mlb_daily_snapshot_utc_minute: int = 0
+    # Tarea NBA diaria (análoga a la de MLB): sync hoy+mañana, evaluación de
+    # aciertos y rebuild de nba_game_feature_snapshots a la hora UTC indicada.
+    # Default 09:00 UTC: los partidos NBA (noche US) ya están finalizados.
+    nba_daily_snapshot_enabled: bool = False
+    nba_daily_snapshot_utc_hour: int = 9
+    nba_daily_snapshot_utc_minute: int = 0
     # Secreto HS256 para JWT del panel admin (mín. 16 caracteres en prod).
     # Vacío = login deshabilitado.
     admin_jwt_secret: str = ""
