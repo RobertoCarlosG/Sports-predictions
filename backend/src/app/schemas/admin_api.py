@@ -66,6 +66,12 @@ class RebuildSnapshotsBody(BaseModel):
     end_date: dt.date | None = None
 
 
+class NbaRebuildSnapshotsBody(BaseModel):
+    # NBA no usa rango de fechas; season=None reconstruye todos los snapshots.
+    season: str | None = None
+    window: int = Field(default=10, ge=1, le=50)
+
+
 class TrainModelBody(BaseModel):
     output: str | None = Field(
         default=None,

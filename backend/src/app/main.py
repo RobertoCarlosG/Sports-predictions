@@ -25,6 +25,7 @@ from app.ml.predictor import MlbPredictionService, ensure_model_exists, resolve_
 from app.services.admin_backfill_state import initial_backfill_job_state
 from app.services.mlb_daily_snapshot import daily_snapshot_loop_forever
 from app.services.model_registry import record_model_load
+from app.services.nba_daily_snapshot import nba_daily_snapshot_loop_forever
 
 log = logging.getLogger(__name__)
 
@@ -141,6 +142,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             settings.mlb_daily_snapshot_utc_minute,
         )
 
+    if settings.nba_enabled and settings.nba_daily_snapshot_enabled:
+        app.state.nba_daily_snapshot_task = asyncio.create_task(
+            nba_daily_snapshot_loop_forever(),
+        )
+        log.info(
+            "Tarea NBA daily snapshot activa (UTC %02d:%02d).",
+            settings.nba_daily_snapshot_utc_hour,
+            settings.nba_daily_snapshot_utc_minute,
+        )
+
     yield
 
     t = getattr(app.state, "mlb_daily_snapshot_task", None)
@@ -148,6 +159,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         t.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await t
+    nba_t = getattr(app.state, "nba_daily_snapshot_task", None)
+    if nba_t is not None:
+        nba_t.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await nba_t
     await app.state.http_client.aclose()
     await engine.dispose()
 

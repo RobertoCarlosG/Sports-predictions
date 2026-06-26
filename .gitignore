@@ -57,3 +57,5 @@ backend/src/app/ml/artifacts/optuna_study_xgb.db
 backend/src/app/ml/artifacts/optuna_study_rf-db-v1.db
 
 # Local docs symlink / parent (if copied)
+
+backend/docs/adr/*.md

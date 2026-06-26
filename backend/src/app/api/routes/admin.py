@@ -55,6 +55,7 @@ from app.schemas.admin_api import (
     CalibrateModelResponse,
     MessageResponse,
     MlbDailySnapshotBody,
+    NbaRebuildSnapshotsBody,
     PredictionEvaluationItem,
     PredictionEvaluationsResponse,
     PredictionMetricsResponse,
@@ -86,6 +87,7 @@ from app.services.model_registry import (
     list_model_versions,
     record_model_load,
 )
+from app.services.nba_feature_snapshots import rebuild_nba_game_feature_snapshots
 from app.services.pipeline_hooks import refresh_prediction_cache_for_games
 from app.services.prediction_cache import (
     clear_prediction_cache,
@@ -540,6 +542,71 @@ async def admin_reload_model_xgb(
     return MessageResponse(
         message="XGBoost model reloaded.",
         detail=f"Version: {ver}",
+    )
+
+
+@router.post("/model/reload-nba", response_model=MessageResponse)
+async def admin_reload_nba_models(
+    request: Request,
+    _username: AdminUserDep,
+) -> MessageResponse:
+    """Recarga los modelos NBA (xgb/lgbm/catboost) desde artifacts/ sin reiniciar.
+
+    Útil tras entrenar con ``python -m app.ml.train_nba_from_db``. Cada algoritmo
+    cuyo .joblib exista se carga en memoria; los ausentes quedan deshabilitados (503).
+    """
+    from app.ml.nba_predictor import NbaPredictionService
+
+    specs = [
+        ("xgb", "nba_prediction_service_xgb", settings.ml_model_path_nba_xgb, "model_nba_xgb.joblib"),
+        ("lgbm", "nba_prediction_service_lgbm", settings.ml_model_path_nba_lgbm, "model_nba_lgbm.joblib"),
+        (
+            "catboost",
+            "nba_prediction_service_catboost",
+            settings.ml_model_path_nba_catboost,
+            "model_nba_catboost.joblib",
+        ),
+    ]
+    loaded: list[str] = []
+    for kind, attr, env_path, default_name in specs:
+        path = resolve_model_path(env_path, default_name=default_name)
+        if path.is_file():
+            svc = NbaPredictionService(path)
+            setattr(request.app.state, attr, svc)
+            loaded.append(f"{kind}={svc.model_version}")
+        else:
+            setattr(request.app.state, attr, None)
+    if not loaded:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No hay modelos NBA en artifacts/. Entrena con " "`python -m app.ml.train_nba_from_db --algorithm xgb`."
+            ),
+        )
+    return MessageResponse(
+        message=f"Modelos NBA recargados: {len(loaded)}.",
+        detail=", ".join(loaded),
+    )
+
+
+@router.post("/pipeline/nba-rebuild-snapshots", response_model=MessageResponse)
+async def admin_nba_rebuild_snapshots(
+    body: NbaRebuildSnapshotsBody,
+    _username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> MessageResponse:
+    """Recalcula nba_game_feature_snapshots (rolling stats, descanso, back-to-back).
+
+    Sin red: lee boxscore_json ya guardado en la BD. ``season=None`` reconstruye todos.
+    """
+    n = await rebuild_nba_game_feature_snapshots(
+        session,
+        rolling_window=body.window,
+        season=body.season,
+    )
+    return MessageResponse(
+        message=f"Indicadores NBA recalculados para {n} partidos.",
+        detail=f"Ventana: {body.window}. Temporada: {body.season or 'todas'}.",
     )
 
 
