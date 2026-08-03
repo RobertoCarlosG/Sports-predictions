@@ -221,22 +221,14 @@ async def test_rebuild_streaming_matches_all_load(sqlite_session_factory) -> Non
         await _seed_games(session)
 
     async with sqlite_session_factory() as session:
-        n_stream = await rebuild_game_feature_snapshots(
-            session, season="2025", mlb=None, low_memory=True
-        )
+        n_stream = await rebuild_game_feature_snapshots(session, season="2025", mlb=None, low_memory=True)
         await session.commit()
-        streamed = _snapshot_dict(
-            list((await session.execute(select(GameFeatureSnapshot))).scalars())
-        )
+        streamed = _snapshot_dict(list((await session.execute(select(GameFeatureSnapshot))).scalars()))
 
     async with sqlite_session_factory() as session:
-        n_all = await rebuild_game_feature_snapshots(
-            session, season="2025", mlb=None, low_memory=False
-        )
+        n_all = await rebuild_game_feature_snapshots(session, season="2025", mlb=None, low_memory=False)
         await session.commit()
-        loaded = _snapshot_dict(
-            list((await session.execute(select(GameFeatureSnapshot))).scalars())
-        )
+        loaded = _snapshot_dict(list((await session.execute(select(GameFeatureSnapshot))).scalars()))
 
     assert n_stream == n_all == 4
     assert streamed == loaded

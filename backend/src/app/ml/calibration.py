@@ -56,8 +56,7 @@ def fit_calibration_from_arrays(
     cal_preds = ir.predict(probs)
     cal_acc = float(np.mean((cal_preds >= 0.5).astype(int) == outcomes))
     log.info(
-        "calibration fit: n=%d | base acc=%.4f | calibrated acc=%.4f | "
-        "mean raw=%.4f | mean cal=%.4f",
+        "calibration fit: n=%d | base acc=%.4f | calibrated acc=%.4f | " "mean raw=%.4f | mean cal=%.4f",
         len(probs),
         base_acc,
         cal_acc,

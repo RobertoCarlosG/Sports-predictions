@@ -32,9 +32,7 @@ async def require_user_id(
     if is_cookie and request.method not in ["GET", "HEAD", "OPTIONS"]:
         xrw = request.headers.get("x-requested-with")
         if not xrw or xrw.lower() != "xmlhttprequest":
-            raise HTTPException(
-                status_code=403, detail="Falta cabecera X-Requested-With para prevenir CSRF."
-            )
+            raise HTTPException(status_code=403, detail="Falta cabecera X-Requested-With para prevenir CSRF.")
 
     try:
         from app.core.admin_security import decode_access_token

@@ -148,8 +148,7 @@ async def user_auth_ready(
         table_ok = True
     except ProgrammingError:
         table_hint = (
-            "Falta la tabla app_users. Ejecuta "
-            "`backend/sql/007_app_users_and_bets.sql` en la base de datos."
+            "Falta la tabla app_users. Ejecuta " "`backend/sql/007_app_users_and_bets.sql` en la base de datos."
         )
     except SQLAlchemyError as e:
         log.warning("user auth/ready DB check: %s", e)
@@ -161,10 +160,7 @@ async def user_auth_ready(
     if not jwt_ok:
         parts.append("USER_JWT_SECRET no está definido o está vacío.")
     if not google_ok:
-        parts.append(
-            "Configura GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y "
-            "GOOGLE_REDIRECT_URI para habilitar Google."
-        )
+        parts.append("Configura GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y " "GOOGLE_REDIRECT_URI para habilitar Google.")
     if not table_ok and table_hint:
         parts.append(table_hint)
     detail = "\n\n".join(parts) if parts else None
@@ -181,9 +177,7 @@ async def user_auth_ready(
 @router.get("/google")
 async def google_oauth_start() -> RedirectResponse:
     if not _user_oauth_configured():
-        raise HTTPException(
-            status_code=503, detail="OAuth de Google no está configurado en el servidor."
-        )
+        raise HTTPException(status_code=503, detail="OAuth de Google no está configurado en el servidor.")
     state = secrets.token_urlsafe(32)
     params = {
         "client_id": settings.google_client_id.strip(),
@@ -209,9 +203,7 @@ async def google_oauth_callback(
     error: Annotated[str | None, Query()] = None,
 ) -> RedirectResponse:
     if not _user_oauth_configured():
-        raise HTTPException(
-            status_code=503, detail="OAuth de Google no está configurado en el servidor."
-        )
+        raise HTTPException(status_code=503, detail="OAuth de Google no está configurado en el servidor.")
     if error:
         log.warning("Google OAuth error param: %s", error)
         return RedirectResponse(
@@ -223,9 +215,7 @@ async def google_oauth_callback(
 
     cookie_state = request.cookies.get(settings.oauth_state_cookie_name)
     if not cookie_state or cookie_state != state:
-        raise HTTPException(
-            status_code=400, detail="Estado OAuth inválido. Vuelve a intentar el inicio de sesión."
-        )
+        raise HTTPException(status_code=400, detail="Estado OAuth inválido. Vuelve a intentar el inicio de sesión.")
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         token_resp = await client.post(
@@ -240,12 +230,8 @@ async def google_oauth_callback(
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         if token_resp.status_code != 200:
-            log.warning(
-                "Google token exchange failed: %s %s", token_resp.status_code, token_resp.text[:500]
-            )
-            raise HTTPException(
-                status_code=502, detail="No se pudo completar el inicio de sesión con Google."
-            )
+            log.warning("Google token exchange failed: %s %s", token_resp.status_code, token_resp.text[:500])
+            raise HTTPException(status_code=502, detail="No se pudo completar el inicio de sesión con Google.")
         token_json = token_resp.json()
         access_token = token_json.get("access_token")
         if not isinstance(access_token, str) or not access_token:
@@ -263,9 +249,7 @@ async def google_oauth_callback(
     google_id = str(profile.get("id") or "").strip()
     email = str(profile.get("email") or "").strip()
     if not google_id or not email:
-        raise HTTPException(
-            status_code=502, detail="Perfil de Google incompleto (falta id o email)."
-        )
+        raise HTTPException(status_code=502, detail="Perfil de Google incompleto (falta id o email).")
 
     display_name = profile.get("name")
     if display_name is not None:
@@ -336,9 +320,7 @@ async def user_register(
         raise HTTPException(status_code=422, detail=str(e)) from e
 
     display = body.display_name.strip() if body.display_name else None
-    user = await create_email_user(
-        session, email=body.email, password_hash=pw_hash, display_name=display
-    )
+    user = await create_email_user(session, email=body.email, password_hash=pw_hash, display_name=display)
     await session.commit()
 
     jwt = create_access_token(
@@ -367,10 +349,7 @@ async def user_login_email(
     if not user.password_hash:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Esta cuenta usa inicio de sesión con Google. "
-                "Usa el botón de Google para entrar."
-            ),
+            detail=("Esta cuenta usa inicio de sesión con Google. " "Usa el botón de Google para entrar."),
         )
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Email o contraseña incorrectos.")

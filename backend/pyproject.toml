@@ -65,7 +65,7 @@ exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:"]
 
 [tool.ruff]
 target-version = "py312"
-line-length = 100
+line-length = 120
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -75,12 +75,12 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
 extend-immutable-calls = ["fastapi.Query", "fastapi.Depends", "fastapi.Header", "fastapi.Path", "fastapi.Body"]
 
 [tool.black]
-line-length = 100
+line-length = 120
 target-version = ["py312"]
 
 [tool.isort]
 profile = "black"
-line_length = 100
+line_length = 120
 src_paths = ["src", "tests"]
 
 [tool.mypy]

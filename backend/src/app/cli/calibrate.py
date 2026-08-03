@@ -35,9 +35,7 @@ def main(argv: list[str] | None = None) -> None:
         stream=sys.stdout,
         force=True,
     )
-    p = argparse.ArgumentParser(
-        description="Fit a probability calibration layer from evaluated predictions in the DB."
-    )
+    p = argparse.ArgumentParser(description="Fit a probability calibration layer from evaluated predictions in the DB.")
     p.add_argument(
         "--model-version",
         default="rf-db-v1",

@@ -31,9 +31,7 @@ async def require_admin_token(
     if is_cookie and request.method not in ["GET", "HEAD", "OPTIONS"]:
         x_requested_with = request.headers.get("x-requested-with")
         if not x_requested_with or x_requested_with.lower() != "xmlhttprequest":
-            raise HTTPException(
-                status_code=403, detail="Falta cabecera X-Requested-With para prevenir CSRF."
-            )
+            raise HTTPException(status_code=403, detail="Falta cabecera X-Requested-With para prevenir CSRF.")
 
     try:
         from app.core.admin_security import decode_access_token

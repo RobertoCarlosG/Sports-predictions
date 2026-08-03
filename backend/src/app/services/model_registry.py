@@ -121,9 +121,7 @@ async def record_model_load(
         file_mtime = dt.datetime.fromtimestamp(st.st_mtime, tz=dt.UTC)
         file_size = int(st.st_size)
 
-    existing = await session.execute(
-        select(ModelVersion).where(ModelVersion.model_version == model_version)
-    )
+    existing = await session.execute(select(ModelVersion).where(ModelVersion.model_version == model_version))
     row = existing.scalar_one_or_none()
 
     now = dt.datetime.now(dt.UTC)
@@ -159,22 +157,14 @@ async def record_model_load(
             row.notes = notes
         # Métricas pueden actualizarse si el bundle se reentrenó con misma versión + nuevo mtime.
         row.trained_on_games = _safe_int(meta.get("trained_on_games")) or row.trained_on_games
-        row.val_accuracy_home = (
-            _safe_float(metrics.get("val_accuracy_home")) if metrics else row.val_accuracy_home
-        )
-        row.val_mae_total_runs = (
-            _safe_float(metrics.get("val_mae_total_runs")) if metrics else row.val_mae_total_runs
-        )
-        row.val_proba_home_std = (
-            _safe_float(metrics.get("val_proba_home_std")) if metrics else row.val_proba_home_std
-        )
+        row.val_accuracy_home = _safe_float(metrics.get("val_accuracy_home")) if metrics else row.val_accuracy_home
+        row.val_mae_total_runs = _safe_float(metrics.get("val_mae_total_runs")) if metrics else row.val_mae_total_runs
+        row.val_proba_home_std = _safe_float(metrics.get("val_proba_home_std")) if metrics else row.val_proba_home_std
 
     # Desactivar otras filas y activar esta. UPDATE primero, luego flag local: el índice
     # parcial UNIQUE solo permite una fila TRUE simultáneamente.
     await session.execute(
-        update(ModelVersion)
-        .where(ModelVersion.id != row.id, ModelVersion.is_active.is_(True))
-        .values(is_active=False)
+        update(ModelVersion).where(ModelVersion.id != row.id, ModelVersion.is_active.is_(True)).values(is_active=False)
     )
     row.is_active = True
     await session.flush()
@@ -189,15 +179,11 @@ async def record_model_load(
 
 
 async def get_active_model_version(session: AsyncSession) -> ModelVersion | None:
-    result = await session.execute(
-        select(ModelVersion).where(ModelVersion.is_active.is_(True)).limit(1)
-    )
+    result = await session.execute(select(ModelVersion).where(ModelVersion.is_active.is_(True)).limit(1))
     return result.scalar_one_or_none()
 
 
-async def list_model_versions(
-    session: AsyncSession, *, limit: int = 20, offset: int = 0
-) -> list[ModelVersion]:
+async def list_model_versions(session: AsyncSession, *, limit: int = 20, offset: int = 0) -> list[ModelVersion]:
     result = await session.execute(
         select(ModelVersion).order_by(desc(ModelVersion.loaded_at)).limit(limit).offset(offset)
     )

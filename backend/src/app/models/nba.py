@@ -66,9 +66,7 @@ class NbaGameFeatureSnapshot(Base):
     __tablename__ = "nba_game_feature_snapshots"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    game_id: Mapped[str] = mapped_column(
-        ForeignKey("nba_games.game_id"), unique=True, nullable=False
-    )
+    game_id: Mapped[str] = mapped_column(ForeignKey("nba_games.game_id"), unique=True, nullable=False)
     # Forma reciente (ventana rolling)
     home_win_pct_roll: Mapped[float | None] = mapped_column(Float, nullable=True)
     away_win_pct_roll: Mapped[float | None] = mapped_column(Float, nullable=True)

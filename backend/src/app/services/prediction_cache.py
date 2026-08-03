@@ -90,9 +90,7 @@ async def evaluate_predictions_for_final_games(session: AsyncSession, games: lis
     if not candidates:
         return
     pks = [g.game_pk for g in candidates]
-    result = await session.execute(
-        select(GamePredictionCache).where(GamePredictionCache.game_pk.in_(pks))
-    )
+    result = await session.execute(select(GamePredictionCache).where(GamePredictionCache.game_pk.in_(pks)))
     caches = {row.game_pk: row for row in result.scalars().all()}
     now = dt.datetime.now(dt.UTC)
     for g in candidates:
@@ -188,9 +186,7 @@ async def evaluate_all_pending_predictions(
     Evalúa todas las predicciones que tienen un juego finalizado pero aún no han sido evaluadas.
     Retorna (total_evaluados, total_correctos).
     """
-    result = await session.execute(
-        select(GamePredictionCache).where(GamePredictionCache.evaluated_at.is_(None))
-    )
+    result = await session.execute(select(GamePredictionCache).where(GamePredictionCache.evaluated_at.is_(None)))
     pending = result.scalars().all()
 
     evaluated_count = 0
@@ -214,7 +210,5 @@ async def clear_prediction_cache(session: AsyncSession) -> int:
 async def delete_prediction_cache_for_game_pks(session: AsyncSession, game_pks: list[int]) -> int:
     if not game_pks:
         return 0
-    res = await session.execute(
-        delete(GamePredictionCache).where(GamePredictionCache.game_pk.in_(game_pks))
-    )
+    res = await session.execute(delete(GamePredictionCache).where(GamePredictionCache.game_pk.in_(game_pks)))
     return res.rowcount or 0

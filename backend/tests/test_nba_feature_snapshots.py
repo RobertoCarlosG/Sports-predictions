@@ -51,10 +51,7 @@ async def test_rebuild_computes_labels_and_rolling(sqlite_session_factory):
         await session.commit()
         assert n == 3
 
-        snaps = {
-            s.game_id: s
-            for s in (await session.execute(select(NbaGameFeatureSnapshot))).scalars().all()
-        }
+        snaps = {s.game_id: s for s in (await session.execute(select(NbaGameFeatureSnapshot))).scalars().all()}
         # Labels del primer partido (110-100 local gana).
         s1 = snaps["001"]
         assert s1.home_win == 1

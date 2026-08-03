@@ -41,9 +41,7 @@ async def get_cached_nba_prediction(
     model_version: str,
 ) -> NbaPredictionResponse | None:
     row = (
-        await session.execute(
-            select(NbaGamePredictionCache).where(NbaGamePredictionCache.game_id == game_id)
-        )
+        await session.execute(select(NbaGamePredictionCache).where(NbaGamePredictionCache.game_id == game_id))
     ).scalar_one_or_none()
     if row is None or row.model_version != model_version:
         return None
@@ -70,13 +68,9 @@ async def upsert_nba_prediction_cache(
     trigger_reason: str,
 ) -> None:
     row = (
-        await session.execute(
-            select(NbaGamePredictionCache).where(NbaGamePredictionCache.game_id == response.game_id)
-        )
+        await session.execute(select(NbaGamePredictionCache).where(NbaGamePredictionCache.game_id == response.game_id))
     ).scalar_one_or_none()
-    predicted_winner = response.predicted_winner or _winner_from_probability(
-        response.home_win_probability
-    )
+    predicted_winner = response.predicted_winner or _winner_from_probability(response.home_win_probability)
     if row is None:
         session.add(
             NbaGamePredictionCache(
@@ -115,19 +109,13 @@ async def evaluate_nba_predictions_for_final_games(
     final = [
         g
         for g in games
-        if g.home_score is not None
-        and g.away_score is not None
-        and "final" in (g.status or "").lower()
+        if g.home_score is not None and g.away_score is not None and "final" in (g.status or "").lower()
     ]
     if not final:
         return
     ids = [g.game_id for g in final]
     rows = (
-        (
-            await session.execute(
-                select(NbaGamePredictionCache).where(NbaGamePredictionCache.game_id.in_(ids))
-            )
-        )
+        (await session.execute(select(NbaGamePredictionCache).where(NbaGamePredictionCache.game_id.in_(ids))))
         .scalars()
         .all()
     )

@@ -135,8 +135,7 @@ def run_study(
         import optuna
     except ImportError as err:
         raise ImportError(
-            "optuna is required for --bayesian mode. "
-            "Install it: uv add optuna  (or pip install optuna)"
+            "optuna is required for --bayesian mode. " "Install it: uv add optuna  (or pip install optuna)"
         ) from err
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)

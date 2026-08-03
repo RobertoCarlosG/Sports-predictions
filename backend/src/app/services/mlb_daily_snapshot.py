@@ -58,9 +58,7 @@ async def run_mlb_daily_snapshot(
 
     async with async_session_factory() as session:
         mlb = MlbApiClient(settings.mlb_api_base_url, http_client)
-        n = await rebuild_game_feature_snapshots(
-            session, season=season, mlb=mlb, low_memory=low_memory
-        )
+        n = await rebuild_game_feature_snapshots(session, season=season, mlb=mlb, low_memory=low_memory)
         await session.commit()
     log.info(
         "MLB daily snapshot: synced %s + %s, rebuild wrote %s snapshot rows (season=%s)",

@@ -113,9 +113,7 @@ class PitchingEraCache(Base):
     ref_id: Mapped[int] = mapped_column(Integer, nullable=False)
     season: Mapped[str] = mapped_column(String(8), nullable=False)
     era: Mapped[float] = mapped_column(Float, nullable=False)
-    updated_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class GamePredictionCache(Base):

@@ -12,6 +12,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+
+# Disable statement_timeout for this long-running rebuild.
+# The 300s cap protects the API from runaway queries but kills the batch process.
+os.environ.setdefault("DATABASE_STATEMENT_TIMEOUT_SECONDS", "0")
 
 import httpx
 

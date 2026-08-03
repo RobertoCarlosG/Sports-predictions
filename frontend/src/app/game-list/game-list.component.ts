@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
@@ -35,6 +36,8 @@ import { GamesApiService } from '../services/games-api.service';
 import { NotificationService } from '../services/notification.service';
 import { currentSeasonDateBounds } from '../utils/date-bounds';
 
+type SortMode = 'date-asc' | 'date-desc' | 'prob-desc';
+
 /** Entrada de caché por rango de fechas (evita GET repetidos al volver a Hoy/Mañana/Semana). */
 interface GamesListCacheEntry {
   games: GameDetail[];
@@ -53,6 +56,7 @@ function cacheKeyForDates(dates: string[]): string {
     CommonModule,
     RouterLink,
     MatButtonModule,
+    MatButtonToggleModule,
     MatCardModule,
     MatExpansionModule,
     MatIconModule,
@@ -94,10 +98,25 @@ export class GameListComponent {
   /** Avisos del API (p. ej. snapshots faltantes) sin mirar logs del servidor. */
   listMeta = signal<GamesListMeta | null>(null);
 
+  sortMode = signal<SortMode>('date-asc');
+
   // Computed: Se recalcula SOLO cuando games() cambia (como useMemo)
   dayKeys = computed(() => {
     const s = new Set(this.games().map((g) => g.game_date));
-    return [...s].sort();
+    const keys = [...s].sort();
+    return this.sortMode() === 'date-desc' ? [...keys].reverse() : keys;
+  });
+
+  // Computed: games sorted by favorite win probability (highest certainty first)
+  gamesSortedByProb = computed(() => {
+    const hwMap = this.homeWinByPk();
+    return [...this.games()].sort((a, b) => {
+      const pa = hwMap[a.game_pk];
+      const pb = hwMap[b.game_pk];
+      const fa = pa == null ? -1 : Math.max(pa, 1 - pa);
+      const fb = pb == null ? -1 : Math.max(pb, 1 - pb);
+      return fb - fa;
+    });
   });
 
   // Computed: Mapa optimizado de juegos por fecha

@@ -27,11 +27,7 @@ def is_final_game_status(status: str) -> bool:
 
 
 def game_has_final_scores(game: Game) -> bool:
-    return (
-        game.home_score is not None
-        and game.away_score is not None
-        and is_final_game_status(game.status)
-    )
+    return game.home_score is not None and game.away_score is not None and is_final_game_status(game.status)
 
 
 def _game_starter_ids(g: Game) -> tuple[int | None, int | None]:
@@ -293,6 +289,7 @@ async def rebuild_game_feature_snapshots(
                     count,
                 )
             count += await _process_day(session, day_games, team_history, **_day_kwargs)
+            await session.commit()  # release connection between days; prevents Supabase idle timeout
 
     await session.flush()
     return count

@@ -89,9 +89,7 @@ async def test_get_game_invalid_pk_type_returns_422(client: AsyncClient) -> None
 
 
 async def test_games_list_without_sync_returns_seeded_data(client: AsyncClient) -> None:
-    r = await client.get(
-        "/api/v1/games", params={"date": "2025-09-15", "sync": False, "include_predictions": False}
-    )
+    r = await client.get("/api/v1/games", params={"date": "2025-09-15", "sync": False, "include_predictions": False})
     assert r.status_code == 200
     body = r.json()
     assert "games" in body

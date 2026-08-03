@@ -1,6 +1,8 @@
 # Python
 __pycache__/
 *.py[cod]
+.claude/
+memory/
 *$py.class
 *.so
 .Python
@@ -54,5 +56,8 @@ backend/src/app/ml/artifacts/*.joblib
 !backend/src/app/ml/artifacts/calibration_rf-db-v1.joblib
 
 backend/src/app/ml/artifacts/optuna_study_xgb.db
+backend/src/app/ml/artifacts/optuna_study_rf-db-v1.db
 
 # Local docs symlink / parent (if copied)
+
+backend/docs/adr/*.md

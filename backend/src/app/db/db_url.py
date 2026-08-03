@@ -26,9 +26,7 @@ def build_asyncpg_engine_params(
     Útil cuando el host resuelve primero a IPv6 y el entorno (p. ej. Render) no tiene
     ruta IPv6 (OSError errno 101 Network is unreachable).
     """
-    u = make_url(database_url).update_query_dict(
-        {"prepared_statement_cache_size": prepared_statement_cache_size}
-    )
+    u = make_url(database_url).update_query_dict({"prepared_statement_cache_size": prepared_statement_cache_size})
     extras: dict[str, Any] = {}
     if not force_ipv4 or not u.host:
         return u, extras

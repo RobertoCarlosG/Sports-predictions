@@ -102,8 +102,7 @@ def _log_feature_health(x: NDArray[np.float64]) -> None:
     std = np.std(x12, axis=0)
     nz = np.count_nonzero(std > 1e-6)
     log.info(
-        "features: rows=%d cols=%d (incl. defaults_injected) | "
-        "cols 1-12: std>1e-6: %d/12 | mean std=%.4f",
+        "features: rows=%d cols=%d (incl. defaults_injected) | " "cols 1-12: std>1e-6: %d/12 | mean std=%.4f",
         x.shape[0],
         x.shape[1],
         nz,
@@ -203,20 +202,15 @@ async def _async_main(args: argparse.Namespace) -> None:
     val_from = dt.date.fromisoformat(args.val_from) if args.val_from else None
     split_note: str
     try:
-        x_tr, x_va, yh_tr, yh_va, yr_tr, yr_va, split_note = _split_temporal(
-            x, y_h, y_r, dates, val_from
-        )
+        x_tr, x_va, yh_tr, yh_va, yr_tr, yr_va, split_note = _split_temporal(x, y_h, y_r, dates, val_from)
     except RuntimeError as e:
         if val_from is not None:
             log.warning(
-                "No se pudo usar val_from=%s (%s). Se aplica partición 80/20 "
-                "temporal (orden de fechas).",
+                "No se pudo usar val_from=%s (%s). Se aplica partición 80/20 " "temporal (orden de fechas).",
                 val_from,
                 e,
             )
-            x_tr, x_va, yh_tr, yh_va, yr_tr, yr_va, split_note = _split_temporal(
-                x, y_h, y_r, dates, None
-            )
+            x_tr, x_va, yh_tr, yh_va, yr_tr, yr_va, split_note = _split_temporal(x, y_h, y_r, dates, None)
             split_note = "80pct_fallback_after_bad_val_from"
         else:
             raise
@@ -241,8 +235,7 @@ async def _async_main(args: argparse.Namespace) -> None:
     elif args.algorithm == "xgb":
         clf, reg = _build_xgb(args)
         log.info(
-            "XGBoost: trees=%d max_depth=%d lr=%.4f subsample=%.2f "
-            "colsample=%.2f min_child_weight=%d",
+            "XGBoost: trees=%d max_depth=%d lr=%.4f subsample=%.2f " "colsample=%.2f min_child_weight=%d",
             args.trees,
             args.max_depth,
             args.learning_rate,
@@ -326,9 +319,7 @@ def main(argv: list[str] | None = None) -> None:
         stream=sys.stdout,
         force=True,
     )
-    p = argparse.ArgumentParser(
-        description="Train RF or XGBoost from game_feature_snapshots (real labels)."
-    )
+    p = argparse.ArgumentParser(description="Train RF or XGBoost from game_feature_snapshots (real labels).")
     p.add_argument(
         "--algorithm",
         choices=["rf", "xgb"],
@@ -338,10 +329,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument(
         "--output",
         default=None,
-        help=(
-            "Output joblib path (default: artifacts/model.joblib for rf, "
-            "artifacts/model_xgb.joblib for xgb)"
-        ),
+        help=("Output joblib path (default: artifacts/model.joblib for rf, " "artifacts/model_xgb.joblib for xgb)"),
     )
     p.add_argument("--season", default=None, help="Restrict to season e.g. 2025")
     p.add_argument(
@@ -371,12 +359,8 @@ def main(argv: list[str] | None = None) -> None:
     # XGB-specific
     p.add_argument("--learning-rate", type=float, default=0.05, help="[XGB only] Learning rate")
     p.add_argument("--subsample", type=float, default=0.8, help="[XGB only] Row subsampling ratio")
-    p.add_argument(
-        "--colsample-bytree", type=float, default=0.8, help="[XGB only] Column subsampling ratio"
-    )
-    p.add_argument(
-        "--min-child-weight", type=int, default=3, help="[XGB only] Minimum child weight"
-    )
+    p.add_argument("--colsample-bytree", type=float, default=0.8, help="[XGB only] Column subsampling ratio")
+    p.add_argument("--min-child-weight", type=int, default=3, help="[XGB only] Minimum child weight")
     # Bayesian hyperparameter search
     p.add_argument(
         "--bayesian",
@@ -403,9 +387,7 @@ def main(argv: list[str] | None = None) -> None:
         args.max_depth = 6 if args.algorithm == "xgb" else 16
     if args.output is None:
         args.output = (
-            "src/app/ml/artifacts/model_xgb.joblib"
-            if args.algorithm == "xgb"
-            else "src/app/ml/artifacts/model.joblib"
+            "src/app/ml/artifacts/model_xgb.joblib" if args.algorithm == "xgb" else "src/app/ml/artifacts/model.joblib"
         )
     if args.model_version is None:
         args.model_version = "xgb-db-v1" if args.algorithm == "xgb" else "rf-db-v1"

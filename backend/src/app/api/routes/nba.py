@@ -160,29 +160,20 @@ async def list_nba_games(
     if include_predictions and rows:
         ids = [g.game_id for g in rows]
         snaps = (
-            (
-                await session.execute(
-                    select(NbaGameFeatureSnapshot).where(NbaGameFeatureSnapshot.game_id.in_(ids))
-                )
-            )
+            (await session.execute(select(NbaGameFeatureSnapshot).where(NbaGameFeatureSnapshot.game_id.in_(ids))))
             .scalars()
             .all()
         )
         snap_by_id = {s.game_id: s for s in snaps}
         missing = sum(1 for g in rows if g.game_id not in snap_by_id)
         if get_nba_prediction_service_optional(request) is None:
-            meta_info.append(
-                "Modelo NBA no cargado: entrena con "
-                "`python -m app.ml.train_nba_from_db` y reinicia."
-            )
+            meta_info.append("Modelo NBA no cargado: entrena con " "`python -m app.ml.train_nba_from_db` y reinicia.")
 
     out: list[NbaGameDetailResponse] = []
     for g in rows:
         pred: NbaPredictionResponse | None = None
         if include_predictions:
-            pred = await _compute_or_cache_prediction(
-                request, session, g, snap_by_id.get(g.game_id), "list_nba_games"
-            )
+            pred = await _compute_or_cache_prediction(request, session, g, snap_by_id.get(g.game_id), "list_nba_games")
         out.append(_game_detail(g, pred, include_payload=False))
     return NbaGamesListResponse(
         games=out,
@@ -213,9 +204,7 @@ async def get_nba_game(
     pred: NbaPredictionResponse | None = None
     if include_predictions:
         snap = (
-            await session.execute(
-                select(NbaGameFeatureSnapshot).where(NbaGameFeatureSnapshot.game_id == game_id)
-            )
+            await session.execute(select(NbaGameFeatureSnapshot).where(NbaGameFeatureSnapshot.game_id == game_id))
         ).scalar_one_or_none()
         pred = await _compute_or_cache_prediction(request, session, game, snap, "get_nba_game")
     return _game_detail(game, pred)
@@ -235,9 +224,7 @@ async def predict_nba_game(
         description="Modelo: 'xgb' (default), 'lgbm', 'catboost' o 'ensemble'",
     ),
 ) -> NbaPredictionResponse:
-    game = (
-        await session.execute(select(NbaGame).where(NbaGame.game_id == game_id))
-    ).scalar_one_or_none()
+    game = (await session.execute(select(NbaGame).where(NbaGame.game_id == game_id))).scalar_one_or_none()
     if game is None:
         raise HTTPException(status_code=404, detail="Game not found")
     svc = get_nba_prediction_service(request, model)
@@ -246,9 +233,7 @@ async def predict_nba_game(
     if cached is not None:
         return cached
     snap = (
-        await session.execute(
-            select(NbaGameFeatureSnapshot).where(NbaGameFeatureSnapshot.game_id == game_id)
-        )
+        await session.execute(select(NbaGameFeatureSnapshot).where(NbaGameFeatureSnapshot.game_id == game_id))
     ).scalar_one_or_none()
     try:
         result = svc.predict(game_id, snap)

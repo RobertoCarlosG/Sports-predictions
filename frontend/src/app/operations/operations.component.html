@@ -488,6 +488,52 @@
             </app-collapsible-section>
           </section>
 
+          <section class="sport-ops" aria-labelledby="nba-ops-title">
+            <app-collapsible-section title="NBA" subtitle="Indicadores y modelos NBA (xgb / lgbm / catboost) conectados a stats.nba.com y tu base de datos." [expanded]="false">
+            <div class="grid">
+              <mat-card appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>Indicadores NBA</mat-card-title>
+                  <mat-card-subtitle>Recalcula nba_game_feature_snapshots a partir de los partidos guardados (sin red)</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="stack">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
+                    <mat-label>Temporada (opcional)</mat-label>
+                    <input matInput [(ngModel)]="nbaSeasonFilter" name="nbaseas" placeholder="vacío = todas" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
+                    <mat-label>Ventana de partidos previos</mat-label>
+                    <input matInput type="number" min="1" max="50" [(ngModel)]="nbaSnapshotWindow" name="nbawin" />
+                  </mat-form-field>
+                  <button mat-stroked-button type="button" (click)="rebuildNbaSnapshots()" [disabled]="operationsLocked">
+                    <mat-icon>analytics</mat-icon>
+                    Recalcular indicadores NBA
+                  </button>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>Modelos NBA</mat-card-title>
+                  <mat-card-subtitle>Recarga los modelos entrenados sin reiniciar el servidor</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="stack">
+                  <p class="ops-section-hint">
+                    El entrenamiento NBA se lanza desde CLI:<br />
+                    <code>uv run python -m app.ml.train_nba_from_db --algorithm xgb</code>
+                    (repite con <code>lgbm</code> / <code>catboost</code>). Tras entrenar, recarga aquí
+                    para servir sin reiniciar.
+                  </p>
+                  <button mat-stroked-button type="button" (click)="reloadNbaModels()" [disabled]="operationsLocked">
+                    <mat-icon>refresh</mat-icon>
+                    Recargar modelos NBA
+                  </button>
+                </mat-card-content>
+              </mat-card>
+            </div>
+            </app-collapsible-section>
+          </section>
+
           <section class="sport-ops sport-ops-placeholder" aria-labelledby="soccer-ops-title">
             <app-collapsible-section title="Fútbol" subtitle="Sincronización ETL y paneles de operaciones para otras ligas (próximamente)." [expanded]="false">
             <mat-card appearance="outlined" class="placeholder-card">

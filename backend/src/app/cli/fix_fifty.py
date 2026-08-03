@@ -42,9 +42,7 @@ async def _run(*, season: str, window: int) -> None:
         mlb = MlbApiClient(settings.mlb_api_base_url, http_client)
         async with async_session_factory() as session:
             try:
-                n_snap = await rebuild_game_feature_snapshots(
-                    session, rolling_window=window, season=season, mlb=mlb
-                )
+                n_snap = await rebuild_game_feature_snapshots(session, rolling_window=window, season=season, mlb=mlb)
                 n_cache = await clear_prediction_cache(session)
                 await session.commit()
                 log.info(
@@ -53,10 +51,7 @@ async def _run(*, season: str, window: int) -> None:
                     n_cache,
                     season,
                 )
-                log.info(
-                    "El servidor (Render) recargará el modelo "
-                    "automáticamente en el próximo request."
-                )
+                log.info("El servidor (Render) recargará el modelo " "automáticamente en el próximo request.")
             except Exception:
                 await session.rollback()
                 raise
@@ -64,9 +59,7 @@ async def _run(*, season: str, window: int) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    p = argparse.ArgumentParser(
-        description="Fix ~50% predictions: rebuild snapshots + clear cache."
-    )
+    p = argparse.ArgumentParser(description="Fix ~50% predictions: rebuild snapshots + clear cache.")
     p.add_argument(
         "--season",
         default=None,

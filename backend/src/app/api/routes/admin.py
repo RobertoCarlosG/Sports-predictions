@@ -55,6 +55,7 @@ from app.schemas.admin_api import (
     CalibrateModelResponse,
     MessageResponse,
     MlbDailySnapshotBody,
+    NbaRebuildSnapshotsBody,
     PredictionEvaluationItem,
     PredictionEvaluationsResponse,
     PredictionMetricsResponse,
@@ -86,6 +87,7 @@ from app.services.model_registry import (
     list_model_versions,
     record_model_load,
 )
+from app.services.nba_feature_snapshots import rebuild_nba_game_feature_snapshots
 from app.services.pipeline_hooks import refresh_prediction_cache_for_games
 from app.services.prediction_cache import (
     clear_prediction_cache,
@@ -187,8 +189,7 @@ async def admin_auth_ready(
     except SQLAlchemyError as e:
         log.warning("admin auth/ready DB check: %s", e)
         table_hint = (
-            "No se pudo consultar admin_users. Revisa DATABASE_URL y que el "
-            "API use la misma BD que migraste."
+            "No se pudo consultar admin_users. Revisa DATABASE_URL y que el " "API use la misma BD que migraste."
         )
 
     login_ok = jwt_ok and table_ok
@@ -216,9 +217,7 @@ async def admin_bootstrap_first_user(
     response: Response,
     body: AdminLoginBody,
     session: Annotated[AsyncSession, Depends(get_db)],
-    x_admin_bootstrap_secret: Annotated[
-        str | None, Header(alias="X-Admin-Bootstrap-Secret")
-    ] = None,
+    x_admin_bootstrap_secret: Annotated[str | None, Header(alias="X-Admin-Bootstrap-Secret")] = None,
 ) -> AdminSessionResponse:
     """
     Crea el **primer** (y solo el primer) usuario en `admin_users` cuando la tabla está vacía.
@@ -232,9 +231,7 @@ async def admin_bootstrap_first_user(
     if not x_admin_bootstrap_secret or x_admin_bootstrap_secret.strip() != expected:
         raise HTTPException(status_code=403, detail="No autorizado.")
     if not settings.admin_jwt_secret.strip():
-        raise HTTPException(
-            status_code=503, detail="Servidor sin ADMIN_JWT_SECRET; no se puede crear sesión."
-        )
+        raise HTTPException(status_code=503, detail="Servidor sin ADMIN_JWT_SECRET; no se puede crear sesión.")
     cnt = await session.scalar(select(func.count()).select_from(AdminUser))
     if (cnt or 0) > 0:
         raise HTTPException(
@@ -276,9 +273,7 @@ async def admin_login(
     except AdminAuthError as e:
         msg = str(e)
         code = 503 if "ADMIN_JWT_SECRET" in msg else 401
-        raise HTTPException(
-            status_code=code, detail=msg if code == 503 else "Usuario o contraseña incorrectos."
-        ) from e
+        raise HTTPException(status_code=code, detail=msg if code == 503 else "Usuario o contraseña incorrectos.") from e
     _set_admin_session_cookie(response, token)
     return _session_after_fresh_login(username)
 
@@ -341,9 +336,7 @@ async def admin_mlb_daily_snapshot(
     pks = await _game_pks_for_calendar_dates(session, [u_today, u_tomorrow])
     n_del = await delete_prediction_cache_for_game_pks(session, pks)
     await session.commit()
-    await refresh_prediction_cache_for_games(
-        request.app, pks, "mlb_daily_snapshot_admin", force=True
-    )
+    await refresh_prediction_cache_for_games(request.app, pks, "mlb_daily_snapshot_admin", force=True)
     ok_model = getattr(request.app.state, "prediction_service", None) is not None
     return MessageResponse(
         message="ETL diario MLB completado; predicciones actualizadas para hoy y mañana (UTC).",
@@ -383,9 +376,7 @@ async def admin_clear_prediction_cache(
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> MessageResponse:
     n = await clear_prediction_cache(session)
-    return MessageResponse(
-        message="Caché de estimaciones vaciada.", detail=f"Filas eliminadas: {n}"
-    )
+    return MessageResponse(message="Caché de estimaciones vaciada.", detail=f"Filas eliminadas: {n}")
 
 
 @router.post("/pipeline/fix-fifty", response_model=MessageResponse)
@@ -554,6 +545,71 @@ async def admin_reload_model_xgb(
     )
 
 
+@router.post("/model/reload-nba", response_model=MessageResponse)
+async def admin_reload_nba_models(
+    request: Request,
+    _username: AdminUserDep,
+) -> MessageResponse:
+    """Recarga los modelos NBA (xgb/lgbm/catboost) desde artifacts/ sin reiniciar.
+
+    Útil tras entrenar con ``python -m app.ml.train_nba_from_db``. Cada algoritmo
+    cuyo .joblib exista se carga en memoria; los ausentes quedan deshabilitados (503).
+    """
+    from app.ml.nba_predictor import NbaPredictionService
+
+    specs = [
+        ("xgb", "nba_prediction_service_xgb", settings.ml_model_path_nba_xgb, "model_nba_xgb.joblib"),
+        ("lgbm", "nba_prediction_service_lgbm", settings.ml_model_path_nba_lgbm, "model_nba_lgbm.joblib"),
+        (
+            "catboost",
+            "nba_prediction_service_catboost",
+            settings.ml_model_path_nba_catboost,
+            "model_nba_catboost.joblib",
+        ),
+    ]
+    loaded: list[str] = []
+    for kind, attr, env_path, default_name in specs:
+        path = resolve_model_path(env_path, default_name=default_name)
+        if path.is_file():
+            svc = NbaPredictionService(path)
+            setattr(request.app.state, attr, svc)
+            loaded.append(f"{kind}={svc.model_version}")
+        else:
+            setattr(request.app.state, attr, None)
+    if not loaded:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No hay modelos NBA en artifacts/. Entrena con " "`python -m app.ml.train_nba_from_db --algorithm xgb`."
+            ),
+        )
+    return MessageResponse(
+        message=f"Modelos NBA recargados: {len(loaded)}.",
+        detail=", ".join(loaded),
+    )
+
+
+@router.post("/pipeline/nba-rebuild-snapshots", response_model=MessageResponse)
+async def admin_nba_rebuild_snapshots(
+    body: NbaRebuildSnapshotsBody,
+    _username: AdminUserDep,
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> MessageResponse:
+    """Recalcula nba_game_feature_snapshots (rolling stats, descanso, back-to-back).
+
+    Sin red: lee boxscore_json ya guardado en la BD. ``season=None`` reconstruye todos.
+    """
+    n = await rebuild_nba_game_feature_snapshots(
+        session,
+        rolling_window=body.window,
+        season=body.season,
+    )
+    return MessageResponse(
+        message=f"Indicadores NBA recalculados para {n} partidos.",
+        detail=f"Ventana: {body.window}. Temporada: {body.season or 'todas'}.",
+    )
+
+
 @router.get("/model/versions", response_model=AdminModelVersionsResponse)
 async def admin_model_versions(
     _username: AdminUserDep,
@@ -588,9 +644,7 @@ async def admin_model_versions(
                 val_mae_total_runs=r.val_mae_total_runs,
                 val_proba_home_std=r.val_proba_home_std,
                 split_mode=r.split_mode,
-                val_from_requested=(
-                    r.val_from_requested.isoformat() if r.val_from_requested else None
-                ),
+                val_from_requested=(r.val_from_requested.isoformat() if r.val_from_requested else None),
                 feature_names=feature_names,
                 loaded_by=r.loaded_by,
                 notes=r.notes,
@@ -611,9 +665,7 @@ async def admin_train_model(
     artifacts_dir = (BACKEND_ROOT / "src/app/ml/artifacts").resolve()
 
     if not out_path.is_relative_to(artifacts_dir):
-        raise HTTPException(
-            status_code=400, detail="El path de output debe estar dentro de app/ml/artifacts/"
-        )
+        raise HTTPException(status_code=400, detail="El path de output debe estar dentro de app/ml/artifacts/")
 
     out = str(out_path)
     cmd = [
@@ -652,9 +704,7 @@ async def admin_train_model(
             env=os.environ.copy(),
         )
     except subprocess.TimeoutExpired:
-        raise HTTPException(
-            status_code=504, detail="Entrenamiento excedió el tiempo máximo."
-        ) from None
+        raise HTTPException(status_code=504, detail="Entrenamiento excedió el tiempo máximo.") from None
     out_txt = (proc.stdout or "").strip()
     err_txt = (proc.stderr or "").strip()
     combined = "\n".join(x for x in (out_txt, err_txt) if x)
@@ -677,10 +727,7 @@ async def admin_train_model(
     except Exception:
         log.warning("No se pudo leer training_meta del joblib en %s", out, exc_info=False)
     return TrainResultResponse(
-        message=(
-            "Entrenamiento completado. Usa «Recargar modelo» para "
-            "activarlo sin reiniciar el API."
-        ),
+        message=("Entrenamiento completado. Usa «Recargar modelo» para " "activarlo sin reiniciar el API."),
         stdout_tail=tail or None,
         training_meta=training_meta,
     )
@@ -706,8 +753,7 @@ async def admin_backfill(
         raise HTTPException(
             status_code=409,
             detail=(
-                "Ya hay una importación por fechas en curso (en cola o "
-                "ejecutándose). Espera o revisa el progreso."
+                "Ya hay una importación por fechas en curso (en cola o " "ejecutándose). Espera o revisa el progreso."
             ),
         )
     start = dt.date.fromisoformat(body.start)
@@ -753,29 +799,21 @@ async def get_prediction_metrics(
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> PredictionMetricsResponse:
     """Obtener métricas agregadas del sistema de predicciones."""
-    total_predictions_result = await session.scalar(
-        select(func.count()).select_from(GamePredictionCache)
-    )
+    total_predictions_result = await session.scalar(select(func.count()).select_from(GamePredictionCache))
     total_predictions = total_predictions_result or 0
 
     total_evaluated_result = await session.scalar(
-        select(func.count())
-        .select_from(GamePredictionCache)
-        .where(GamePredictionCache.evaluated_at.is_not(None))
+        select(func.count()).select_from(GamePredictionCache).where(GamePredictionCache.evaluated_at.is_not(None))
     )
     total_evaluated = total_evaluated_result or 0
 
     total_correct_result = await session.scalar(
-        select(func.count())
-        .select_from(GamePredictionCache)
-        .where(GamePredictionCache.is_correct.is_(True))
+        select(func.count()).select_from(GamePredictionCache).where(GamePredictionCache.is_correct.is_(True))
     )
     total_correct = total_correct_result or 0
 
     total_incorrect_result = await session.scalar(
-        select(func.count())
-        .select_from(GamePredictionCache)
-        .where(GamePredictionCache.is_correct.is_(False))
+        select(func.count()).select_from(GamePredictionCache).where(GamePredictionCache.is_correct.is_(False))
     )
     total_incorrect = total_incorrect_result or 0
 
@@ -802,9 +840,7 @@ async def get_predictions_backtest(
     date_from: dt.date | None = Query(
         None, description="Inicio (inclusive) por game_date. Por defecto: 30 días antes de date_to."
     ),
-    date_to: dt.date | None = Query(
-        None, description="Fin (inclusive) por game_date. Por defecto: hoy."
-    ),
+    date_to: dt.date | None = Query(None, description="Fin (inclusive) por game_date. Por defecto: hoy."),
     min_confidence: float = Query(
         0.5, ge=0.5, le=1.0, description="Mínimo de max(p_home, 1−p_home) para el lado predicho"
     ),
@@ -924,9 +960,7 @@ async def get_prediction_evaluations(
         )
 
     total_result = await session.scalar(
-        select(func.count())
-        .select_from(GamePredictionCache)
-        .where(GamePredictionCache.evaluated_at.is_not(None))
+        select(func.count()).select_from(GamePredictionCache).where(GamePredictionCache.evaluated_at.is_not(None))
     )
     total = total_result or 0
 

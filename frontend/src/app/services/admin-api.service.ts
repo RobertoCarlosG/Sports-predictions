@@ -220,6 +220,20 @@ export class AdminApiService {
       .pipe(tap(() => this.backtestCache.clear()));
   }
 
+  /** Recarga los modelos NBA (xgb/lgbm/catboost) desde artifacts/ sin reiniciar el servidor. */
+  reloadNbaModels(): Observable<MessageResponse> {
+    return this.http.post<MessageResponse>(`${this.base}/model/reload-nba`, {}, this.opts());
+  }
+
+  /** Recalcula nba_game_feature_snapshots (season vacío = todas las temporadas). */
+  nbaRebuildSnapshots(season: string | null, window: number): Observable<MessageResponse> {
+    return this.http.post<MessageResponse>(
+      `${this.base}/pipeline/nba-rebuild-snapshots`,
+      { season: season || null, window },
+      this.opts(),
+    );
+  }
+
   calibrateModel(): Observable<MessageResponse> {
     return this.http
       .post<CalibrateModelResponse>(`${this.base}/model/calibrate`, {}, this.opts())

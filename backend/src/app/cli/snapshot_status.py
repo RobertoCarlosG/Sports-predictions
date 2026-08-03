@@ -49,10 +49,7 @@ async def _run(*, season: str | None, show_missing: bool) -> None:
 
         print()
         print("=" * 66)
-        print(
-            f"  {'TEMPORADA':<10} {'JUEGOS':>7} {'SNAPS':>7} {'FALTAN':>7}  "
-            f"{'DESDE':<12} {'HASTA':<12}"
-        )
+        print(f"  {'TEMPORADA':<10} {'JUEGOS':>7} {'SNAPS':>7} {'FALTAN':>7}  " f"{'DESDE':<12} {'HASTA':<12}")
         print("=" * 66)
         for r in rows:
             missing = r.total_games - r.with_snapshot
@@ -87,9 +84,7 @@ async def _run(*, season: str | None, show_missing: bool) -> None:
         # ── fechas sin snapshot, desglosadas por tipo ────────────────────────
         if show_missing:
             missing_base = (
-                select(
-                    Game.game_date, Game.season, Game.status, func.count(Game.game_pk).label("n")
-                )
+                select(Game.game_date, Game.season, Game.status, func.count(Game.game_pk).label("n"))
                 .outerjoin(GameFeatureSnapshot, GameFeatureSnapshot.game_pk == Game.game_pk)
                 .where(GameFeatureSnapshot.game_pk.is_(None))
                 .group_by(Game.game_date, Game.season, Game.status)
@@ -103,9 +98,7 @@ async def _run(*, season: str | None, show_missing: bool) -> None:
             final_missing = [
                 r
                 for r in all_missing
-                if "final" in r.status.lower()
-                or "completed" in r.status.lower()
-                or "game over" in r.status.lower()
+                if "final" in r.status.lower() or "completed" in r.status.lower() or "game over" in r.status.lower()
             ]
             other_missing = [r for r in all_missing if r not in final_missing]
 
@@ -117,9 +110,7 @@ async def _run(*, season: str | None, show_missing: bool) -> None:
                     f"  Juegos FINALES sin snapshot — necesitan rebuild "
                     f"({len(set(r.game_date for r in final_missing))} días):"
                 )
-                for date, grp in _groupby(
-                    sorted(final_missing, key=lambda r: r.game_date), key=lambda r: r.game_date
-                ):
+                for date, grp in _groupby(sorted(final_missing, key=lambda r: r.game_date), key=lambda r: r.game_date):
                     grp_list = list(grp)
                     total = sum(r.n for r in grp_list)
                     statuses = ", ".join(sorted({r.status for r in grp_list}))
@@ -137,9 +128,7 @@ async def _run(*, season: str | None, show_missing: bool) -> None:
                     f"{len(all_missing) - len(final_missing)} registros "
                     f"(no requieren acción inmediata):"
                 )
-                for date, grp in _groupby(
-                    sorted(other_missing, key=lambda r: r.game_date), key=lambda r: r.game_date
-                ):
+                for date, grp in _groupby(sorted(other_missing, key=lambda r: r.game_date), key=lambda r: r.game_date):
                     grp_list = list(grp)
                     total = sum(r.n for r in grp_list)
                     statuses = ", ".join(sorted({r.status for r in grp_list}))
@@ -150,9 +139,7 @@ async def _run(*, season: str | None, show_missing: bool) -> None:
 def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
     p = argparse.ArgumentParser(description="Audita el estado de game_feature_snapshots.")
-    p.add_argument(
-        "--season", default=None, help="Filtrar por temporada (ej. 2025). Default: todas."
-    )
+    p.add_argument("--season", default=None, help="Filtrar por temporada (ej. 2025). Default: todas.")
     p.add_argument(
         "--show-missing",
         action="store_true",

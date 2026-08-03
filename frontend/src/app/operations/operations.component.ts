@@ -90,6 +90,8 @@ export class OperationsComponent implements OnInit, OnDestroy {
   backfillSleep = 0.3;
   seasonFilter = '';
   snapshotWindow = 10;
+  nbaSeasonFilter = '';
+  nbaSnapshotWindow = 10;
   trainValFrom = '';
   trainSeason = '';
   trainModelVersion = 'rf-db-v1';
@@ -397,6 +399,18 @@ export class OperationsComponent implements OnInit, OnDestroy {
 
   reloadModelXgb(): void {
     this._run('Recargando modelo XGBoost…', () => this.admin.reloadModelXgb(), {
+      onSuccess: () => this.modelInfo.refreshOnce(),
+    });
+  }
+
+  rebuildNbaSnapshots(): void {
+    this._run('Recalculando indicadores NBA…', () =>
+      this.admin.nbaRebuildSnapshots(this.nbaSeasonFilter.trim() || null, this.nbaSnapshotWindow),
+    );
+  }
+
+  reloadNbaModels(): void {
+    this._run('Recargando modelos NBA…', () => this.admin.reloadNbaModels(), {
       onSuccess: () => this.modelInfo.refreshOnce(),
     });
   }
