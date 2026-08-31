@@ -3,7 +3,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { Subject, of } from 'rxjs';
 
 import type { GameDetail, PredictionOut, TeamOut } from '../models/game';
 import type { HistoryGame } from '../models/history';
@@ -106,6 +106,46 @@ describe('GameDetailComponent', () => {
     component.selectModel('rf');
     expect(component.selectedModel).toBe('rf');
     expect(component.activePrediction?.model_version).toBe('rf');
+  });
+
+  it('updates every displayed prediction value when the model changes', () => {
+    fixture.detectChanges();
+    component.game = baseGame();
+    component.rfPrediction = basePrediction({
+      model_version: 'rf-model',
+      home_win_probability: 0.61,
+      total_runs_estimate: 7.9,
+      over_under_line: 7.5,
+    });
+    component.xgbPrediction = basePrediction({
+      model_version: 'xgb-model',
+      home_win_probability: 0.72,
+      total_runs_estimate: 8.6,
+      over_under_line: 8.5,
+    });
+    component.selectedModel = 'xgb';
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.model-version-chip').textContent).toContain(
+      'xgb-model',
+    );
+    expect(fixture.nativeElement.querySelector('.runs-ou-detail').textContent).toContain('~8,6');
+    expect(fixture.nativeElement.querySelector('.runs-ou-detail').textContent).toContain('8,5');
+    expect(fixture.nativeElement.querySelector('app-probability-bar .val').textContent).toContain(
+      '72',
+    );
+
+    component.selectModel('rf');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.model-version-chip').textContent).toContain(
+      'rf-model',
+    );
+    expect(fixture.nativeElement.querySelector('.runs-ou-detail').textContent).toContain('~7,9');
+    expect(fixture.nativeElement.querySelector('.runs-ou-detail').textContent).toContain('7,5');
+    expect(fixture.nativeElement.querySelector('app-probability-bar .val').textContent).toContain(
+      '61',
+    );
   });
 
   it('insufficientData reflects defaults_injected on the active prediction', () => {
@@ -222,6 +262,39 @@ describe('GameDetailComponent', () => {
     expect(component.xgbPrediction?.model_version).toBe('fresh');
     expect(component.predictionRefreshLoading).toBe(false);
     expect(component.predictionRefreshMessage).toContain('actualizada');
+  });
+
+  it('stores a refreshed prediction under the model that initiated the request', () => {
+    component.ngOnInit();
+    component.selectedModel = 'rf';
+    const pending = new Subject<PredictionOut>();
+    api.refreshPrediction.and.returnValue(pending.asObservable());
+
+    component.refreshPredictionOnly();
+    component.selectModel('xgb');
+    pending.next(basePrediction({ model_version: 'fresh-rf' }));
+    pending.complete();
+
+    expect(component.rfPrediction?.model_version).toBe('fresh-rf');
+    expect(component.xgbPrediction?.model_version).not.toBe('fresh-rf');
+  });
+
+  it('discards a refreshed prediction after navigating to another game', () => {
+    component.ngOnInit();
+    component.selectedModel = 'rf';
+    const pending = new Subject<PredictionOut>();
+    api.refreshPrediction.and.returnValue(pending.asObservable());
+
+    component.refreshPredictionOnly();
+    (
+      component as unknown as {
+        gamePk: number;
+      }
+    ).gamePk = 999999;
+    pending.next(basePrediction({ model_version: 'stale-rf' }));
+    pending.complete();
+
+    expect(component.rfPrediction?.model_version).not.toBe('stale-rf');
   });
 
   it('refreshData runs the full sync pipeline', () => {

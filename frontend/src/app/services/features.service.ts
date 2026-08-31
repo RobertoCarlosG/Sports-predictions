@@ -12,12 +12,13 @@ interface FeaturesResponse {
 export class FeaturesService {
   private readonly http = inject(HttpClient);
 
-  readonly nbaEnabled = signal(true);
+  /** Default false until /api/v1/features responds — avoids flashing NBA as live. */
+  readonly nbaEnabled = signal(false);
 
   constructor() {
     this.http
-      .get<FeaturesResponse>(`${environment.apiUrl}/features`)
-      .pipe(catchError(() => of({ nba_enabled: true })))
+      .get<FeaturesResponse>(`${environment.apiUrl}/api/v1/features`)
+      .pipe(catchError(() => of({ nba_enabled: false })))
       .subscribe((f) => this.nbaEnabled.set(f.nba_enabled));
   }
 }

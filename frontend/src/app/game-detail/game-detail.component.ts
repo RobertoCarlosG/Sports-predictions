@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -64,7 +64,15 @@ export class GameDetailComponent implements OnInit {
   predictionRefreshMessage: string | null = null;
   predictionRefreshIsError = false;
 
-  selectedModel: 'rf' | 'xgb' = 'xgb';
+  private readonly selectedModelState = signal<'rf' | 'xgb'>('xgb');
+
+  get selectedModel(): 'rf' | 'xgb' {
+    return this.selectedModelState();
+  }
+
+  set selectedModel(model: 'rf' | 'xgb') {
+    this.selectedModelState.set(model);
+  }
 
   private gamePk: number | null = null;
 
@@ -192,7 +200,7 @@ export class GameDetailComponent implements OnInit {
   }
 
   selectModel(model: 'rf' | 'xgb'): void {
-    this.selectedModel = model;
+    this.selectedModelState.set(model);
   }
 
   /** Un solo control: actualiza calendario, condiciones y estimación. */
@@ -357,12 +365,17 @@ export class GameDetailComponent implements OnInit {
     if (this.gamePk == null) {
       return;
     }
+    const requestedGamePk = this.gamePk;
+    const requestedModel = this.selectedModel;
     this.predictionRefreshLoading = true;
     this.predictionRefreshMessage = null;
     this.predictionRefreshIsError = false;
-    this.api.refreshPrediction(this.gamePk, { model: this.selectedModel }).subscribe({
+    this.api.refreshPrediction(this.gamePk, { model: requestedModel }).subscribe({
       next: (p) => {
-        if (this.selectedModel === 'xgb') {
+        if (this.gamePk !== requestedGamePk) {
+          return;
+        }
+        if (requestedModel === 'xgb') {
           this.xgbPrediction = p;
         } else {
           this.rfPrediction = p;
