@@ -56,16 +56,17 @@
         type="button"
         (click)="notif.togglePanel()"
         [attr.title]="collapsed ? 'Notificaciones' : null"
-        aria-label="Notificaciones"
+        [attr.aria-label]="
+          notif.unreadCount() > 0
+            ? 'Notificaciones, ' + notif.unreadCount() + ' sin leer'
+            : 'Notificaciones'
+        "
+        [matBadge]="notif.unreadCount()"
+        [matBadgeHidden]="notif.unreadCount() === 0"
+        matBadgeSize="small"
+        matBadgeColor="warn"
       >
-        <mat-icon
-          class="nav-ico"
-          [matBadge]="notif.unreadCount()"
-          [matBadgeHidden]="notif.unreadCount() === 0"
-          matBadgeSize="small"
-          matBadgeColor="warn"
-          aria-hidden="true"
-        >notifications</mat-icon>
+        <mat-icon class="nav-ico" aria-hidden="true">notifications</mat-icon>
         @if (!collapsed) {
           <span class="nav-text">Notificaciones</span>
         }

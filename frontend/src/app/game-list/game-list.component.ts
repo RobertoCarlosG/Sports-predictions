@@ -307,35 +307,20 @@ export class GameListComponent {
       info: [],
       missing_snapshot_count: 0,
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7807/ingest/122861fa-fe9c-4840-86f7-146a792b0cd0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'593c62'},body:JSON.stringify({sessionId:'593c62',runId:'pre-fix',hypothesisId:'A',location:'game-list.component.ts:loadForDates',message:'loadForDates start',data:{dates,force,origin:typeof location!=='undefined'?location.origin:'',apiUrl:environment.apiUrl,gen},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     const reqs = dates.map((d) =>
       this.api.listGames(d, true, { force }).pipe(
-        catchError((err) => {
-          // #region agent log
-          fetch('http://127.0.0.1:7807/ingest/122861fa-fe9c-4840-86f7-146a792b0cd0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'593c62'},body:JSON.stringify({sessionId:'593c62',runId:'pre-fix',hypothesisId:'A',location:'game-list.component.ts:catchError',message:'listGames failed → empty',data:{date:d,status:err?.status,name:err?.name,message:String(err?.message??err),origin:typeof location!=='undefined'?location.origin:''},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
-          return of({ games: [], meta: emptyMeta() });
-        }),
+        catchError(() => of({ games: [], meta: emptyMeta() })),
       ),
     );
     forkJoin(reqs).subscribe({
       next: (chunks) => {
         if (gen !== this.loadGeneration) {
-          // #region agent log
-          fetch('http://127.0.0.1:7807/ingest/122861fa-fe9c-4840-86f7-146a792b0cd0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'593c62'},body:JSON.stringify({sessionId:'593c62',runId:'pre-fix',hypothesisId:'C',location:'game-list.component.ts:stale',message:'discarded stale response',data:{gen,current:this.loadGeneration},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
           return;
         }
-        const rawCount = chunks.reduce((acc, c) => acc + c.games.length, 0);
         const flat = chunks
           .flatMap((c) => c.games)
           .filter((g) => allowed.has(isoDateOnly(g.game_date)));
         const merged = this.mergeGames(flat);
-        // #region agent log
-        fetch('http://127.0.0.1:7807/ingest/122861fa-fe9c-4840-86f7-146a792b0cd0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'593c62'},body:JSON.stringify({sessionId:'593c62',runId:'pre-fix',hypothesisId:'B',location:'game-list.component.ts:next',message:'loadForDates result',data:{dates,rawCount,filtered:flat.length,merged:merged.length,sampleDates:merged.slice(0,3).map(g=>g.game_date),allowed:[...allowed]},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         const warnings = [...new Set(chunks.flatMap((c) => c.meta.warnings))];
         const info = [...new Set(chunks.flatMap((c) => c.meta.info))];
         const missingTotal = chunks.reduce((acc, c) => acc + c.meta.missing_snapshot_count, 0);

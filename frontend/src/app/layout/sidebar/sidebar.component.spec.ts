@@ -5,6 +5,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { Router, provideRouter } from '@angular/router';
 
 import { SPORT_OPTIONS } from '../../models/sport';
+import { FeaturesService } from '../../services/features.service';
 import { NotificationService } from '../../services/notification.service';
 import { SidebarComponent } from './sidebar.component';
 
@@ -37,7 +38,27 @@ describe('SidebarComponent', () => {
 
   it('exposes the title and sport options', () => {
     expect(component.title).toBe('Sports Predictions');
-    expect(component.sports()).toEqual([...SPORT_OPTIONS]);
+    expect(component.sports()).toEqual(
+      SPORT_OPTIONS.map((sport) => (sport.id === 'nba' ? { ...sport, implemented: false } : sport)),
+    );
+  });
+
+  it('enables NBA when the backend feature flag is enabled', () => {
+    TestBed.inject(FeaturesService).nbaEnabled.set(true);
+    expect(component.sports().find((sport) => sport.id === 'nba')?.implemented).toBeTrue();
+  });
+
+  it('renders feature status and an accessible unread-notification label', () => {
+    expect(fixture.nativeElement.textContent).toContain('pronto');
+
+    TestBed.inject(NotificationService).push('Nueva alerta');
+    fixture.detectChanges();
+
+    const notificationButton = fixture.nativeElement.querySelector(
+      'button[aria-label^="Notificaciones"]',
+    );
+    expect(notificationButton.getAttribute('aria-label')).toBe('Notificaciones, 1 sin leer');
+    expect(notificationButton.querySelector('mat-icon').getAttribute('aria-hidden')).toBe('true');
   });
 
   it('toggles the collapsed flag', () => {

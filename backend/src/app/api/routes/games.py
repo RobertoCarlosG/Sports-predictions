@@ -243,39 +243,6 @@ async def _list_games_impl(
         info=meta_info,
         missing_snapshot_count=len(missing_snapshots),
     )
-    # #region agent log
-    try:
-        import json as _json
-        import time as _time
-        _origin = request.headers.get("origin")
-        _payload = {
-            "sessionId": "593c62",
-            "runId": "pre-fix",
-            "hypothesisId": "A",
-            "location": "games.py:_list_games_impl",
-            "message": "list_games response",
-            "data": {
-                "date": game_date.isoformat(),
-                "n_games": len(out),
-                "origin": _origin,
-                "cors_origins": settings.cors_origins,
-                "origin_allowed": (
-                    _origin is not None
-                    and _origin in {o.strip() for o in settings.cors_origins.split(",") if o.strip()}
-                ),
-                "missing_snapshots": len(missing_snapshots),
-            },
-            "timestamp": int(_time.time() * 1000),
-        }
-        with open(
-            "/Users/invitado/Documents/side/Predictions/Sports-Predictions/.cursor/debug-593c62.log",
-            "a",
-            encoding="utf-8",
-        ) as _f:
-            _f.write(_json.dumps(_payload) + "\n")
-    except Exception:
-        pass
-    # #endregion
     return GamesListResponse(games=out, meta=meta)
 
 
