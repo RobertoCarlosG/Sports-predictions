@@ -16,8 +16,13 @@ Aplicar **en este orden** (todas las migraciones son idempotentes):
 6. `005_teams_optimization.sql` — índice y comentarios para reducir lock contention en `teams`.
 7. `006_model_versions.sql` — tabla `model_versions` (histórico + flag `is_active` único).
 8. `007_app_users_and_bets.sql` — `app_users`, `bet_banks`, `bet_periods`, `bets` (control de apuestas).
+9. `008_app_users_email_auth.sql` — login email+contraseña en `app_users` (`password_hash`, `google_id` nullable).
+10. `009_teams_league_division.sql` — `league` / `division` en `teams` + backfill de los 30 equipos.
+11. `010_prediction_defaults_injected.sql` — `defaults_injected` en `prediction_results`.
+12. `011_nba_core.sql` — `nba_teams`, `nba_games` (esquema NBA; vacío si `NBA_ENABLED=false`).
+13. `012_nba_features_predictions.sql` — `nba_game_feature_snapshots`, `nba_prediction_results`.
 
-> Sí, hay dos archivos con prefijo `002_` (uno toca `games`, el otro crea tablas nuevas). Mantenidos por historia. Para nuevas migraciones, usar el siguiente número libre: **`008_`**.
+> Sí, hay dos archivos con prefijo `002_` (uno toca `games`, el otro crea tablas nuevas). Mantenidos por historia. Para nuevas migraciones, usar el siguiente número libre: **`013_`**.
 
 ## Cómo aplicarlas
 
@@ -39,10 +44,21 @@ for f in sql/001_initial_schema.sql \
          sql/004_prediction_evaluation.sql \
          sql/005_teams_optimization.sql \
          sql/006_model_versions.sql \
-         sql/007_app_users_and_bets.sql; do
+         sql/007_app_users_and_bets.sql \
+         sql/008_app_users_email_auth.sql \
+         sql/009_teams_league_division.sql \
+         sql/010_prediction_defaults_injected.sql \
+         sql/011_nba_core.sql \
+         sql/012_nba_features_predictions.sql; do
   echo ">>> $f"
   psql "$DATABASE_URL" -f "$f"
 done
+```
+
+Con Docker local (`backend/docker-compose.yml`):
+
+```bash
+docker compose exec -T db psql -U sports -d sports_predictions -v ON_ERROR_STOP=1 < "$f"
 ```
 
 ### Verificación rápida
@@ -53,7 +69,8 @@ WHERE table_schema='public'
   AND table_name IN (
     'teams', 'games', 'game_weather', 'game_feature_snapshots',
     'pitching_era_cache', 'prediction_results', 'admin_users', 'model_versions',
-    'app_users', 'bet_banks', 'bet_periods', 'bets'
+    'app_users', 'bet_banks', 'bet_periods', 'bets',
+    'nba_teams', 'nba_games', 'nba_game_feature_snapshots', 'nba_prediction_results'
   );
 ```
 
@@ -102,8 +119,8 @@ Para más operadores: solo CLI (`create-admin`).
 
 ## Convenciones para nuevas migraciones
 
-1. Nombre `<NN>_<descripcion-corta>.sql`. Próximo número libre: `007_`.
+1. Nombre `<NN>_<descripcion-corta>.sql`. Próximo número libre: `013_`.
 2. Idempotentes (`IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, etc.).
 3. `COMMENT ON COLUMN` cuando el nombre no sea obvio.
-4. Sincronizar en el mismo cambio: este `README`, `schema.txt` y los modelos SQLAlchemy en `src/app/models/mlb.py`.
+4. Sincronizar en el mismo cambio: este `README`, `schema.txt` y los modelos SQLAlchemy (`src/app/models/mlb.py`, `nba.py`).
 5. Probar contra una BD vacía siguiendo la lista de aplicación de arriba.

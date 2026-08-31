@@ -38,6 +38,7 @@ async def _run(
     window: int,
     start_date: dt.date | None,
     end_date: dt.date | None,
+    low_memory: bool,
 ) -> None:
     async with httpx.AsyncClient(timeout=30.0) as client:
         mlb = MlbApiClient(settings.mlb_api_base_url, client)
@@ -50,6 +51,7 @@ async def _run(
                     mlb=mlb,
                     start_date=start_date,
                     end_date=end_date,
+                    low_memory=low_memory,
                 )
                 await session.commit()
                 log.info("rebuilt %d feature snapshot rows", n)
@@ -84,6 +86,15 @@ def main(argv: list[str] | None = None) -> None:
         metavar="N",
         help="Shortcut: rebuild the last N days up to today. Overrides --start/--end/--season.",
     )
+    p.add_argument(
+        "--low-memory",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Stream games with yield_per (default). Use --no-low-memory to load all games first; "
+            "needed on local Postgres when commit_before_mlb closes the stream cursor."
+        ),
+    )
     args = p.parse_args(argv)
 
     start_date: dt.date | None = None
@@ -102,7 +113,15 @@ def main(argv: list[str] | None = None) -> None:
         if start_date > end_date:
             p.error("--start must be <= --end")
 
-    asyncio.run(_run(season=season, window=args.window, start_date=start_date, end_date=end_date))
+    asyncio.run(
+        _run(
+            season=season,
+            window=args.window,
+            start_date=start_date,
+            end_date=end_date,
+            low_memory=args.low_memory,
+        )
+    )
 
 
 if __name__ == "__main__":
