@@ -4,7 +4,7 @@
     @if (pct() == null) {
       <span class="val val-muted">{{ noDataText() }}</span>
     } @else {
-      <span class="val">{{ pct() | number: '1.0-1' }}%</span>
+      <span class="val" translate="no">{{ pct() | number: '1.0-1' }}%</span>
     }
   </div>
   <div class="track" aria-hidden="true">

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -47,10 +47,8 @@ import { favoriteFromHomeWinProbability } from '../utils/prediction-favorite';
 export class GameDetailComponent implements OnInit {
   private readonly api = inject(GamesApiService);
   private readonly route = inject(ActivatedRoute);
+  private readonly cdr = inject(ChangeDetectorRef);
 
-  game: GameDetail | null = null;
-  rfPrediction: PredictionOut | null = null;
-  xgbPrediction: PredictionOut | null = null;
   headToHead: HistoryGame[] = [];
 
   loading = false;
@@ -65,6 +63,17 @@ export class GameDetailComponent implements OnInit {
   predictionRefreshIsError = false;
 
   private readonly selectedModelState = signal<'rf' | 'xgb'>('xgb');
+  private readonly rfPredictionState = signal<PredictionOut | null>(null);
+  private readonly xgbPredictionState = signal<PredictionOut | null>(null);
+  private readonly gameState = signal<GameDetail | null>(null);
+
+  get game(): GameDetail | null {
+    return this.gameState();
+  }
+
+  set game(value: GameDetail | null) {
+    this.gameState.set(value);
+  }
 
   get selectedModel(): 'rf' | 'xgb' {
     return this.selectedModelState();
@@ -74,16 +83,47 @@ export class GameDetailComponent implements OnInit {
     this.selectedModelState.set(model);
   }
 
+  get rfPrediction(): PredictionOut | null {
+    return this.rfPredictionState();
+  }
+
+  set rfPrediction(value: PredictionOut | null) {
+    this.rfPredictionState.set(value);
+  }
+
+  get xgbPrediction(): PredictionOut | null {
+    return this.xgbPredictionState();
+  }
+
+  set xgbPrediction(value: PredictionOut | null) {
+    this.xgbPredictionState.set(value);
+  }
+
   private gamePk: number | null = null;
 
-  get activePrediction(): PredictionOut | null {
-    return this.selectedModel === 'xgb' ? this.xgbPrediction : this.rfPrediction;
-  }
+  /** Señal: el bloque de estimación anidado tiene que leerla o no se refresca al cambiar de modelo. */
+  readonly activePrediction = computed(() =>
+    this.selectedModelState() === 'xgb' ? this.xgbPredictionState() : this.rfPredictionState(),
+  );
+
+  /**
+   * Una fila con clave de modelo: `@for` destruye el DOM al cambiar de algoritmo
+   * (si no, el texto puede quedarse pegado — p. ej. con el traductor del navegador).
+   */
+  readonly modelViews = computed(() => {
+    const model = this.selectedModelState();
+    const pred = this.activePrediction();
+    return [
+      {
+        key: `${model}:${pred?.model_version ?? 'empty'}`,
+        model,
+        pred,
+      },
+    ];
+  });
 
   /** true = la predicción activa usó constantes por falta de datos; la prob. ~50% no es fiable. */
-  get insufficientData(): boolean {
-    return this.activePrediction?.defaults_injected === true;
-  }
+  readonly insufficientData = computed(() => this.activePrediction()?.defaults_injected === true);
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((pm) => {
@@ -119,13 +159,17 @@ export class GameDetailComponent implements OnInit {
       next: (g) => {
         this.game = g;
         this.loading = false;
-        if ('prediction' in g && g.prediction != null) {
-          this.xgbPrediction = g.prediction;
-          this.xgbLoading = false;
-        } else {
-          this.loadXgbPrediction(gamePk, { force });
+        if (g.prediction != null) {
+          this.storePrediction(g.prediction);
         }
-        this.loadRfPrediction(gamePk, { force });
+        if (this.xgbPrediction == null) {
+          this.loadXgbPrediction(gamePk, { force });
+        } else {
+          this.xgbLoading = false;
+        }
+        if (this.rfPrediction == null) {
+          this.loadRfPrediction(gamePk, { force });
+        }
         this.loadHeadToHead(g);
       },
       error: () => {
@@ -140,12 +184,14 @@ export class GameDetailComponent implements OnInit {
     this.predLoading = true;
     this.api.predict(gamePk, { force: options?.force === true, model: 'rf' }).subscribe({
       next: (p) => {
-        this.rfPrediction = p;
+        this.storePrediction(p, 'rf');
         this.predLoading = false;
+        this.cdr.markForCheck();
       },
       error: () => {
         this.rfPrediction = null;
         this.predLoading = false;
+        this.cdr.markForCheck();
       },
     });
   }
@@ -155,8 +201,9 @@ export class GameDetailComponent implements OnInit {
     this.xgbUnavailable = false;
     this.api.predict(gamePk, { force: options?.force === true, model: 'xgb' }).subscribe({
       next: (p) => {
-        this.xgbPrediction = p;
+        this.storePrediction(p, 'xgb');
         this.xgbLoading = false;
+        this.cdr.markForCheck();
       },
       error: (err: { status?: number }) => {
         this.xgbPrediction = null;
@@ -164,8 +211,27 @@ export class GameDetailComponent implements OnInit {
         if (err?.status === 503) {
           this.xgbUnavailable = true;
         }
+        this.cdr.markForCheck();
       },
     });
+  }
+
+  /** Guarda RF/XGB según `model_version`, no según quién hizo la petición. */
+  private storePrediction(p: PredictionOut, fallback: 'rf' | 'xgb' = 'xgb'): void {
+    const v = (p.model_version ?? '').toLowerCase();
+    if (v.includes('xgb')) {
+      this.xgbPrediction = p;
+      return;
+    }
+    if (v.includes('rf') || v.includes('forest') || v.includes('synthetic')) {
+      this.rfPrediction = p;
+      return;
+    }
+    if (fallback === 'rf') {
+      this.rfPrediction = p;
+    } else {
+      this.xgbPrediction = p;
+    }
   }
 
   private loadHeadToHead(g: GameDetail): void {
@@ -200,7 +266,11 @@ export class GameDetailComponent implements OnInit {
   }
 
   selectModel(model: 'rf' | 'xgb'): void {
+    if (model !== 'rf' && model !== 'xgb') {
+      return;
+    }
     this.selectedModelState.set(model);
+    this.cdr.detectChanges();
   }
 
   /** Un solo control: actualiza calendario, condiciones y estimación. */
@@ -232,8 +302,16 @@ export class GameDetailComponent implements OnInit {
       .subscribe({
         next: ({ detail, rfPred, xgbPred }) => {
           this.game = detail;
-          this.rfPrediction = rfPred;
-          this.xgbPrediction = xgbPred;
+          if (rfPred) {
+            this.storePrediction(rfPred, 'rf');
+          } else {
+            this.rfPrediction = null;
+          }
+          if (xgbPred) {
+            this.storePrediction(xgbPred, 'xgb');
+          } else {
+            this.xgbPrediction = null;
+          }
           this.refreshLoading = false;
           if (this.game) {
             this.loadHeadToHead(this.game);
@@ -249,30 +327,31 @@ export class GameDetailComponent implements OnInit {
   /**
    * Probabilidad del **favorito** (lado con mayor P de victoria) para la barra única.
    */
-  favoriteBarProbability(): number | null {
-    const p = this.activePrediction?.home_win_probability;
+  readonly favoriteBarProbability = computed(() => {
+    const p = this.activePrediction()?.home_win_probability;
     if (p == null || Number.isNaN(p)) {
       return null;
     }
     return favoriteFromHomeWinProbability(p).favoriteWinProb;
-  }
+  });
 
-  favoriteVictoryLabel(): string {
-    if (this.game == null) {
+  readonly favoriteVictoryLabel = computed(() => {
+    const g = this.gameState();
+    if (g == null) {
       return 'Victoria del favorito';
     }
     const { favorite, favoriteWinProb } = favoriteFromHomeWinProbability(
-      this.activePrediction?.home_win_probability,
+      this.activePrediction()?.home_win_probability,
     );
     if (favorite === 'none' || favoriteWinProb == null) {
       return 'Victoria del favorito';
     }
-    const team = favorite === 'home' ? this.game.home_team : this.game.away_team;
+    const team = favorite === 'home' ? g.home_team : g.away_team;
     return `Victoria ${this.abbr(team)}`;
-  }
+  });
 
-  hasRunsProjection(): boolean {
-    const p = this.activePrediction;
+  readonly hasRunsProjection = computed(() => {
+    const p = this.activePrediction();
     return (
       p != null &&
       typeof p.total_runs_estimate === 'number' &&
@@ -280,25 +359,25 @@ export class GameDetailComponent implements OnInit {
       typeof p.over_under_line === 'number' &&
       Number.isFinite(p.over_under_line)
     );
-  }
+  });
 
-  runsEstimateFormatted(): string {
-    const p = this.activePrediction;
+  readonly runsEstimateFormatted = computed(() => {
+    const p = this.activePrediction();
     if (p == null || !this.hasRunsProjection()) {
       return '';
     }
     return this.formatRunNumber(p.total_runs_estimate);
-  }
+  });
 
-  ouLineFormatted(): string {
-    const p = this.activePrediction;
+  readonly ouLineFormatted = computed(() => {
+    const p = this.activePrediction();
     if (p == null || !this.hasRunsProjection()) {
       return '';
     }
     return this.formatRunNumber(p.over_under_line);
-  }
+  });
 
-  runsLeanLabel(): string {
+  readonly runsLeanLabel = computed(() => {
     switch (this.runsLeanKind()) {
       case 'over':
         return 'Sobre';
@@ -307,19 +386,23 @@ export class GameDetailComponent implements OnInit {
       default:
         return 'En la línea';
     }
-  }
+  });
 
-  runsLeanClass(): Record<string, boolean> {
+  readonly runsLeanClass = computed(() => {
     const k = this.runsLeanKind();
     return {
       'detail-lean-over': k === 'over',
       'detail-lean-under': k === 'under',
       'detail-lean-push': k === 'push',
     };
-  }
+  });
+
+  readonly ahHomeLabel = computed(() => this.ahSideLabel(this.activePrediction()?.asian_handicap?.home));
+
+  readonly ahAwayLabel = computed(() => this.ahSideLabel(this.activePrediction()?.asian_handicap?.away));
 
   private runsLeanKind(): 'over' | 'under' | 'push' {
-    const p = this.activePrediction;
+    const p = this.activePrediction();
     if (p == null || !this.hasRunsProjection()) {
       return 'push';
     }
@@ -337,20 +420,83 @@ export class GameDetailComponent implements OnInit {
     return n.toFixed(1).replace('.', ',');
   }
 
-  ahHomeLabel(): string {
-    const ah = this.activePrediction?.asian_handicap;
-    if (!ah) {
-      return '';
-    }
-    return `${ah.home.team_abbr} ${this.formatSignedLine(ah.home.line)} — cubrir`;
+  formatRuns(n: number): string {
+    return this.formatRunNumber(n);
   }
 
-  ahAwayLabel(): string {
-    const ah = this.activePrediction?.asian_handicap;
-    if (!ah) {
+  favoriteProb(p: PredictionOut): number | null {
+    const ph = p.home_win_probability;
+    if (ph == null || Number.isNaN(ph)) {
+      return null;
+    }
+    return favoriteFromHomeWinProbability(ph).favoriteWinProb;
+  }
+
+  favoriteLabel(p: PredictionOut): string {
+    const g = this.gameState();
+    if (g == null) {
+      return 'Victoria del favorito';
+    }
+    const { favorite, favoriteWinProb } = favoriteFromHomeWinProbability(p.home_win_probability);
+    if (favorite === 'none' || favoriteWinProb == null) {
+      return 'Victoria del favorito';
+    }
+    const team = favorite === 'home' ? g.home_team : g.away_team;
+    return `Victoria ${this.abbr(team)}`;
+  }
+
+  predHasRuns(p: PredictionOut): boolean {
+    return (
+      typeof p.total_runs_estimate === 'number' &&
+      Number.isFinite(p.total_runs_estimate) &&
+      typeof p.over_under_line === 'number' &&
+      Number.isFinite(p.over_under_line)
+    );
+  }
+
+  predLeanLabel(p: PredictionOut): string {
+    switch (this.predLeanKind(p)) {
+      case 'over':
+        return 'Sobre';
+      case 'under':
+        return 'Bajo';
+      default:
+        return 'En la línea';
+    }
+  }
+
+  predLeanClass(p: PredictionOut): Record<string, boolean> {
+    const k = this.predLeanKind(p);
+    return {
+      'detail-lean-over': k === 'over',
+      'detail-lean-under': k === 'under',
+      'detail-lean-push': k === 'push',
+    };
+  }
+
+  ahLabel(side: { team_abbr: string; line: number }): string {
+    return this.ahSideLabel(side);
+  }
+
+  private predLeanKind(p: PredictionOut): 'over' | 'under' | 'push' {
+    if (!this.predHasRuns(p)) {
+      return 'push';
+    }
+    const d = p.total_runs_estimate - p.over_under_line;
+    if (d > 0.02) {
+      return 'over';
+    }
+    if (d < -0.02) {
+      return 'under';
+    }
+    return 'push';
+  }
+
+  private ahSideLabel(side: { team_abbr: string; line: number } | null | undefined): string {
+    if (!side) {
       return '';
     }
-    return `${ah.away.team_abbr} ${this.formatSignedLine(ah.away.line)} — cubrir`;
+    return `${side.team_abbr} ${this.formatSignedLine(side.line)}`;
   }
 
   private formatSignedLine(v: number): string {

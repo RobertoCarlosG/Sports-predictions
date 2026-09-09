@@ -14,30 +14,24 @@
   box-shadow: var(--shadow-lg), var(--shadow-inset-top);
 }
 
-// Sin blur (fallback para @supports)
+// Sin blur. Solo declaraciones: un `@supports` anidado dispara mixed-decls
+// en quien incluya el mixin y luego ponga más propiedades.
 @mixin glass-fallback($bg: rgba(255, 255, 255, 0.92)) {
   background: $bg;
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-md);
 }
 
-// Aplica glass con fallback automático
+// Igual que `glass`: los navegadores sin backdrop-filter ignoran esas props.
 @mixin glass-safe($bg: var(--glass-bg)) {
-  @include glass-fallback;
-
-  @supports (backdrop-filter: blur(1px)) {
-    @include glass($bg);
-  }
+  @include glass($bg);
 }
 
-// Glass reducido para touch devices (menor blur = mejor rendimiento en móvil)
+// Glass reducido para touch (menor blur = mejor rendimiento en móvil)
 @mixin glass-mobile($bg: var(--glass-bg-raised)) {
   background: $bg;
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-md), var(--shadow-inset-top);
-
-  @supports (backdrop-filter: blur(1px)) {
-    backdrop-filter: blur(8px) saturate(120%);
-    -webkit-backdrop-filter: blur(8px) saturate(120%);
-  }
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
 }

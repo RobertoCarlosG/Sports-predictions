@@ -24,7 +24,6 @@
 
 .sidebar {
   @include glass-safe;
-
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -38,6 +37,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  position: relative;
 
   // Filo de luz derecho extra
   &::after {
@@ -55,8 +55,6 @@
     );
     pointer-events: none;
   }
-
-  position: relative;
 }
 
 .sidebar.collapsed {

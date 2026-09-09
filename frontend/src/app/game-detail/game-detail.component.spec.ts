@@ -102,10 +102,10 @@ describe('GameDetailComponent', () => {
     component.rfPrediction = basePrediction({ model_version: 'rf' });
     component.xgbPrediction = basePrediction({ model_version: 'xgb' });
     component.selectedModel = 'xgb';
-    expect(component.activePrediction?.model_version).toBe('xgb');
+    expect(component.activePrediction()?.model_version).toBe('xgb');
     component.selectModel('rf');
     expect(component.selectedModel).toBe('rf');
-    expect(component.activePrediction?.model_version).toBe('rf');
+    expect(component.activePrediction()?.model_version).toBe('rf');
   });
 
   it('updates every displayed prediction value when the model changes', () => {
@@ -116,12 +116,20 @@ describe('GameDetailComponent', () => {
       home_win_probability: 0.61,
       total_runs_estimate: 7.9,
       over_under_line: 7.5,
+      asian_handicap: {
+        home: { team_abbr: 'NYY', line: -1.5, cover_probability: 0.61 },
+        away: { team_abbr: 'BOS', line: 1.5, cover_probability: 0.39 },
+      },
     });
     component.xgbPrediction = basePrediction({
       model_version: 'xgb-model',
       home_win_probability: 0.72,
       total_runs_estimate: 8.6,
       over_under_line: 8.5,
+      asian_handicap: {
+        home: { team_abbr: 'NYY', line: -0.5, cover_probability: 0.72 },
+        away: { team_abbr: 'BOS', line: 0.5, cover_probability: 0.28 },
+      },
     });
     component.selectedModel = 'xgb';
     fixture.detectChanges();
@@ -131,6 +139,8 @@ describe('GameDetailComponent', () => {
     );
     expect(fixture.nativeElement.querySelector('.runs-ou-detail').textContent).toContain('~8,6');
     expect(fixture.nativeElement.querySelector('.runs-ou-detail').textContent).toContain('8,5');
+    expect(fixture.nativeElement.querySelector('.ah-block').textContent).toContain('NYY -0.5');
+    expect(fixture.nativeElement.querySelector('.ah-block').textContent).toContain('BOS +0.5');
     expect(fixture.nativeElement.querySelector('app-probability-bar .val').textContent).toContain(
       '72',
     );
@@ -143,6 +153,8 @@ describe('GameDetailComponent', () => {
     );
     expect(fixture.nativeElement.querySelector('.runs-ou-detail').textContent).toContain('~7,9');
     expect(fixture.nativeElement.querySelector('.runs-ou-detail').textContent).toContain('7,5');
+    expect(fixture.nativeElement.querySelector('.ah-block').textContent).toContain('NYY -1.5');
+    expect(fixture.nativeElement.querySelector('.ah-block').textContent).toContain('BOS +1.5');
     expect(fixture.nativeElement.querySelector('app-probability-bar .val').textContent).toContain(
       '61',
     );
@@ -151,9 +163,9 @@ describe('GameDetailComponent', () => {
   it('insufficientData reflects defaults_injected on the active prediction', () => {
     component.selectedModel = 'xgb';
     component.xgbPrediction = basePrediction({ defaults_injected: true });
-    expect(component.insufficientData).toBe(true);
+    expect(component.insufficientData()).toBe(true);
     component.xgbPrediction = basePrediction({ defaults_injected: false });
-    expect(component.insufficientData).toBe(false);
+    expect(component.insufficientData()).toBe(false);
   });
 
   it('hasScore checks numeric scores', () => {
@@ -217,8 +229,8 @@ describe('GameDetailComponent', () => {
         away: { team_abbr: 'BOS', line: 1.5, cover_probability: 0.5 },
       },
     });
-    expect(component.ahHomeLabel()).toBe('NYY -1.5 — cubrir');
-    expect(component.ahAwayLabel()).toBe('BOS +1.5 — cubrir');
+    expect(component.ahHomeLabel()).toBe('NYY -1.5');
+    expect(component.ahAwayLabel()).toBe('BOS +1.5');
   });
 
   it('loadHeadToHead filters to the two teams', () => {

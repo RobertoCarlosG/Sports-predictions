@@ -96,76 +96,87 @@
               (change)="selectModel($event.value)"
               aria-label="Seleccionar modelo"
             >
-              <mat-button-toggle value="rf">Random Forest</mat-button-toggle>
-              <mat-button-toggle value="xgb" [disabled]="xgbUnavailable">
+              <mat-button-toggle value="rf" (click)="selectModel('rf')">Random Forest</mat-button-toggle>
+              <mat-button-toggle value="xgb" [disabled]="xgbUnavailable" (click)="selectModel('xgb')">
                 XGBoost
                 @if (xgbLoading) {
                   <mat-spinner diameter="14" class="toggle-spinner" />
                 }
               </mat-button-toggle>
             </mat-button-toggle-group>
-            @if (activePrediction?.model_version) {
-              <span class="model-version-chip">{{ activePrediction!.model_version }}</span>
-            }
             @if (xgbUnavailable) {
               <span class="model-unavailable-hint">XGBoost no disponible (modelo no entrenado)</span>
             }
+            @for (view of modelViews(); track view.key) {
+              @if (view.pred; as pred) {
+                <span class="model-version-chip" translate="no">{{ pred.model_version }}</span>
+              }
+            }
           </div>
 
-          @if (predLoading || (selectedModel === 'xgb' && xgbLoading)) {
-            <div class="inline-loading">
-              <mat-spinner diameter="28" />
-              <span>Preparando estimación…</span>
-            </div>
-          } @else {
-            <div class="prob-stack">
-              <div class="pred-bar-wrap">
-                <app-probability-bar
-                  [label]="favoriteVictoryLabel()"
-                  [probability]="favoriteBarProbability()"
-                />
-                @if (insufficientData) {
-                  <mat-icon
-                    class="data-hint-icon"
-                    matTooltip="El modelo usó valores por defecto por falta de histórico previo. Corre un rebuild de snapshots para mejorar la predicción."
-                    matTooltipPosition="above"
-                    aria-label="Datos insuficientes"
-                  >info</mat-icon>
-                }
+          @for (view of modelViews(); track view.key) {
+            @if ((view.model === 'rf' && predLoading) || (view.model === 'xgb' && xgbLoading)) {
+              <div class="inline-loading">
+                <mat-spinner diameter="28" />
+                <span>Preparando estimación…</span>
               </div>
-            </div>
-            @if (hasRunsProjection()) {
-              <div class="runs-ou-detail" role="region" aria-label="Total de carreras y línea O/U">
-                <div class="runs-ou-detail-row">
-                  <span class="runs-ou-detail-label">Carreras totales (modelo)</span>
-                  <span class="runs-ou-detail-value">~{{ runsEstimateFormatted() }}</span>
-                </div>
-                <div class="runs-ou-detail-row">
-                  <span class="runs-ou-detail-label">Línea O/U</span>
-                  <span class="runs-ou-detail-value">{{ ouLineFormatted() }}</span>
-                </div>
-                <p class="runs-ou-lean" [ngClass]="runsLeanClass()">
-                  Tendencia respecto a la línea: <strong>{{ runsLeanLabel() }}</strong>
-                </p>
-                <p class="runs-ou-hint">La línea se redondea a medios para lectura; el modelo entrega un valor continuo.</p>
-              </div>
-            }
-            @if (activePrediction?.asian_handicap) {
-              <div class="ah-block" role="region" aria-label="Handicap estimado">
-                <h3 class="ah-title">Handicap (estimación)</h3>
-                <div class="ah-row">
+            } @else {
+              @if (view.pred; as pred) {
+              <div class="prob-stack">
+                <div class="pred-bar-wrap">
                   <app-probability-bar
-                    [label]="ahHomeLabel()"
-                    [probability]="activePrediction!.asian_handicap!.home.cover_probability"
+                    [label]="favoriteLabel(pred)"
+                    [probability]="favoriteProb(pred)"
                   />
-                </div>
-                <div class="ah-row">
-                  <app-probability-bar
-                    [label]="ahAwayLabel()"
-                    [probability]="activePrediction!.asian_handicap!.away.cover_probability"
-                  />
+                  @if (pred.defaults_injected) {
+                    <mat-icon
+                      class="data-hint-icon"
+                      matTooltip="El modelo usó valores por defecto por falta de histórico previo. Corre un rebuild de snapshots para mejorar la predicción."
+                      matTooltipPosition="above"
+                      aria-label="Datos insuficientes"
+                    >info</mat-icon>
+                  }
                 </div>
               </div>
+              @if (predHasRuns(pred)) {
+                <div class="runs-ou-detail" role="region" aria-label="Total de carreras y línea O/U">
+                  <div class="runs-ou-detail-row">
+                    <span class="runs-ou-detail-label">Carreras totales (modelo)</span>
+                    <span class="runs-ou-detail-value" translate="no">~{{ formatRuns(pred.total_runs_estimate) }}</span>
+                  </div>
+                  <div class="runs-ou-detail-row">
+                    <span class="runs-ou-detail-label">Línea O/U</span>
+                    <span class="runs-ou-detail-value" translate="no">{{ formatRuns(pred.over_under_line) }}</span>
+                  </div>
+                  <p class="runs-ou-lean" [ngClass]="predLeanClass(pred)">
+                    Tendencia Over/Under: <strong>{{ predLeanLabel(pred) }}</strong>
+                  </p>
+                  <p class="runs-ou-hint">Sobre = más carreras que la línea; Bajo = menos. La línea se redondea a medios para lectura.</p>
+                </div>
+              }
+              @if (pred.asian_handicap; as ah) {
+                <div class="ah-block" role="region" aria-label="Hándicap estimado">
+                  <h3 class="ah-title">Hándicap (spread)</h3>
+                  <div class="ah-row">
+                    <app-probability-bar
+                      [label]="ahLabel(ah.home)"
+                      [probability]="ah.home.cover_probability"
+                    />
+                  </div>
+                  <div class="ah-row">
+                    <app-probability-bar
+                      [label]="ahLabel(ah.away)"
+                      [probability]="ah.away.cover_probability"
+                    />
+                  </div>
+                  <p class="runs-ou-hint">
+                    Probabilidad de cubrir el hándicap (el equipo no pierde por más de esa línea). No es el Over/Under de carreras.
+                  </p>
+                </div>
+              }
+              } @else {
+                <p class="muted">No hay estimación para este modelo todavía.</p>
+              }
             }
           }
         </mat-card-content>
