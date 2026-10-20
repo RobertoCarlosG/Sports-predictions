@@ -17,8 +17,13 @@ from app.db.session import async_session_factory
 from app.services.feature_snapshots import rebuild_game_feature_snapshots
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_sync import sync_games_for_date
+from app.services.weather_open_meteo import backfill_weather_for_range
 
 log = logging.getLogger(__name__)
+
+# Ventana de clima del ETL: hoy/mañana con pronóstico y la última semana para sustituir el
+# pronóstico guardado por el dato observado (histórico) en partidos ya jugados.
+WEATHER_LOOKBACK_DAYS = 7
 
 
 @dataclass(frozen=True)
@@ -55,6 +60,20 @@ async def run_mlb_daily_snapshot(
             day = today + dt.timedelta(days=offset)
             await sync_games_for_date(session, mlb, day.isoformat(), fetch_details=True)
         await session.commit()
+
+    async with async_session_factory() as session:
+        try:
+            await backfill_weather_for_range(
+                session,
+                start=today - dt.timedelta(days=WEATHER_LOOKBACK_DAYS),
+                end=tomorrow,
+                client=http_client,
+            )
+            await session.commit()
+        except Exception:
+            # Sin clima el ETL sigue: las features usan su valor por defecto.
+            await session.rollback()
+            log.exception("MLB daily snapshot: clima falló")
 
     async with async_session_factory() as session:
         mlb = MlbApiClient(settings.mlb_api_base_url, http_client)

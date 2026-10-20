@@ -1,22 +1,248 @@
 {
-  "default": {"lat": 39.8283, "lon": -98.5795, "name": "US center (fallback)"},
+  "default": {
+    "lat": 39.8283,
+    "lon": -98.5795,
+    "name": "US center (fallback)"
+  },
   "venues": {
-    "3289": {"lat": 40.8296, "lon": -73.9265, "name": "Yankee Stadium"},
-    "4": {"lat": 42.3467, "lon": -71.0972, "name": "Fenway Park"},
-    "17": {"lat": 41.9484, "lon": -87.6553, "name": "Wrigley Field"},
-    "1": {"lat": 33.8003, "lon": -117.8827, "name": "Angel Stadium"},
-    "680": {"lat": 25.7781, "lon": -80.2197, "name": "loanDepot park"},
-    "2394": {"lat": 39.0979, "lon": -84.5064, "name": "Great American Ball Park"},
-    "2392": {"lat": 33.4453, "lon": -112.0667, "name": "Chase Field"},
-    "2680": {"lat": 40.4469, "lon": -80.0058, "name": "PNC Park"},
-    "4169": {"lat": 27.7682, "lon": -82.6534, "name": "Tropicana Field"},
-    "4705": {"lat": 43.6414, "lon": -79.3894, "name": "Rogers Centre"},
-    "5289": {"lat": 32.7512, "lon": -97.0828, "name": "Globe Life Field"},
-    "2": {"lat": 33.8904, "lon": -84.4679, "name": "Truist Park"},
-    "3": {"lat": 39.2839, "lon": -76.6217, "name": "Oriole Park"},
-    "10": {"lat": 29.7573, "lon": -95.3554, "name": "Minute Maid Park"},
-    "3309": {"lat": 47.5914, "lon": -122.3325, "name": "T-Mobile Park"},
-    "15": {"lat": 37.7516, "lon": -122.2005, "name": "Oakland Coliseum"},
-    "2391": {"lat": 32.7073, "lon": -117.1566, "name": "Petco Park"}
+    "1": {
+      "lat": 33.80019044,
+      "lon": -117.8823996,
+      "name": "Angel Stadium",
+      "elevation_m": 46.0,
+      "roof_type": "Open"
+    },
+    "2": {
+      "lat": 39.283787,
+      "lon": -76.621689,
+      "name": "Oriole Park at Camden Yards",
+      "elevation_m": 10.1,
+      "roof_type": "Open"
+    },
+    "3": {
+      "lat": 42.346456,
+      "lon": -71.097441,
+      "name": "Fenway Park",
+      "elevation_m": 6.4,
+      "roof_type": "Open"
+    },
+    "4": {
+      "lat": 41.83,
+      "lon": -87.634167,
+      "name": "Rate Field",
+      "elevation_m": 181.4,
+      "roof_type": "Open"
+    },
+    "5": {
+      "lat": 41.495861,
+      "lon": -81.685255,
+      "name": "Progressive Field",
+      "elevation_m": 199.0,
+      "roof_type": "Open"
+    },
+    "7": {
+      "lat": 39.051567,
+      "lon": -94.480483,
+      "name": "Kauffman Stadium",
+      "elevation_m": 260.9,
+      "roof_type": "Open"
+    },
+    "12": {
+      "lat": 27.767778,
+      "lon": -82.6525,
+      "name": "Tropicana Field",
+      "elevation_m": 4.6,
+      "roof_type": "Dome"
+    },
+    "14": {
+      "lat": 43.64155,
+      "lon": -79.38915,
+      "name": "Rogers Centre",
+      "elevation_m": 82.3,
+      "roof_type": "Retractable"
+    },
+    "15": {
+      "lat": 33.445302,
+      "lon": -112.066687,
+      "name": "Chase Field",
+      "elevation_m": 331.0,
+      "roof_type": "Retractable"
+    },
+    "17": {
+      "lat": 41.948171,
+      "lon": -87.655503,
+      "name": "Wrigley Field",
+      "elevation_m": 181.4,
+      "roof_type": "Open"
+    },
+    "19": {
+      "lat": 39.756042,
+      "lon": -104.994136,
+      "name": "Coors Field",
+      "elevation_m": 1581.9,
+      "roof_type": "Open"
+    },
+    "22": {
+      "lat": 34.07368,
+      "lon": -118.24053,
+      "name": "UNIQLO Field at Dodger Stadium",
+      "elevation_m": 157.0,
+      "roof_type": "Open"
+    },
+    "31": {
+      "lat": 40.446904,
+      "lon": -80.005753,
+      "name": "PNC Park",
+      "elevation_m": 237.7,
+      "roof_type": "Open"
+    },
+    "32": {
+      "lat": 43.02838,
+      "lon": -87.97099,
+      "name": "American Family Field",
+      "elevation_m": 182.0,
+      "roof_type": "Retractable"
+    },
+    "680": {
+      "lat": 47.591333,
+      "lon": -122.33251,
+      "name": "T-Mobile Park",
+      "elevation_m": 3.0,
+      "roof_type": "Retractable"
+    },
+    "2392": {
+      "lat": 29.756967,
+      "lon": -95.355509,
+      "name": "Daikin Park",
+      "elevation_m": 13.7,
+      "roof_type": "Retractable"
+    },
+    "2394": {
+      "lat": 42.3391151,
+      "lon": -83.048695,
+      "name": "Comerica Park",
+      "elevation_m": 182.9,
+      "roof_type": "Open"
+    },
+    "2395": {
+      "lat": 37.778383,
+      "lon": -122.389448,
+      "name": "Oracle Park",
+      "elevation_m": 0.0,
+      "roof_type": "Open"
+    },
+    "2529": {
+      "lat": 38.57994,
+      "lon": -121.51246,
+      "name": "Sutter Health Park",
+      "elevation_m": 7.3,
+      "roof_type": "Open"
+    },
+    "2602": {
+      "lat": 39.097389,
+      "lon": -84.506611,
+      "name": "Great American Ball Park",
+      "elevation_m": 163.1,
+      "roof_type": "Open"
+    },
+    "2680": {
+      "lat": 32.707861,
+      "lon": -117.157278,
+      "name": "Petco Park",
+      "elevation_m": 7.0,
+      "roof_type": "Open"
+    },
+    "2681": {
+      "lat": 39.90539086,
+      "lon": -75.16716957,
+      "name": "Citizens Bank Park",
+      "elevation_m": 6.1,
+      "roof_type": "Open"
+    },
+    "2735": {
+      "lat": 41.2419845,
+      "lon": -77.0475104,
+      "name": "Journey Bank Ballpark",
+      "elevation_m": 158.0,
+      "roof_type": "Open"
+    },
+    "2889": {
+      "lat": 38.62256667,
+      "lon": -90.19286667,
+      "name": "Busch Stadium",
+      "elevation_m": 140.2,
+      "roof_type": "Open"
+    },
+    "3289": {
+      "lat": 40.75753012,
+      "lon": -73.84559155,
+      "name": "Citi Field",
+      "elevation_m": 3.0,
+      "roof_type": "Open"
+    },
+    "3309": {
+      "lat": 38.872861,
+      "lon": -77.007501,
+      "name": "Nationals Park",
+      "elevation_m": 10.7,
+      "roof_type": "Open"
+    },
+    "3312": {
+      "lat": 44.981829,
+      "lon": -93.277891,
+      "name": "Target Field",
+      "elevation_m": 252.4,
+      "roof_type": "Open"
+    },
+    "3313": {
+      "lat": 40.82919482,
+      "lon": -73.9264977,
+      "name": "Yankee Stadium",
+      "elevation_m": 16.8,
+      "roof_type": "Open"
+    },
+    "4169": {
+      "lat": 25.77796236,
+      "lon": -80.21951795,
+      "name": "loanDepot park",
+      "elevation_m": 3.0,
+      "roof_type": "Retractable"
+    },
+    "4705": {
+      "lat": 33.890672,
+      "lon": -84.467641,
+      "name": "Truist Park",
+      "elevation_m": 305.1,
+      "roof_type": "Open"
+    },
+    "5325": {
+      "lat": 32.747299,
+      "lon": -97.081818,
+      "name": "Globe Life Field",
+      "elevation_m": 166.1,
+      "roof_type": "Retractable"
+    },
+    "5340": {
+      "lat": 19.42847,
+      "lon": -99.12766,
+      "name": "Estadio Alfredo Harp Helu",
+      "elevation_m": 2240.0,
+      "roof_type": "Open",
+      "geocoded_city": "Mexico City"
+    },
+    "5355": {
+      "lat": 36.152607,
+      "lon": -115.329888,
+      "name": "Las Vegas Ballpark",
+      "elevation_m": 920.0,
+      "roof_type": "Open"
+    },
+    "5445": {
+      "lat": 42.498241,
+      "lon": -91.056486,
+      "name": "Field of Dreams",
+      "elevation_m": 303.0,
+      "roof_type": "Open"
+    }
   }
 }

@@ -52,9 +52,11 @@ async def test_run_mlb_daily_snapshot_invokes_sync_twice_and_rebuild(
         sync_dates.append(date_str)
 
     rebuild = AsyncMock(return_value=19)
+    weather = AsyncMock()
 
     monkeypatch.setattr(snap, "sync_games_for_date", fake_sync)
     monkeypatch.setattr(snap, "rebuild_game_feature_snapshots", rebuild)
+    monkeypatch.setattr(snap, "backfill_weather_for_range", weather)
 
     fake_now = dt.datetime(2026, 8, 15, 12, 0, 0, tzinfo=dt.UTC)
     monkeypatch.setattr(snap, "dt", _shim_dt(fake_now))
@@ -70,6 +72,25 @@ async def test_run_mlb_daily_snapshot_invokes_sync_twice_and_rebuild(
     assert rebuild.await_count == 1
     # Por defecto el ETL debe pedir el modo streaming (low_memory=True) para no agotar RAM.
     assert rebuild.await_args.kwargs["low_memory"] is True
+    # Clima: pronóstico de hoy/mañana + última semana para pasar a dato observado.
+    assert weather.await_args.kwargs["start"] == dt.date(2026, 8, 8)
+    assert weather.await_args.kwargs["end"] == dt.date(2026, 8, 16)
+
+
+@pytest.mark.asyncio
+async def test_run_mlb_daily_snapshot_survives_weather_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    sqlite_session_factory,
+) -> None:
+    monkeypatch.setattr(snap, "async_session_factory", sqlite_session_factory)
+    monkeypatch.setattr(snap, "sync_games_for_date", AsyncMock())
+    monkeypatch.setattr(snap, "rebuild_game_feature_snapshots", AsyncMock(return_value=3))
+    monkeypatch.setattr(snap, "backfill_weather_for_range", AsyncMock(side_effect=RuntimeError("open-meteo caído")))
+    monkeypatch.setattr(snap, "dt", _shim_dt(dt.datetime(2026, 8, 15, 12, 0, 0, tzinfo=dt.UTC)))
+
+    result = await snap.run_mlb_daily_snapshot(MagicMock())
+
+    assert result.snapshot_rows == 3  # sin clima, el ETL termina igual
 
 
 @pytest.mark.asyncio

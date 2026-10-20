@@ -27,6 +27,13 @@ Desde este directorio (`backend/`), con `DATABASE_URL` cargada:
 
    Usa `--no-fetch-details` para ir más rápido (menos boxscore). Ajusta fechas al inicio de temporada deseado.
 
+   Al terminar descarga también el **clima a la hora de inicio** de cada partido (Open-Meteo: histórico para
+   fechas pasadas, pronóstico hasta hoy+15; una petición por estadio). `--no-weather` lo omite. Para datos ya
+   importados: `python -m app.cli.backfill_weather --season 2025` (o `--start/--end`, `--only-missing`). El ETL
+   diario lo refresca solo (hoy, mañana y la última semana). Las coordenadas, elevación y techo salen de
+   `src/app/data/mlb_stadiums.json`; regenéralo con `python -m app.cli.refresh_stadiums` si aparece un estadio
+   nuevo (los que no estén en el JSON se quedan sin clima en vez de usar otra ciudad).
+
 2. **Reconstruir `game_feature_snapshots`** (rachas + etiquetas en partidos finales):
 
    ```bash

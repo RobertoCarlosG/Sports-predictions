@@ -24,6 +24,7 @@ from app.db.session import async_session_factory
 from app.services.feature_snapshots import rebuild_game_feature_snapshots
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_sync import sync_games_for_date
+from app.services.weather_open_meteo import backfill_weather_for_range
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +41,10 @@ async def _run() -> None:
                 await sync_games_for_date(session, mlb, day.isoformat(), fetch_details=True)
             await session.commit()
         log.info("games synced: %s + %s", today, tomorrow)
+
+        async with async_session_factory() as session:
+            await backfill_weather_for_range(session, start=today, end=tomorrow, client=client)
+            await session.commit()
 
         async with async_session_factory() as session:
             mlb2 = MlbApiClient(settings.mlb_api_base_url, client)
