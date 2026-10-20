@@ -161,7 +161,12 @@
         </ng-template>
         <ng-template matTabContent>
           <div class="tab-panel tab-panel--scroll">
-            <app-backtest-dashboard />
+            <!-- Chunk aparte (chart.js + tabla): no se descarga hasta mostrar la pestaña. -->
+            @defer (on immediate) {
+              <app-backtest-dashboard />
+            } @placeholder {
+              <mat-progress-bar mode="indeterminate" />
+            }
           </div>
         </ng-template>
       </mat-tab>
