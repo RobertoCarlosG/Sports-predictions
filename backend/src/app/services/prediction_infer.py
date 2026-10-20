@@ -3,10 +3,10 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload
 
 from app.ml.predictor import MlbPredictionService, PredictionResult, compute_asian_handicap
-from app.models.mlb import Game, GameFeatureSnapshot
+from app.models.mlb import Game, GameFeatureSnapshot, game_payload_deferred
 from app.schemas.games import AsianHandicapBlock, AsianHandicapSideOut, PredictionResponse
 from app.services.prediction_cache import ml_pick_from_home_win_probability
 
@@ -41,16 +41,26 @@ def prediction_response_from_result(
     )
 
 
-async def attach_asian_handicap_if_missing(session: AsyncSession, out: PredictionResponse) -> PredictionResponse:
-    """Añade handicap asiático cuando la respuesta viene de caché sin equipos."""
+async def attach_asian_handicap_if_missing(
+    session: AsyncSession,
+    out: PredictionResponse,
+    *,
+    game: Game | None = None,
+) -> PredictionResponse:
+    """Añade handicap asiático cuando la respuesta viene de caché sin equipos.
+
+    Pasa ``game`` (con ``home_team``/``away_team`` ya cargados) para no volver a consultarlo:
+    en el listado esto evitaba 3 queries por partido.
+    """
     if out.asian_handicap is not None:
         return out
-    result = await session.execute(
-        select(Game)
-        .where(Game.game_pk == out.game_pk)
-        .options(selectinload(Game.home_team), selectinload(Game.away_team)),
-    )
-    game = result.scalar_one_or_none()
+    if game is None:
+        result = await session.execute(
+            select(Game)
+            .where(Game.game_pk == out.game_pk)
+            .options(joinedload(Game.home_team), joinedload(Game.away_team), *game_payload_deferred()),
+        )
+        game = result.scalar_one_or_none()
     if game is None or game.home_team is None or game.away_team is None:
         return out
     ah_raw = compute_asian_handicap(
@@ -74,7 +84,12 @@ async def compute_prediction_response(
     result = await session.execute(
         select(Game)
         .where(Game.game_pk == game_pk)
-        .options(selectinload(Game.weather), selectinload(Game.home_team), selectinload(Game.away_team)),
+        .options(
+            joinedload(Game.weather),
+            joinedload(Game.home_team),
+            joinedload(Game.away_team),
+            *game_payload_deferred(),
+        ),
     )
     game = result.scalar_one_or_none()
     if game is None:

@@ -8,6 +8,7 @@ import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from starlette.responses import Response
 
@@ -182,6 +183,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # JSON del detalle (boxscore ~130 kB), backtest (~400 kB) e historial comprimen 5–10×.
+    application.add_middleware(GZipMiddleware, minimum_size=1024)
     application.include_router(health.router, tags=["health"])
     application.include_router(features.router, prefix="/api/v1", tags=["features"])
     application.include_router(games.router, prefix="/api/v1", tags=["games"])

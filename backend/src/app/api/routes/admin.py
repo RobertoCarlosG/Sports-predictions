@@ -40,6 +40,7 @@ from app.models.mlb import (
     Game,
     GamePredictionCache,
     Team,
+    game_payload_deferred,
 )
 from app.models.mlb import (
     ModelVersion as ModelVersionModel,
@@ -799,23 +800,18 @@ async def get_prediction_metrics(
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> PredictionMetricsResponse:
     """Obtener métricas agregadas del sistema de predicciones."""
-    total_predictions_result = await session.scalar(select(func.count()).select_from(GamePredictionCache))
-    total_predictions = total_predictions_result or 0
-
-    total_evaluated_result = await session.scalar(
-        select(func.count()).select_from(GamePredictionCache).where(GamePredictionCache.evaluated_at.is_not(None))
-    )
-    total_evaluated = total_evaluated_result or 0
-
-    total_correct_result = await session.scalar(
-        select(func.count()).select_from(GamePredictionCache).where(GamePredictionCache.is_correct.is_(True))
-    )
-    total_correct = total_correct_result or 0
-
-    total_incorrect_result = await session.scalar(
-        select(func.count()).select_from(GamePredictionCache).where(GamePredictionCache.is_correct.is_(False))
-    )
-    total_incorrect = total_incorrect_result or 0
+    # Un solo recorrido de la tabla (COUNT … FILTER) en lugar de 4 consultas.
+    counts = (
+        await session.execute(
+            select(
+                func.count(),
+                func.count().filter(GamePredictionCache.evaluated_at.is_not(None)),
+                func.count().filter(GamePredictionCache.is_correct.is_(True)),
+                func.count().filter(GamePredictionCache.is_correct.is_(False)),
+            ).select_from(GamePredictionCache)
+        )
+    ).one()
+    total_predictions, total_evaluated, total_correct, total_incorrect = (int(c or 0) for c in counts)
 
     pending_evaluation = total_predictions - total_evaluated
 
@@ -870,6 +866,8 @@ async def get_predictions_backtest(
         .join(Game, GamePredictionCache.game_pk == Game.game_pk)
         .join(HomeTeam, Game.home_team_id == HomeTeam.id)
         .join(AwayTeam, Game.away_team_id == AwayTeam.id)
+        # Solo marcador/fecha: no traer boxscore/lineups (~50 kB por fila).
+        .options(*game_payload_deferred())
         .where(
             GamePredictionCache.evaluated_at.is_not(None),
             Game.game_date >= start,
@@ -933,6 +931,8 @@ async def get_prediction_evaluations(
         .join(Game, GamePredictionCache.game_pk == Game.game_pk)
         .join(HomeTeam, Game.home_team_id == HomeTeam.id)
         .join(AwayTeam, Game.away_team_id == AwayTeam.id)
+        # Solo marcador/fecha: no traer boxscore/lineups (~50 kB por fila).
+        .options(*game_payload_deferred())
         .where(GamePredictionCache.evaluated_at.is_not(None))
         .order_by(GamePredictionCache.evaluated_at.desc())
         .limit(limit)

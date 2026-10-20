@@ -13,7 +13,7 @@ from app.api.routes.games import game_detail_response
 from app.core.config import settings
 from app.data.mlb_league_division import MLB_LEAGUE_STRUCTURE
 from app.db.session import get_db
-from app.models.mlb import Game, Team
+from app.models.mlb import Game, Team, game_payload_deferred
 from app.schemas.games import GameDetailResponse, TeamOut
 from app.schemas.history import (
     HistoryGameOut,
@@ -205,7 +205,9 @@ async def get_mlb_history_one(
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> HistoryGameOut:
     result = await session.execute(
-        select(Game).where(Game.game_pk == game_pk).options(selectinload(Game.home_team), selectinload(Game.away_team))
+        select(Game)
+        .where(Game.game_pk == game_pk)
+        .options(selectinload(Game.home_team), selectinload(Game.away_team), *game_payload_deferred())
     )
     g = result.scalar_one_or_none()
     if g is None:

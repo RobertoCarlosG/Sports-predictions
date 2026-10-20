@@ -24,6 +24,26 @@ router = APIRouter()
 log = logging.getLogger(__name__)
 
 
+async def _persist_if_primary(
+    session: AsyncSession,
+    out: PredictionResponse,
+    model: Literal["rf", "xgb"],
+    trigger_reason: str,
+) -> None:
+    """Guarda en caché solo el modelo primario.
+
+    `prediction_results` tiene una fila por partido: si el detalle (que pide RF y XGB) guardaba
+    RF, pisaba la fila XGB → el siguiente GET /games recalculaba y volvía a escribir, y el
+    acierto/fallo evaluado quedaba asociado a otra probabilidad. RF se calcula al vuelo (~ms).
+    """
+    if model != DEFAULT_ML_MODEL:
+        return
+    try:
+        await upsert_prediction_cache(session, out, trigger_reason)
+    except Exception:
+        log.warning("prediction cache upsert failed game_pk=%s", out.game_pk, exc_info=True)
+
+
 @router.get(
     "/predict/{game_pk}",
     response_model=PredictionResponse,
@@ -55,10 +75,7 @@ async def predict_game(
         log.exception("predict failed game_pk=%s model=%s", game_pk, model)
         raise HTTPException(status_code=500, detail="Error al calcular la estimación.") from None
 
-    try:
-        await upsert_prediction_cache(session, out, f"api_get_{model}")
-    except Exception:
-        log.warning("prediction cache upsert failed game_pk=%s", game_pk, exc_info=True)
+    await _persist_if_primary(session, out, model, f"api_get_{model}")
     return out
 
 
@@ -87,8 +104,5 @@ async def refresh_prediction_game(
         log.exception("predict refresh failed game_pk=%s model=%s", game_pk, model)
         raise HTTPException(status_code=500, detail="Error al calcular la estimación.") from None
 
-    try:
-        await upsert_prediction_cache(session, out, f"api_refresh_{model}")
-    except Exception:
-        log.warning("prediction cache upsert failed game_pk=%s", game_pk, exc_info=True)
+    await _persist_if_primary(session, out, model, f"api_refresh_{model}")
     return out

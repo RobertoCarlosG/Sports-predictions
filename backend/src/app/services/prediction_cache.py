@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import delete, select
+from sqlalchemy import ColumnElement, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.mlb import Game, GamePredictionCache
+from app.models.mlb import Game, GamePredictionCache, game_payload_deferred
 from app.schemas.games import PredictionResponse
 
 
@@ -45,9 +45,17 @@ async def upsert_prediction_cache(
     session: AsyncSession,
     response: PredictionResponse,
     trigger_reason: str | None,
+    *,
+    existing: GamePredictionCache | None = None,
+    prefetched: bool = False,
 ) -> None:
+    """Inserta o actualiza la fila de caché.
+
+    ``prefetched=True`` indica que el llamador ya consultó la fila (``existing``, o ``None`` si
+    no existe) y se omite el ``session.get`` — útil en lotes que precargan con ``IN``.
+    """
     now = dt.datetime.now(dt.UTC)
-    row = await session.get(GamePredictionCache, response.game_pk)
+    row = existing if prefetched else await session.get(GamePredictionCache, response.game_pk)
 
     predicted_winner = ml_pick_from_home_win_probability(response.home_win_probability)
 
@@ -75,6 +83,47 @@ async def upsert_prediction_cache(
         row.predicted_winner = predicted_winner
 
 
+def _actual_winner(home_score: int, away_score: int) -> str:
+    if home_score > away_score:
+        return "home"
+    if away_score > home_score:
+        return "away"
+    return "tie"
+
+
+def _apply_evaluation(pred_row: GamePredictionCache, home_score: int, away_score: int, now: dt.datetime) -> None:
+    # Siempre alinear con home_win_probability (evita cadenas raras, mayúsculas o desincronización).
+    pred_side = ml_pick_from_home_win_probability(float(pred_row.home_win_probability))
+    actual_winner = _actual_winner(home_score, away_score)
+    pred_row.predicted_winner = pred_side
+    pred_row.actual_winner = actual_winner
+    pred_row.is_correct = pred_side == actual_winner
+    pred_row.evaluated_at = now
+
+
+async def _evaluate_joined(session: AsyncSession, *where: ColumnElement[bool]) -> tuple[int, int]:
+    """Evalúa en una sola consulta (JOIN con `games`, sin columnas JSON) las filas que cumplan ``where``.
+
+    Devuelve (evaluados, aciertos). Sustituye al bucle por fila (2–3 queries cada una).
+    """
+    result = await session.execute(
+        select(GamePredictionCache, Game.home_score, Game.away_score, Game.status)
+        .join(Game, Game.game_pk == GamePredictionCache.game_pk)
+        .where(Game.home_score.is_not(None), Game.away_score.is_not(None), *where)
+    )
+    now = dt.datetime.now(dt.UTC)
+    evaluated = 0
+    correct = 0
+    for pred_row, home_score, away_score, status in result.all():
+        if not _is_final_status_for_eval(status):
+            continue
+        _apply_evaluation(pred_row, int(home_score), int(away_score), now)
+        evaluated += 1
+        if pred_row.is_correct:
+            correct += 1
+    return evaluated, correct
+
+
 async def evaluate_predictions_for_final_games(session: AsyncSession, games: list[Game]) -> None:
     """
     Evalúa predicciones contra el marcador para varios partidos en una sola pasada
@@ -97,17 +146,8 @@ async def evaluate_predictions_for_final_games(session: AsyncSession, games: lis
         pred_row = caches.get(g.game_pk)
         if pred_row is None:
             continue
-        if g.home_score > g.away_score:
-            actual_winner = "home"
-        elif g.away_score > g.home_score:
-            actual_winner = "away"
-        else:
-            actual_winner = "tie"
-        pred_side = ml_pick_from_home_win_probability(float(pred_row.home_win_probability))
-        pred_row.predicted_winner = pred_side
-        pred_row.actual_winner = actual_winner
-        pred_row.is_correct = pred_side == actual_winner
-        pred_row.evaluated_at = now
+        assert g.home_score is not None and g.away_score is not None
+        _apply_evaluation(pred_row, g.home_score, g.away_score, now)
 
 
 async def evaluate_prediction(
@@ -118,7 +158,7 @@ async def evaluate_prediction(
     Evalúa una predicción contra el resultado real del juego.
     Retorna True si se evaluó correctamente, False si no hay datos suficientes.
     """
-    result = await session.execute(select(Game).where(Game.game_pk == game_pk))
+    result = await session.execute(select(Game).where(Game.game_pk == game_pk).options(*game_payload_deferred()))
     game = result.scalar_one_or_none()
 
     if game is None:
@@ -159,24 +199,7 @@ async def recompute_all_moneyline_evaluations(session: AsyncSession) -> tuple[in
     Vuelve a evaluar Moneyline para todas las filas con marcador (p. ej. tras corregir la lógica).
     Devuelve (partidos_reevaluados, aciertos).
     """
-    result = await session.execute(
-        select(GamePredictionCache.game_pk)
-        .join(Game, Game.game_pk == GamePredictionCache.game_pk)
-        .where(
-            Game.home_score.is_not(None),
-            Game.away_score.is_not(None),
-        )
-    )
-    pks = list(result.scalars().all())
-    updated = 0
-    correct = 0
-    for pk in pks:
-        if await evaluate_prediction(session, int(pk)):
-            updated += 1
-            refreshed = await session.get(GamePredictionCache, int(pk))
-            if refreshed and refreshed.is_correct:
-                correct += 1
-    return updated, correct
+    return await _evaluate_joined(session)
 
 
 async def evaluate_all_pending_predictions(
@@ -186,20 +209,7 @@ async def evaluate_all_pending_predictions(
     Evalúa todas las predicciones que tienen un juego finalizado pero aún no han sido evaluadas.
     Retorna (total_evaluados, total_correctos).
     """
-    result = await session.execute(select(GamePredictionCache).where(GamePredictionCache.evaluated_at.is_(None)))
-    pending = result.scalars().all()
-
-    evaluated_count = 0
-    correct_count = 0
-
-    for pred in pending:
-        if await evaluate_prediction(session, pred.game_pk):
-            evaluated_count += 1
-            refreshed = await session.get(GamePredictionCache, pred.game_pk)
-            if refreshed and refreshed.is_correct:
-                correct_count += 1
-
-    return evaluated_count, correct_count
+    return await _evaluate_joined(session, GamePredictionCache.evaluated_at.is_(None))
 
 
 async def clear_prediction_cache(session: AsyncSession) -> int:

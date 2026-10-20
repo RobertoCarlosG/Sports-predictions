@@ -354,3 +354,33 @@ async def test_post_refresh_upsert_failure_still_200(
     assert r.status_code == 200
     warnings = [rec for rec in caplog.records if rec.levelno >= logging.WARNING]
     assert any("prediction cache upsert failed" in rec.message for rec in warnings)
+
+
+# ---------------------------------------------------------------------------
+# Caché: solo el modelo primario persiste (una fila por partido en prediction_results)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("method", "url", "expected_calls"),
+    [
+        ("GET", "/api/v1/predict/777?model=xgb", 1),
+        ("GET", "/api/v1/predict/777?model=rf", 0),
+        ("POST", "/api/v1/predict/777/refresh?model=xgb", 1),
+        ("POST", "/api/v1/predict/777/refresh?model=rf", 0),
+    ],
+)
+async def test_only_primary_model_is_persisted(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+    url: str,
+    expected_calls: int,
+) -> None:
+    upsert = AsyncMock(return_value=None)
+    monkeypatch.setattr("app.api.routes.predict.get_cached_prediction", AsyncMock(return_value=None))
+    monkeypatch.setattr("app.api.routes.predict.compute_prediction_response", AsyncMock(return_value=_MOCK_PRED))
+    monkeypatch.setattr("app.api.routes.predict.upsert_prediction_cache", upsert)
+    r = await client.request(method, url)
+    assert r.status_code == 200
+    assert upsert.await_count == expected_calls

@@ -7,14 +7,14 @@ from collections import defaultdict
 from collections.abc import Sequence
 from itertools import groupby
 
-from sqlalchemy import delete, or_, select
+from sqlalchemy import ColumnElement, delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import defer, selectinload
 
 from app.models.mlb import Game, GameFeatureSnapshot
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_sync import starters_from_boxscore
-from app.services.pitching_stats import game_pitching_feature_values
+from app.services.pitching_stats import EraMemo, game_pitching_feature_values, load_era_memo
 
 log = logging.getLogger(__name__)
 
@@ -30,13 +30,35 @@ def game_has_final_scores(game: Game) -> bool:
     return game.home_score is not None and game.away_score is not None and is_final_game_status(game.status)
 
 
-def _game_starter_ids(g: Game) -> tuple[int | None, int | None]:
+def _game_starter_ids(
+    g: Game,
+    box_starters: dict[int, tuple[int | None, int | None]],
+) -> tuple[int | None, int | None]:
+    """Abridores de la fila; si falta alguno, los del boxscore (precalculados en ``box_starters``)."""
     h, a = g.home_starter_id, g.away_starter_id
-    if g.boxscore_json:
-        bh, ba = starters_from_boxscore(g.boxscore_json)
+    if (h is None or a is None) and g.game_pk in box_starters:
+        bh, ba = box_starters[g.game_pk]
         h = h if h is not None else bh
         a = a if a is not None else ba
     return h, a
+
+
+async def _load_box_starters(
+    session: AsyncSession,
+    games_filter: Sequence[ColumnElement[bool]],
+) -> dict[int, tuple[int | None, int | None]]:
+    """Abridores desde ``boxscore_json`` solo para partidos sin ``home/away_starter_id``.
+
+    El rebuild difiere ``boxscore_json`` (~50 kB/partido); aquí se lee únicamente para la
+    minoría de filas que lo necesitan, en una sola consulta.
+    """
+    res = await session.execute(
+        select(Game.game_pk, Game.boxscore_json).where(
+            *games_filter,
+            or_(Game.home_starter_id.is_(None), Game.away_starter_id.is_(None)),
+        )
+    )
+    return {int(pk): starters_from_boxscore(box) for pk, box in res.all() if box}
 
 
 def _rolling_win_rate_and_runs(
@@ -87,6 +109,8 @@ async def _process_day(
     upcoming_snapshot_days: int,
     start_date: dt.date | None,
     end_date: dt.date | None,
+    box_starters: dict[int, tuple[int | None, int | None]],
+    era_memo: EraMemo,
 ) -> int:
     count = 0
     for g in day_games:
@@ -118,7 +142,7 @@ async def _process_day(
             home_win = 1 if g.home_score > g.away_score else 0
             total_runs = float(g.home_score + g.away_score)
 
-        h_sid, a_sid = _game_starter_ids(g)
+        h_sid, a_sid = _game_starter_ids(g, box_starters)
         hse, ase, hbe, abe = await game_pitching_feature_values(
             session,
             mlb,
@@ -128,6 +152,7 @@ async def _process_day(
             home_starter_id=h_sid,
             away_starter_id=a_sid,
             commit_before_mlb=True,
+            era_memo=era_memo,
         )
 
         session.add(
@@ -195,19 +220,24 @@ async def rebuild_game_feature_snapshots(
     """
     use_date_range = start_date is not None and end_date is not None
 
+    games_filter: list[ColumnElement[bool]] = []
+    if use_date_range:
+        # Load all games up to end_date so rolling history is correct.
+        games_filter.append(Game.game_date <= end_date)
+    elif season is not None and season != "all":
+        games_filter.append(Game.season == season)
     stmt = (
         select(Game)
         .options(
             selectinload(Game.weather),
-            defer(Game.lineups_json),  # never used for snapshot computation; skip to save memory
+            # JSON pesados: lineups nunca se usa; boxscore solo para abridores ausentes
+            # (ver _load_box_starters). Cargarlos movía >100 MB por temporada.
+            defer(Game.lineups_json),
+            defer(Game.boxscore_json),
         )
+        .where(*games_filter)
         .order_by(Game.game_date, Game.game_pk)
     )
-    if use_date_range:
-        # Load all games up to end_date so rolling history is correct.
-        stmt = stmt.where(Game.game_date <= end_date)
-    elif season is not None and season != "all":
-        stmt = stmt.where(Game.season == season)
 
     team_history: dict[int, list[tuple[bool, int]]] = defaultdict(list)
 
@@ -246,6 +276,9 @@ async def rebuild_game_feature_snapshots(
         upcoming_snapshot_days=upcoming_snapshot_days,
         start_date=start_date,
         end_date=end_date,
+        box_starters=await _load_box_starters(session, games_filter),
+        # Un SELECT para toda la caché de ERA en lugar de 4 por partido.
+        era_memo=await load_era_memo(session),
     )
 
     count = 0

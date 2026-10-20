@@ -42,7 +42,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db.session import async_session_factory
 from app.ml.features import FEATURE_NAMES, build_feature_values_for_training
-from app.models.mlb import Game, GameFeatureSnapshot
+from app.models.mlb import Game, GameFeatureSnapshot, game_payload_deferred
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +55,8 @@ async def _load_xy(
     stmt = (
         select(GameFeatureSnapshot, Game)
         .join(Game, Game.game_pk == GameFeatureSnapshot.game_pk)
-        .options(selectinload(Game.weather))
+        # boxscore/lineups no son features: diferirlos evita leer ~120 MB por temporada.
+        .options(selectinload(Game.weather), *game_payload_deferred())
         .where(GameFeatureSnapshot.home_win.is_not(None))
         .where(GameFeatureSnapshot.total_runs.is_not(None))
         .order_by(Game.game_date, Game.game_pk)

@@ -9,7 +9,7 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.bets import Bet
-from app.models.mlb import Game
+from app.models.mlb import Game, game_payload_deferred
 from app.services.backtest import actual_winner_from_scores, is_final_game_status
 from app.services.mlb_client import MlbApiClient, scores_from_linescore_payload
 
@@ -35,7 +35,7 @@ async def fetch_scores_for_game(
     """Devuelve (home_score, away_score, source) o (None, None, None) si aún no hay marcador."""
     from sqlalchemy import select
 
-    row = await session.execute(select(Game).where(Game.game_pk == game_pk))
+    row = await session.execute(select(Game).where(Game.game_pk == game_pk).options(*game_payload_deferred()))
     game = row.scalar_one_or_none()
     if game is None:
         return None, None, None

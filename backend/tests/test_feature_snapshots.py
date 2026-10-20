@@ -263,3 +263,77 @@ async def test_rebuild_defers_lineups_json(sqlite_session_factory) -> None:
 
     # Para cada juego, lineups_json debe seguir sin cargar (diferido).
     assert seen_loaded and all(seen_loaded)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("low_memory", [True, False])
+async def test_rebuild_uses_era_memo_and_box_starters(sqlite_session_factory, sqlite_engine, low_memory) -> None:
+    """ERA desde `pitching_era_cache` precargado (sin SELECT por partido) y abridores del boxscore
+    solo cuando faltan los ids — sin materializar `boxscore_json` en los objetos Game."""
+    from sqlalchemy import event
+
+    from app.models.mlb import PitchingEraCache
+
+    async with sqlite_session_factory() as session:
+        session.add_all(
+            [Team(id=1, name="Home FC", abbreviation="HOM"), Team(id=2, name="Away FC", abbreviation="AWY")]
+        )
+        box = {"teams": {"home": {"pitchers": [501]}, "away": {"pitchers": [502]}}}
+        for pk, gdate, starters in [
+            (201, dt.date(2025, 4, 1), (None, None)),  # abridores solo en el boxscore
+            (202, dt.date(2025, 4, 2), (601, 602)),  # abridores en la fila
+        ]:
+            session.add(
+                Game(
+                    game_pk=pk,
+                    season="2025",
+                    game_date=gdate,
+                    status="Final",
+                    home_team_id=1,
+                    away_team_id=2,
+                    home_score=3,
+                    away_score=2,
+                    boxscore_json=box,
+                    home_starter_id=starters[0],
+                    away_starter_id=starters[1],
+                )
+            )
+        now = dt.datetime(2025, 4, 1, tzinfo=dt.UTC)
+        for kind, ref_id, era in [("P", 501, 2.5), ("P", 502, 3.5), ("P", 601, 1.5), ("P", 602, 5.5)]:
+            session.add(PitchingEraCache(kind=kind, ref_id=ref_id, season="2025", era=era, updated_at=now))
+        for team_id, era in [(1, 3.9), (2, 4.1)]:
+            session.add(PitchingEraCache(kind="T", ref_id=team_id, season="2025", era=era, updated_at=now))
+        await session.commit()
+
+    era_selects: list[str] = []
+
+    def _count(conn, cursor, statement, *args):  # type: ignore[no-untyped-def]
+        if statement.lstrip().upper().startswith("SELECT") and "pitching_era_cache" in statement:
+            era_selects.append(statement)
+
+    import app.services.feature_snapshots as fs
+
+    loaded_box: list[bool] = []
+    real_process = fs._process_day
+
+    async def spy(session_, day_games, team_history, **kwargs):  # type: ignore[no-untyped-def]
+        loaded_box.extend("boxscore_json" not in inspect(g).unloaded for g in day_games)
+        return await real_process(session_, day_games, team_history, **kwargs)
+
+    event.listen(sqlite_engine.sync_engine, "before_cursor_execute", _count)
+    fs._process_day = spy  # type: ignore[assignment]
+    try:
+        async with sqlite_session_factory() as session:
+            n = await rebuild_game_feature_snapshots(session, season="2025", mlb=None, low_memory=low_memory)
+            await session.commit()
+            snaps = {s.game_pk: s for s in (await session.execute(select(GameFeatureSnapshot))).scalars()}
+    finally:
+        fs._process_day = real_process
+        event.remove(sqlite_engine.sync_engine, "before_cursor_execute", _count)
+
+    assert n == 2
+    assert len(era_selects) == 1  # una precarga, no 4 por partido
+    assert loaded_box and not any(loaded_box)
+    assert (snaps[201].home_starter_era, snaps[201].away_starter_era) == (2.5, 3.5)
+    assert (snaps[202].home_starter_era, snaps[202].away_starter_era) == (1.5, 5.5)
+    assert (snaps[202].home_bullpen_era, snaps[202].away_bullpen_era) == (3.9, 4.1)

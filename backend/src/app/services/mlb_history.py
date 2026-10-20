@@ -6,7 +6,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.mlb import Game
+from app.models.mlb import Game, game_payload_deferred
 
 
 def compute_winner_team_id(
@@ -36,7 +36,8 @@ async def query_mlb_history(
     limit: int,
     offset: int,
 ) -> list[Game]:
-    q = select(Game).options(selectinload(Game.home_team), selectinload(Game.away_team))
+    # Sin JSON pesados: el historial solo serializa marcador/equipos (200 filas ≈ 10 MB de boxscore).
+    q = select(Game).options(selectinload(Game.home_team), selectinload(Game.away_team), *game_payload_deferred())
     if season:
         q = q.where(Game.season == season)
     if team_id is not None:
