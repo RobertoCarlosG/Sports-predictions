@@ -67,6 +67,16 @@ class MlbApiClient:
         r.raise_for_status()
         return cast(dict[str, Any], r.json())
 
+    async def venues(self, venue_ids: list[int]) -> list[dict[str, Any]]:
+        """Estadios con ubicación (coordenadas, elevación en pies) y ``fieldInfo.roofType``."""
+        await self._throttle()
+        r = await self._client.get(
+            f"{self._base}/venues",
+            params={"venueIds": ",".join(str(v) for v in venue_ids), "hydrate": "location,fieldInfo"},
+        )
+        r.raise_for_status()
+        return cast(list[dict[str, Any]], r.json().get("venues") or [])
+
     async def linescore(self, game_pk: int) -> dict[str, Any]:
         """Ligero; incluye runs por equipo (útil si el schedule no trae score y no hay boxscore)."""
         await self._throttle()
@@ -195,17 +205,27 @@ def parse_schedule_games(payload: dict[str, Any]) -> list[dict[str, Any]]:
             venue = g.get("venue", {})
             status = g.get("status", {})
             detailed = status.get("detailedState") or status.get("abstractGameState") or "Unknown"
-            game_date = day.get("date") or (g.get("gameDate") or "")[:10]
+            # `officialDate` es el día en que se juega realmente (p. ej. el de reposición de un
+            # aplazado); `dates[].date` es el día del calendario en el que aparece la entrada.
+            game_date = g.get("officialDate") or day.get("date") or (g.get("gameDate") or "")[:10]
             hs = _optional_int_score(home_side.get("score"))
             aws = _optional_int_score(away_side.get("score"))
 
             out.append(
                 {
                     "game_pk": g["gamePk"],
+                    # R = temporada regular; F/D/L/W = postemporada; S/E/A = pretemporada, exhibición, All-Star…
+                    "game_type": g.get("gameType"),
                     "season": str(g.get("season", "")),
                     "game_date": game_date,
                     "game_datetime_utc": g.get("gameDate"),
                     "status": detailed,
+                    # S/P = sin empezar, D = aplazado, C = cancelado, I = en juego, F = final…
+                    "coded_state": status.get("codedGameState"),
+                    "abstract_state": status.get("abstractGameState"),
+                    # Solo en la entrada de la fecha original de un aplazado ya reprogramado.
+                    "reschedule_date": g.get("rescheduleGameDate") or (g.get("rescheduleDate") or "")[:10] or None,
+                    "reschedule_datetime_utc": g.get("rescheduleDate"),
                     "home_team_id": home.get("id"),
                     "home_team_name": home.get("name", ""),
                     "home_team_abbr": team_abbreviation(home),

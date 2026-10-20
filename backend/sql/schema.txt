@@ -28,19 +28,24 @@ TABLA: games
 
   game_pk            INTEGER NOT NULL  PK   id de partido en MLB
   season             VARCHAR(8) NOT NULL    temporada (ej. 2024)
-  game_date          DATE NOT NULL          fecha local del partido
+  game_date          DATE NOT NULL          fecha local del partido (officialDate de MLB: en aplazados, la de reposición)
   game_datetime_utc  TIMESTAMPTZ NULL       inicio en UTC (si viene de la API)
   status             VARCHAR(64) NOT NULL   estado (Scheduled, Final, Game Over, ...)
   home_team_id       INTEGER NOT NULL       FK → teams.id (local)
   away_team_id       INTEGER NOT NULL       FK → teams.id (visitante)
   venue_id           INTEGER NULL
   venue_name         VARCHAR(256) NULL
-  home_score         INTEGER NULL           -- 002_game_scores
+  home_score         INTEGER NULL           -- 002_game_scores; NULL hasta que el partido empieza
   away_score         INTEGER NULL           -- 002_game_scores
   lineups_json       JSONB NULL             feed en vivo / alineaciones (payload)
   boxscore_json      JSONB NULL             boxscore completo (payload)
   home_starter_id    INTEGER NULL           -- 003: probable o boxscore pitchers[0]
   away_starter_id    INTEGER NULL           -- 003
+
+  Índices:
+    - PRIMARY KEY (game_pk)
+    - idx_games_game_date ON (game_date, game_pk)          -- 013
+    - idx_games_season_game_date ON (season, game_date)    -- 013
 
 
 TABLA: game_weather

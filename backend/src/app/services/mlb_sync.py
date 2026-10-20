@@ -44,6 +44,46 @@ def _is_final_schedule_status(status: str) -> bool:
     return any(x in s for x in ("final", "completed", "game over"))
 
 
+# codedGameState de statsapi sin juego disputado: S=Scheduled, P=Pre-Game/Warmup, D=Postponed, C=Cancelled.
+_NOT_STARTED_CODED_STATES = frozenset({"S", "P", "D", "C"})
+_NOT_STARTED_STATUS_WORDS = ("scheduled", "pre-game", "preview", "warmup", "postponed", "cancelled")
+
+
+def schedule_item_has_started(item: dict[str, Any]) -> bool:
+    """True si el partido ya empezó (en juego, suspendido o finalizado).
+
+    Antes de empezar, boxscore y linescore devuelven 0 carreras por lado: guardarlas dejaba
+    partidos programados con marcador «0 – 0».
+    """
+    coded = str(item.get("coded_state") or "").upper()
+    abstract = str(item.get("abstract_state") or "").lower()
+    if coded or abstract:
+        return coded not in _NOT_STARTED_CODED_STATES and abstract != "preview"
+    status = str(item.get("status") or "").lower()
+    return not any(w in status for w in _NOT_STARTED_STATUS_WORDS)
+
+
+# gameType de statsapi que forman la temporada: regular + postemporada (Wild Card, Division, LCS, World Series;
+# P = postemporada genérica). Fuera quedan S (Spring Training), E (Exhibition), A (All-Star), I (Intrasquad)…:
+# traen equipos ajenos a MLB (ligas menores, selecciones AL/NL) y contaminaban rachas, entrenamiento y backtest.
+TRACKED_GAME_TYPES = frozenset({"R", "F", "D", "L", "W", "P"})
+
+
+def is_tracked_game_type(item: dict[str, Any]) -> bool:
+    """True si el partido cuenta para la temporada. Sin ``gameType`` (payload antiguo) se acepta."""
+    game_type = item.get("game_type")
+    return game_type is None or str(game_type).upper() in TRACKED_GAME_TYPES
+
+
+def is_rescheduled_stub(item: dict[str, Any]) -> bool:
+    """Entrada de la fecha original de un aplazado que ya tiene fecha de reposición.
+
+    El schedule lista el mismo ``gamePk`` dos veces (Postponed el día original y la entrada real
+    el día nuevo). Esta entrada no describe el estado actual: no debe pisar estado ni marcador.
+    """
+    return bool(item.get("reschedule_date"))
+
+
 def _json_repr_for_compare(obj: object | None) -> str | None:
     if obj is None:
         return None
@@ -244,6 +284,45 @@ async def upsert_team(
     return row
 
 
+def _parse_utc(value: object) -> dt.datetime | None:
+    if not value:
+        return None
+    try:
+        return dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+async def _upsert_rescheduled_stub(session: AsyncSession, item: dict[str, Any]) -> Game:
+    """Mueve el partido a su fecha de reposición sin tocar estado, marcador ni detalles.
+
+    Esos datos llegan con la entrada real del día nuevo; si esta entrada (Postponed) los pisara,
+    sincronizar la fecha original después de la de reposición devolvía un Final a Postponed.
+    """
+    new_date = dt.date.fromisoformat(str(item["reschedule_date"]))
+    new_dt = _parse_utc(item.get("reschedule_datetime_utc"))
+    await _set_local_statement_timeout_for_mlb_write(session)
+    game = (await session.execute(select(Game).where(Game.game_pk == item["game_pk"]))).scalar_one_or_none()
+    if game is None:
+        game = Game(
+            game_pk=item["game_pk"],
+            season=item.get("season") or str(new_date.year),
+            game_date=new_date,
+            game_datetime_utc=new_dt,
+            status=str(item.get("status") or "Postponed"),
+            home_team_id=int(item["home_team_id"]),
+            away_team_id=int(item["away_team_id"]),
+            venue_id=item.get("venue_id"),
+            venue_name=item.get("venue_name"),
+        )
+        session.add(game)
+    elif game.game_date != new_date:
+        game.game_date = new_date
+        game.game_datetime_utc = new_dt or game.game_datetime_utc
+    await session.flush()
+    return game
+
+
 async def _upsert_game_from_schedule_item(
     session: AsyncSession,
     client: MlbApiClient,
@@ -265,14 +344,12 @@ async def _upsert_game_from_schedule_item(
             await upsert_team(session, tid, name, abbr, vid, vname)
         await session.flush()
 
+    if is_rescheduled_stub(item):
+        return await _upsert_rescheduled_stub(session, item)
+
     gd = dt.date.fromisoformat(str(item["game_date"]))
-    gdt: dt.datetime | None = None
-    if item.get("game_datetime_utc"):
-        try:
-            raw_dt = str(item["game_datetime_utc"]).replace("Z", "+00:00")
-            gdt = dt.datetime.fromisoformat(raw_dt)
-        except ValueError:
-            gdt = None
+    gdt = _parse_utc(item.get("game_datetime_utc"))
+    started = schedule_item_has_started(item)
 
     # 1) Solo HTTP: sin conexión a Postgres en uso (no SELECT antes). Evita "commit+SET LOCAL"
     #    en una sesión con NullPool, que en asyncpg dejaba conexión inválida.
@@ -304,15 +381,15 @@ async def _upsert_game_from_schedule_item(
 
     hs = item.get("home_score")
     aws = item.get("away_score")
-    home_score = int(hs) if hs is not None else None
-    away_score = int(aws) if aws is not None else None
-    if (home_score is None or away_score is None) and boxscore_json:
+    home_score = int(hs) if hs is not None and started else None
+    away_score = int(aws) if aws is not None and started else None
+    if started and (home_score is None or away_score is None) and boxscore_json:
         bh, ba = _scores_from_boxscore(boxscore_json)
         if home_score is None:
             home_score = bh
         if away_score is None:
             away_score = ba
-    if home_score is None or away_score is None:
+    if started and (home_score is None or away_score is None):
         try:
             ls = prefetched_linescore if prefetched_linescore is not None else await client.linescore(item["game_pk"])
             lh, la = scores_from_linescore_payload(ls)
@@ -357,9 +434,17 @@ async def _upsert_game_from_schedule_item(
         session.add(game)
     else:
         game.status = str(item.get("status") or game.status)
+        # Aplazados: la entrada del día de reposición trae la fecha real (officialDate).
+        if game.game_date != gd:
+            game.game_date = gd
+        game.season = item.get("season") or game.season
         game.game_datetime_utc = gdt or game.game_datetime_utc
         game.venue_id = item.get("venue_id")
         game.venue_name = item.get("venue_name")
+        if not started:
+            # Limpia el 0–0 que versiones anteriores guardaban en partidos sin empezar.
+            game.home_score = None
+            game.away_score = None
         if home_score is not None:
             game.home_score = home_score
         if away_score is not None:
@@ -391,7 +476,8 @@ async def sync_games_for_date(
     fetch_details: bool = True,
 ) -> list[Game]:
     raw = await client.schedule(date_str)
-    parsed = parse_schedule_games(raw)
+    # Filtrar antes de tocar `teams`: pretemporada/exhibiciones traen equipos que no son de MLB.
+    parsed = [item for item in parse_schedule_games(raw) if is_tracked_game_type(item)]
     await _set_local_statement_timeout_for_mlb_write(session)
     await _upsert_teams_for_full_schedule(session, parsed)
     await session.flush()
@@ -412,6 +498,8 @@ async def sync_games_for_date(
 
         async def _fetch_all(item: dict[str, Any]) -> tuple[int, Any, Any, Any]:
             pk = item["game_pk"]
+            if is_rescheduled_stub(item):
+                return pk, None, None, None  # los detalles llegan con la entrada del día nuevo
             st = str(item.get("status") or "").lower()
             is_final = _is_final_schedule_status(st)
             row = existing_by_pk.get(pk)
@@ -435,7 +523,8 @@ async def sync_games_for_date(
                     live = await client.live_feed(pk)
 
             hs, aws = item.get("home_score"), item.get("away_score")
-            if hs is None or aws is None:
+            # Sin empezar, el linescore solo diría 0–0: no hace falta pedirlo.
+            if schedule_item_has_started(item) and (hs is None or aws is None):
                 needs_ls = True
                 if box:
                     bh, ba = _scores_from_boxscore(box)
@@ -478,7 +567,9 @@ async def sync_single_game(
     """Upsert un partido por `game_pk` usando el schedule de MLB (sin recorrer todo el día)."""
     raw = await client.schedule_for_game(game_pk)
     parsed = parse_schedule_games(raw)
-    item = next((x for x in parsed if x["game_pk"] == game_pk), None)
+    # Un aplazado aparece dos veces (fecha original + reposición): preferir la entrada real.
+    matches = [x for x in parsed if x["game_pk"] == game_pk and is_tracked_game_type(x)]
+    item = next((x for x in matches if not is_rescheduled_stub(x)), matches[0] if matches else None)
     if item is None:
         return None
     return await _upsert_game_from_schedule_item(session, client, item, fetch_details=fetch_details)
