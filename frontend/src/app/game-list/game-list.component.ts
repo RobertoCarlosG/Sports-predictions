@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -69,6 +69,9 @@ function cacheKeyForDates(dates: string[]): string {
   ],
   templateUrl: './game-list.component.html',
   styleUrl: './game-list.component.scss',
+  // Todo el estado de la vista son signals: OnPush evita re-evaluar `probFor`/`gamesForDate` de
+  // cada tarjeta en cada ciclo global (eventos del sidebar, polling del footer, tooltips…).
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GameListComponent {
   readonly skeletonItems = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -81,7 +84,7 @@ export class GameListComponent {
   readonly seasonBounds = currentSeasonDateBounds();
 
   /** Ruta fija (today|tomorrow|week): no mostrar chips duplicados. */
-  hideDateChips = false;
+  readonly hideDateChips = signal(false);
 
   // Signals para reactividad optimizada (como useMemo + useState)
   games = signal<GameDetail[]>([]);
@@ -200,7 +203,7 @@ export class GameListComponent {
     if (preset == null) {
       return;
     }
-    this.hideDateChips = true;
+    this.hideDateChips.set(true);
     const b = this.seasonBounds;
     const sel = buildDateSelectionForPreset(preset, b.min, b.max);
     // Navegación intencional (Hoy/Mañana/Semana): la URL ya cambió; no bloquear con clave de fechas.

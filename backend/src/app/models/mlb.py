@@ -9,13 +9,15 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, defer, mapped_column, relationship
+from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 from app.db.base import Base
 
@@ -35,6 +37,11 @@ class Team(Base):
 
 class Game(Base):
     __tablename__ = "games"
+    # Ver sql/013_games_indexes.sql.
+    __table_args__ = (
+        Index("idx_games_game_date", "game_date", "game_pk"),
+        Index("idx_games_season_game_date", "season", "game_date"),
+    )
 
     game_pk: Mapped[int] = mapped_column(Integer, primary_key=True)
     season: Mapped[str] = mapped_column(String(8), nullable=False)
@@ -59,6 +66,16 @@ class Game(Base):
     home_team: Mapped[Team] = relationship(foreign_keys=[home_team_id])
     away_team: Mapped[Team] = relationship(foreign_keys=[away_team_id])
     weather: Mapped[GameWeather | None] = relationship(back_populates="game", uselist=False)
+
+
+def game_payload_deferred() -> tuple[_AbstractLoad, ...]:
+    """Opciones para no cargar ``lineups_json``/``boxscore_json`` (~50 kB por partido).
+
+    Úsalo en toda consulta de ``Game`` que no serialice esos JSON: evita arrastrar decenas de
+    MB desde Postgres. Uso: ``.options(*game_payload_deferred())``. Es función (no constante)
+    para no configurar los mappers al importar el módulo.
+    """
+    return (defer(Game.lineups_json), defer(Game.boxscore_json))
 
 
 class GameWeather(Base):

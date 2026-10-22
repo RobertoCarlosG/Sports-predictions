@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import defer, selectinload
+from sqlalchemy.orm import defer, joinedload, selectinload
 
 from app.api.deps_rate_limit import rate_limit_public_read, rate_limit_public_write
 from app.core.config import settings
@@ -91,8 +91,11 @@ async def _compute_or_cache_prediction(
     cache_reason: str,
     *,
     pred_cache_row: GamePredictionCache | None = None,
+    cache_prefetched: bool = False,
     model: MlModelKind = DEFAULT_ML_MODEL,
 ) -> PredictionResponse | None:
+    """``cache_prefetched=True``: el llamador ya cargó ``prediction_results`` con un ``IN``
+    (``pred_cache_row`` es la fila o ``None``), así que no se vuelve a consultar por partido."""
     svc = get_prediction_service_optional(request, model)
     if svc is None:
         return None
@@ -112,10 +115,11 @@ async def _compute_or_cache_prediction(
                 is_correct=pred_cache_row.is_correct,
                 evaluated_at=(pred_cache_row.evaluated_at.isoformat() if pred_cache_row.evaluated_at else None),
             )
-            return await attach_asian_handicap_if_missing(session, base)
-        cached = await get_cached_prediction(session, game.game_pk, model_version)
-        if cached is not None:
-            return await attach_asian_handicap_if_missing(session, cached)
+            return await attach_asian_handicap_if_missing(session, base, game=game)
+        if not cache_prefetched:
+            cached = await get_cached_prediction(session, game.game_pk, model_version)
+            if cached is not None:
+                return await attach_asian_handicap_if_missing(session, cached, game=game)
 
     try:
         pr = svc.predict(game, game.weather, snapshot)
@@ -127,7 +131,13 @@ async def _compute_or_cache_prediction(
             away_abbr=game.away_team.abbreviation,
         )
         try:
-            await upsert_prediction_cache(session, out, cache_reason)
+            await upsert_prediction_cache(
+                session,
+                out,
+                cache_reason,
+                existing=pred_cache_row,
+                prefetched=cache_prefetched,
+            )
         except Exception:
             log.warning("prediction cache upsert failed game_pk=%s", game.game_pk, exc_info=True)
         return out
@@ -229,6 +239,7 @@ async def _list_games_impl(
                 snap_by_pk.get(g.game_pk),
                 "list_games",
                 pred_cache_row=pred_by_pk.get(g.game_pk),
+                cache_prefetched=True,
             )
         out.append(game_detail_response(g, g.weather, pred, include_payload=False))
     if sync and rows and settings.pipeline_auto_cache_predictions:
@@ -333,9 +344,10 @@ async def get_game(
         select(Game)
         .where(Game.game_pk == game_pk)
         .options(
-            selectinload(Game.home_team),
-            selectinload(Game.away_team),
-            selectinload(Game.weather),
+            # Una fila: JOIN (1 query) en lugar de selectinload (1 + 3 queries).
+            joinedload(Game.home_team),
+            joinedload(Game.away_team),
+            joinedload(Game.weather),
         )
     )
     game = result.scalar_one_or_none()
@@ -379,14 +391,7 @@ async def refresh_weather(
     game = result.scalar_one_or_none()
     if game is None:
         raise HTTPException(status_code=404, detail="Game not found")
-    await upsert_weather_for_game(
-        session,
-        game_pk=game_pk,
-        venue_id=game.venue_id,
-        stadiums_path=settings.mlb_stadiums_path,
-        open_meteo_base=settings.open_meteo_base_url,
-        client=request.app.state.http_client,
-    )
+    await upsert_weather_for_game(session, game=game, client=request.app.state.http_client)
     result = await session.execute(
         select(Game)
         .where(Game.game_pk == game_pk)
@@ -395,6 +400,8 @@ async def refresh_weather(
             selectinload(Game.away_team),
             selectinload(Game.weather),
         )
+        # `game` ya está en la sesión con weather=None: sin esto la relación no se recarga.
+        .execution_options(populate_existing=True)
     )
     game = result.scalar_one_or_none()
     assert game is not None

@@ -23,6 +23,7 @@ from app.core.config import settings
 from app.db.session import async_session_factory
 from app.services.mlb_client import MlbApiClient
 from app.services.mlb_sync import sync_games_for_date
+from app.services.weather_open_meteo import backfill_weather_for_range
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ async def _run_backfill(
     fetch_details: bool,
     sleep_s: float,
     on_progress: Callable[[int, int, str], Awaitable[Any]] | None = None,
+    fetch_weather: bool = True,
 ) -> None:
     dates = _daterange(start, end)
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -78,6 +80,15 @@ async def _run_backfill(
                 await on_progress(i + 1, len(dates), d.isoformat())
             if sleep_s > 0 and i + 1 < len(dates):
                 await asyncio.sleep(sleep_s)
+        if fetch_weather:
+            # Al final y para todo el rango: una petición por estadio, no por día.
+            async with async_session_factory() as session:
+                try:
+                    await backfill_weather_for_range(session, start=start, end=end, client=client)
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
+                    log.exception("backfill de clima falló para %s..%s (los partidos sí se guardaron)", start, end)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -90,6 +101,12 @@ def main(argv: list[str] | None = None) -> None:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Fetch boxscore/linescore (default: true)",
+    )
+    p.add_argument(
+        "--weather",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Clima a la hora de inicio vía Open-Meteo al terminar (default: true)",
     )
     p.add_argument(
         "--sleep",
@@ -107,6 +124,7 @@ def main(argv: list[str] | None = None) -> None:
             fetch_details=args.fetch_details,
             sleep_s=args.sleep,
             on_progress=None,
+            fetch_weather=args.weather,
         )
     )
 

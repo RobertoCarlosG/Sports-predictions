@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     api_rate_limit_write_max_requests: int = 30
     api_rate_limit_window_seconds: int = 60
     open_meteo_base_url: str = "https://api.open-meteo.com/v1"
+    # Histórico horario (fechas pasadas); el pronóstico de `open_meteo_base_url` cubre hoy−92 … hoy+15.
+    open_meteo_archive_base_url: str = "https://archive-api.open-meteo.com/v1"
     # Path to bundled stadium coordinates (JSON) relative to cwd or absolute
     mlb_stadiums_path: str = "src/app/data/mlb_stadiums.json"
     # Path to trained model (joblib); empty = package default under app/ml/artifacts/

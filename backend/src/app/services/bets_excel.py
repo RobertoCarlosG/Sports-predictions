@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.bets import Bet, BetPeriod
-from app.models.mlb import Game
+from app.models.mlb import Game, game_payload_deferred
 from app.services.bets_service import _build_period_stats, bet_realized_profit
 
 
@@ -127,7 +127,7 @@ async def load_game_labels(session: AsyncSession, game_pks: list[int]) -> tuple[
     r = await session.execute(
         select(Game)
         .where(Game.game_pk.in_(game_pks))
-        .options(selectinload(Game.home_team), selectinload(Game.away_team)),
+        .options(selectinload(Game.home_team), selectinload(Game.away_team), *game_payload_deferred()),
     )
     games = list(r.scalars().unique().all())
     labels: dict[int, str] = {}

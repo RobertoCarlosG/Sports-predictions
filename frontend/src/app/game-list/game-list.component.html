@@ -21,7 +21,7 @@
         }
         Actualizar
       </button>
-      @if (!hideDateChips) {
+      @if (!hideDateChips()) {
         <app-date-chip-selector
           [minIso]="seasonBounds.min"
           [maxIso]="seasonBounds.max"

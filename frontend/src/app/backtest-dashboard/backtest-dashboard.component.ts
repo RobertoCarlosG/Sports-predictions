@@ -12,8 +12,18 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSliderModule } from '@angular/material/slider';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { BaseChartDirective } from 'ng2-charts';
-import { ChartConfiguration, ChartData } from 'chart.js';
+import { BaseChartDirective, provideCharts } from 'ng2-charts';
+import {
+  CategoryScale,
+  type ChartConfiguration,
+  type ChartData,
+  Legend,
+  LineController,
+  LineElement,
+  LinearScale,
+  PointElement,
+  Tooltip,
+} from 'chart.js';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 
 import {
@@ -21,9 +31,6 @@ import {
   type BacktestGameRow,
   type BacktestResponse,
 } from '../services/admin-api.service';
-
-import * as ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
 
 @Component({
   selector: 'app-backtest-dashboard',
@@ -43,6 +50,13 @@ import { saveAs } from 'file-saver';
     MatTableModule,
     MatTooltipModule,
     BaseChartDirective,
+  ],
+  // Solo lo que usa el gráfico de línea (antes: `withDefaultRegisterables()` global en app.config,
+  // ~190 kB de chart.js en el bundle inicial aunque el gráfico solo existe en Operaciones).
+  providers: [
+    provideCharts({
+      registerables: [LineController, LineElement, PointElement, CategoryScale, LinearScale, Legend, Tooltip],
+    }),
   ],
   templateUrl: './backtest-dashboard.component.html',
   styleUrl: './backtest-dashboard.component.scss',
@@ -247,20 +261,22 @@ export class BacktestDashboardComponent implements OnInit, OnDestroy {
       ou_correct: row.ou_correct,
       success_label: row.success_label,
     }));
-    
-    const workbook = new ExcelJS.Workbook();
+
+    // exceljs pesa ~900 kB: se descarga solo al pulsar «Exportar Excel».
+    const { Workbook } = await import('exceljs');
+    const workbook = new Workbook();
     const worksheet = workbook.addWorksheet('Backtest');
-    
+
     const headers = Object.keys(flat[0]);
     worksheet.addRow(headers);
-    
-    flat.forEach(row => {
+
+    flat.forEach((row) => {
       worksheet.addRow(Object.values(row));
     });
-    
+
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(blob, `backtest-${this.dateFrom}-${this.dateTo}.xlsx`);
+    this.triggerDownload(blob, `backtest-${this.dateFrom}-${this.dateTo}.xlsx`);
   }
 
   private csvEscape(v: unknown): string {
